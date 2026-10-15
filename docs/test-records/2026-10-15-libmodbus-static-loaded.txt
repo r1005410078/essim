@@ -1,0 +1,1 @@
+n/Users/rongts/www/EssLab/target/artifacts/static/ESSim.app/Contents/MacOS/essim-workbench

@@ -1,0 +1,2 @@
+n/Users/rongts/www/EssLab/target/artifacts/dynamic/ESSim.app/Contents/MacOS/essim-workbench
+n/Users/rongts/www/EssLab/target/artifacts/dynamic/ESSim.app/Contents/Frameworks/libmodbus.5.dylib

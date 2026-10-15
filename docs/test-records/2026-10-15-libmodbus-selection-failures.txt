@@ -1,0 +1,53 @@
+PASS missing: expected failure, no fallback
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+error: failed to run custom build command for `libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)`
+
+Caused by:
+  process didn't exit successfully: `/Users/rongts/www/EssLab/target/debug/build/libmodbus-sys-b976a5b5ee572751/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=LIBMODBUS_DIR
+  cargo:rerun-if-env-changed=LIBMODBUS_PREFIX
+  cargo:rerun-if-changed=native/mapping.c
+  cargo:rerun-if-changed=build_support.rs
+
+  --- stderr
+
+  thread 'main' (91274260) panicked at crates/libmodbus/libmodbus-sys/build.rs:21:25:
+  需要 vendored，或 LIBMODBUS_DIR 指向自行编译动态库的绝对前缀
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+PASS conflict: expected failure, no fallback
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+error: failed to run custom build command for `libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)`
+
+Caused by:
+  process didn't exit successfully: `/Users/rongts/www/EssLab/target/debug/build/libmodbus-sys-7c91dba2c07707af/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=LIBMODBUS_DIR
+  cargo:rerun-if-env-changed=LIBMODBUS_PREFIX
+  cargo:rerun-if-changed=native/mapping.c
+  cargo:rerun-if-changed=build_support.rs
+
+  --- stderr
+
+  thread 'main' (91274440) panicked at crates/libmodbus/libmodbus-sys/build.rs:21:25:
+  vendored 与 LIBMODBUS_DIR 冲突，请只选一种来源
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+PASS legacy: expected failure, no fallback
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+error: failed to run custom build command for `libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)`
+
+Caused by:
+  process didn't exit successfully: `/Users/rongts/www/EssLab/target/debug/build/libmodbus-sys-7c91dba2c07707af/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=LIBMODBUS_DIR
+  cargo:rerun-if-env-changed=LIBMODBUS_PREFIX
+  cargo:rerun-if-changed=native/mapping.c
+  cargo:rerun-if-changed=build_support.rs
+
+  --- stderr
+
+  thread 'main' (91274498) panicked at crates/libmodbus/libmodbus-sys/build.rs:21:25:
+  LIBMODBUS_PREFIX 已废弃，请使用 vendored 或 LIBMODBUS_DIR
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

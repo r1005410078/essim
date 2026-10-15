@@ -1,0 +1,132 @@
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+   Compiling essim-workbench v0.1.0 (/Users/rongts/www/EssLab/workbench/src-tauri)
+   Compiling libmodbus-rs v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-rs)
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/www/EssLab/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.37s
+     Running unittests src/lib.rs (target/debug/deps/essim_core-07c68f4089bb5812)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/modbus_rules.rs (target/debug/deps/modbus_rules-f404ab3bae9122bd)
+
+running 3 tests
+test endpoint_rejects_invalid_addresses_and_ports ... ok
+test lifecycle_rejects_duplicate_start_and_stop_is_idempotent ... ok
+test soc_validation_and_initial_value_are_separate ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/essim_infrastructure-97467988d42446ec)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tcp_loop.rs (target/debug/deps/tcp_loop-b5e84b8264bb72cc)
+
+running 5 tests
+test subscriptions_are_bounded_and_disconnected_receivers_reclaimed ... ok
+test nonreading_client_cannot_block_stop ... ok
+test real_read_update_policy_and_lifecycle ... ok
+test bind_failure_recovers_unit_id_and_malformed_length_close ... ok
+test stream_boundaries_bad_headers_extra_client_and_stop ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests src/lib.rs (target/debug/deps/essim_workbench_lib-84172b0a74542b26)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/essim_workbench-85af11a4ee25a0d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_rs-fae402b79a1cb8d0)
+
+running 2 tests
+test tests::failed_initialization_never_closes_a_borrowed_socket ... ok
+test tests::truncated_request_returns_timeout ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/registers.rs (target/debug/deps/registers-4c8c16cfab4312f9)
+
+running 2 tests
+test mapping_is_generic_and_checks_bounds ... ok
+test normal_writes_are_allowed_by_the_generic_library ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_src-ed0575657462e4f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/build_rules.rs (target/debug/deps/build_rules-549101036e1dab8c)
+
+running 2 tests
+test rejects_cross_target_before_building ... ok
+test missing_compiler_reports_tool_instead_of_using_system_library ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_sys-6205fd1cb986c1c4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/selection.rs (target/debug/deps/selection-9ea53d64a39a62b6)
+
+running 2 tests
+test explicit_selection_never_falls_back_to_host ... ok
+test rejects_invalid_provenance_and_corrupted_artifacts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests essim_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests essim_infrastructure
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests essim_workbench_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_rs
+
+running 3 tests
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 105) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 98) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext<S>::reply (line 184) - compile fail ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+   Doc-tests libmodbus_src
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_sys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

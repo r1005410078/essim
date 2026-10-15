@@ -1,0 +1,39 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test endpoint_rejects_invalid_addresses_and_ports ... ok
+test soc_validation_and_initial_value_are_separate ... ok
+test lifecycle_rejects_duplicate_start_and_stop_is_idempotent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test protocols::modbus::native::tests::partial_initialization_keeps_borrowed_socket_alive_and_releases_c_objects ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test subscriptions_are_bounded_and_disconnected_receivers_reclaimed ... ok
+test nonreading_client_cannot_block_stop ... ok
+test real_read_update_policy_and_lifecycle ... ok
+test bind_failure_recovers_unit_id_and_malformed_length_close ... ok
+test stream_boundaries_bad_headers_extra_client_and_stop ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
