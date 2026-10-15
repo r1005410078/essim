@@ -1,0 +1,8 @@
+packages:
+  - workbench
+  - packages/*
+allowBuilds:
+  esbuild: true
+overrides:
+  '@zhiguang/novasheet-core': file:./prototype/vendor/novasheet-core.tgz
+  '@zhiguang/novasheet-canvas2d': file:./prototype/vendor/novasheet-canvas2d.tgz

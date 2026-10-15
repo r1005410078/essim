@@ -1,0 +1,12 @@
+[package]
+name = "libmodbus-rs"
+version.workspace = true
+edition.workspace = true
+publish = false
+[features]
+default = ["vendored"]
+vendored = ["libmodbus-sys/vendored"]
+[dependencies]
+libmodbus-sys.workspace = true
+[dev-dependencies]
+libc = "0.2"

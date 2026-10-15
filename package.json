@@ -1,0 +1,17 @@
+{
+  "name": "essim",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "desktop": "pnpm --filter @essim/workbench tauri dev",
+    "ui:add": "shadcn add --cwd workbench"
+  },
+  "devDependencies": {
+    "shadcn": "^4.21.4",
+    "turbo": "^2.5.0"
+  }
+}

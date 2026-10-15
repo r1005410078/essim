@@ -1,0 +1,6 @@
+{
+  "extends": "@essim/typescript-config/react.json",
+  "include": [
+    "src"
+  ]
+}

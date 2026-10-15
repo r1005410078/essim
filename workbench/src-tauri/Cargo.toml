@@ -1,0 +1,18 @@
+[package]
+name = "essim-workbench"
+version.workspace = true
+edition.workspace = true
+[lib]
+name = "essim_workbench_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+tauri = { version = "2", features = [] }
+serde.workspace = true
+essim-core.workspace = true
+essim-infrastructure.workspace = true
+
+[features]
+default = ["vendored"]
+vendored = ["essim-infrastructure/vendored"]

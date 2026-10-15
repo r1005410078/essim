@@ -1,0 +1,12 @@
+[package]
+name = "essim-infrastructure"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+essim-core.workspace = true
+libmodbus-rs.workspace = true
+[features]
+default = ["vendored"]
+vendored = ["libmodbus-rs/vendored"]
+[dev-dependencies]
+libc = "0.2"

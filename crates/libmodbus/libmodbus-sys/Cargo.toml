@@ -1,0 +1,17 @@
+[package]
+name = "libmodbus-sys"
+version.workspace = true
+edition.workspace = true
+publish = false
+links = "modbus"
+[features]
+default = []
+vendored = ["dep:libmodbus-src"]
+[build-dependencies]
+libmodbus-src = { workspace = true, optional = true }
+cc = "1"
+serde_json = "1"
+sha2 = "0.10"
+[dev-dependencies]
+sha2 = "0.10"
+serde_json = "1"

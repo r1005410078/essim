@@ -1,0 +1,4 @@
+[package]
+name = "essim-core"
+version.workspace = true
+edition.workspace = true

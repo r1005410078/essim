@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/libmodbus/libmodbus-src", "crates/libmodbus/libmodbus-sys", "crates/libmodbus/libmodbus-rs", "crates/core", "crates/infrastructure", "workbench/src-tauri"]
+exclude = ["prototype/src-tauri"]
+resolver = "2"
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+essim-core = { path = "crates/core" }
+essim-infrastructure = { path = "crates/infrastructure", default-features = false }
+libmodbus-src = { path = "crates/libmodbus/libmodbus-src" }
+libmodbus-sys = { path = "crates/libmodbus/libmodbus-sys", default-features = false }
+libmodbus-rs = { path = "crates/libmodbus/libmodbus-rs", default-features = false }
