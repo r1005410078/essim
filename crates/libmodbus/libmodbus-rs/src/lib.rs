@@ -1,5 +1,7 @@
-//! libmodbus 3.2.0 TCP/RTU 从站 API 子集，不包含设备或运行调度。
+//! libmodbus 3.2.0 TCP/RTU 主站及从站 API 子集，不包含设备或运行调度。
 //! TCP context 借用 Rust socket，RTU context 独占串口；禁止跨线程，无 C 回调。
+mod client;
+pub use client::{exception_code, ModbusClient};
 mod rtu;
 #[cfg(test)]
 #[path = "../tests/support/mod.rs"]
