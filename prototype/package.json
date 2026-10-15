@@ -1,0 +1,33 @@
+{
+  "name": "essim-desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build": "vite build",
+    "test": "node --test src/*.test.js",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@pierre/trees": "^1.0.0-beta.6",
+    "@tauri-apps/api": "^2.0.0",
+    "@uiw/react-codemirror": "^4.25.12",
+    "@zhiguang/novasheet-core": "file:vendor/novasheet-core.tgz",
+    "@zhiguang/novasheet-react": "file:vendor/novasheet-react.tgz",
+    "dockview-react": "^8.5.1",
+    "lucide-react": "^0.575.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@tauri-apps/cli": "^2.0.0"
+  },
+  "overrides": {
+    "@zhiguang/novasheet-core": "file:vendor/novasheet-core.tgz",
+    "@zhiguang/novasheet-canvas2d": "file:vendor/novasheet-canvas2d.tgz"
+  }
+}

@@ -1,0 +1,24 @@
+/target
+
+/prototype/node_modules
+/prototype/dist
+/prototype/src-tauri/target
+/prototype/src-tauri/gen
+/output
+/.playwright-cli
+/node_modules
+/workbench/node_modules
+/workbench/dist
+/packages/*/node_modules
+/.turbo
+/workbench/.turbo
+/packages/*/.turbo
+/workbench/src-tauri/gen
+
+/.pnpm-store
+
+# 本地工作产物与系统/解释器缓存
+/outputs/
+.DS_Store
+__pycache__/
+*.pyc
