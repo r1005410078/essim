@@ -1,0 +1,9 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+error[E0432]: unresolved import `essim_core::application::runtime`
+ --> crates/core/tests/runtime_contracts.rs:2:31
+  |
+2 | use essim_core::{application::runtime::*, domain::foundation::*};
+  |                               ^^^^^^^ could not find `runtime` in `application`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `essim-core` (test "runtime_contracts") due to 1 previous error

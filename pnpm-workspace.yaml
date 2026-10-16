@@ -4,5 +4,5 @@ packages:
 allowBuilds:
   esbuild: true
 overrides:
-  '@zhiguang/novasheet-core': file:./prototype/vendor/novasheet-core.tgz
-  '@zhiguang/novasheet-canvas2d': file:./prototype/vendor/novasheet-canvas2d.tgz
+  '@zhiguang/novasheet-core': 0.17.3
+  '@zhiguang/novasheet-canvas2d': 0.6.6

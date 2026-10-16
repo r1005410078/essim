@@ -1,0 +1,22 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.97s
+     Running tests/runtime_contracts.rs (target/debug/deps/runtime_contracts-bef02bc6376559d1)
+
+running 1 test
+test failed_record_creation_does_not_reserve_a_channel_for_the_next_run ... FAILED
+
+failures:
+
+---- failed_record_creation_does_not_reserve_a_channel_for_the_next_run stdout ----
+
+thread 'failed_record_creation_does_not_reserve_a_channel_for_the_next_run' (92134123) panicked at crates/core/tests/runtime_contracts.rs:263:5:
+assertion failed: runs.start(snapshot("next")).is_ok()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    failed_record_creation_does_not_reserve_a_channel_for_the_next_run
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p essim-core --test runtime_contracts`

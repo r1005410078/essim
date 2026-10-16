@@ -8,13 +8,13 @@
 | libmodbus-sys | 原始 FFI 子集、版本/ABI 探针、显式来源选择及链接元数据 |
 | libmodbus-rs | 通用安全 API、错误、context/mapping RAII 与 socket 生命周期 |
 
-依赖方向为 `infrastructure → rs → sys`，sys 的 vendored 构建依赖 src。三个库不依赖 ESSim 核心、Tauri 或 UI。当前覆盖 TCP 服务端、RTU 串口从站及四类数据区映射所需子集，不是完整 libmodbus API；不含主站功能。源码版本固定为 3.2.0，来源/校验见 [SOURCE.md](libmodbus-src/SOURCE.md)。
+协议封装依赖方向为 `rs → sys`（正式执行器接入后再由infrastructure依赖rs），sys 的 vendored 构建依赖 src。三个库不依赖 ESSim 核心、Tauri 或 UI。当前覆盖 TCP 服务端、RTU 串口从站及四类数据区映射所需子集，并提供下文列出的同步TCP／RTU主站子集，不是完整libmodbus API。源码版本固定为 3.2.0，来源/校验见 [SOURCE.md](libmodbus-src/SOURCE.md)。
 
 ## 模式约定
 
 | 配置 | 行为 |
 | --- | --- |
-| rs 默认；ESSim/Tauri 默认 | vendored：内置源码编译并静态链接 |
+| rs 默认 | vendored：内置源码编译并静态链接 |
 | sys 单独使用 | 默认无 feature，需主动开启 vendored 或给动态前缀 |
 | 关闭默认 feature + LIBMODBUS_DIR | 显式链接自行编译的动态库 |
 | vendored + LIBMODBUS_DIR | 冲突报错 |
@@ -37,7 +37,6 @@
 cargo test --workspace --offline
 cargo run -p libmodbus-rs --example register_demo --offline
 cargo run -p libmodbus-sys --features vendored --example version --offline
-cargo run -p essim-infrastructure --example modbus_demo --offline -- 1502
 ```
 
 动态库先自行编译：
@@ -53,10 +52,9 @@ export LIBMODBUS_DIR="$PWD/target/libmodbus-shared/aarch64-apple-darwin-Dynamic-
 cargo test --workspace --no-default-features --offline
 cargo run -p libmodbus-rs --no-default-features --example register_demo --offline
 cargo run -p libmodbus-sys --no-default-features --example version --offline
-cargo run -p essim-infrastructure --no-default-features --example modbus_demo --offline -- 1502
 ```
 
-切回静态前移除当前终端设置的 LIBMODBUS_DIR：`unset LIBMODBUS_DIR`。基础设施和 Tauri 各自转发 vendored；workspace 中依赖声明使用 default-features=false，避免动态入口被下游默认 feature 重新开启。
+切回静态前移除当前终端设置的 LIBMODBUS_DIR：`unset LIBMODBUS_DIR`。M01已退役固定SOC教学入口，当前基础设施和Tauri不链接libmodbus；通用库通过上述独立命令验证。恢复正式执行器后再明确转发feature，避免动态模式被下游默认feature重新开启。
 
 ## 安全 API 的范围
 
@@ -64,7 +62,7 @@ cargo run -p essim-infrastructure --no-default-features --example modbus_demo --
 
 `HoldingRegisters::new(start,count)` 保留为兼容入口，仅分配保持寄存器区；它通过 Deref 转换为 `Mapping` 传给 `reply`。它校验地址区间，`set/get` 校验边界，数值范围为完整 UInt16。`TcpContext::with_socket(owner_or_guard,timeout)` 接收 Rust socket owner 或带生命周期的 BorrowedFd。C 只借用 fd，context Drop 先脱离并释放 C 对象，随后 Rust socket owner 才析构；无重复 close。context/mapping 不实现 Send/Sync，无 C 回调。
 
-`Request` 只有成功 receive 才能生成，safe reply 不接受任意切片。libmodbus 接收仍有自己的分帧语义，不等于恶意 TCP 帧防火墙。ESSim 外层负责 MBAP/PDU 校验、缓冲上限、内部 socketpair、只读策略、worker、停机和报文。地址 100、初值 650、SOC 范围均保留在 ESSim。
+`Request` 只有成功 receive 才能生成，safe reply 不接受任意切片。libmodbus 接收仍有自己的分帧语义，不等于恶意 TCP 帧防火墙。旧ESSim教学外层曾负责MBAP/PDU门禁、缓冲上限、内部socketpair、SOC只读策略、worker、停机和报文；M01已退役该链路，正式执行器及新回归由M04/M05恢复。库不内置地址100、初值650或SOC业务范围。
 
 ## macOS 本机验证包
 
@@ -73,7 +71,9 @@ python3 scripts/bundle_macos.py static
 python3 scripts/bundle_macos.py dynamic --libmodbus-dir "$PWD/target/libmodbus-shared/aarch64-apple-darwin-Dynamic-debug/install"
 ```
 
-分别输出 `target/artifacts/static/ESSim.app`、`target/artifacts/dynamic/ESSim.app`。动态模式携带本次编译 dylib，使用 `@executable_path/../Frameworks`，移除开发前缀 rpath；脚本进行本机 ad-hoc 签名及验证。静态 libmodbus 不等于程序完全静态，仍依赖系统框架。
+分别输出 `target/artifacts/static/ESSim.app`、`target/artifacts/dynamic/ESSim.app`。应用实际链接libmodbus时，动态模式携带本次编译dylib，使用 `@executable_path/../Frameworks`，移除开发前缀 rpath；脚本进行本机 ad-hoc 签名及验证。静态 libmodbus 不等于程序完全静态，仍依赖系统框架。
+
+M01配置工作台当前不链接libmodbus，两个打包入口均不代表应用调用了原生协议库；库的两种模式以独立测试与client_demo为证据。
 
 这是开发验证包，不是经过开发者身份签名、公证或完成公开分发准备的安装包。许可副本和源码来源随包放在 Resources/third-party/libmodbus。
 
@@ -81,7 +81,7 @@ python3 scripts/bundle_macos.py dynamic --libmodbus-dir "$PWD/target/libmodbus-s
 
 | 平台 | 状态 |
 | --- | --- |
-| macOS 26.4.1 / aarch64-apple-darwin | 静态/动态、Rust 测试、headless、Tauri/NovaSheet 与独立 PyModbus 验收 |
+| macOS 26.4.1 / aarch64-apple-darwin | 通用库静态／动态、Rust测试与独立PyModbus通过；旧headless／教学Tauri历史闭环已退役，当前M01配置骨架另验 |
 | Linux GNU（本机 target） | 构建路径采用上游 Autotools，未实测；加载路径、libc 与部署另验 |
 | Windows MSVC/MinGW | 当前明确拒绝；需实现上游 configure.js/工具链对应路径及 socket/导出/CRT 适配 |
 | 交叉编译、macOS universal、musl | 当前明确拒绝，不将 HOST 产物当成 TARGET |

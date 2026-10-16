@@ -1,0 +1,28 @@
+    Blocking waiting for file lock on build directory
+    Checking objc2-exception-helper v0.1.1
+    Checking essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+ Documenting libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+ Documenting essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+ Documenting libmodbus-src v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-src)
+ Documenting libmodbus-rs v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-rs)
+    Checking objc2 v0.6.5
+    Checking block2 v0.6.2
+    Checking objc2-core-foundation v0.3.2
+    Checking essim-infrastructure v0.1.0 (/Users/rongts/www/EssLab/crates/infrastructure)
+ Documenting essim-infrastructure v0.1.0 (/Users/rongts/www/EssLab/crates/infrastructure)
+    Checking dispatch2 v0.3.1
+    Checking objc2-foundation v0.3.2
+    Checking objc2-quartz-core v0.3.2
+    Checking objc2-app-kit v0.3.2
+    Checking objc2-web-kit v0.3.2
+    Checking tao v0.37.1
+    Checking muda v0.20.0
+    Checking window-vibrancy v0.8.1
+    Checking tauri-runtime v2.12.1
+    Checking wry v0.57.0
+    Checking tauri-runtime-wry v2.12.1
+    Checking tauri v2.12.3
+    Checking essim-workbench v0.1.0 (/Users/rongts/www/EssLab/workbench/src-tauri)
+ Documenting essim-workbench v0.1.0 (/Users/rongts/www/EssLab/workbench/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.13s
+   Generated /Users/rongts/www/EssLab/target/doc/essim_core/index.html and 6 other files

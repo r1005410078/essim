@@ -12,7 +12,4 @@ tauri = { version = "2", features = [] }
 serde.workspace = true
 essim-core.workspace = true
 essim-infrastructure.workspace = true
-
-[features]
-default = ["vendored"]
-vendored = ["essim-infrastructure/vendored"]
+rfd = "=0.15.4"

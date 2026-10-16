@@ -1,0 +1,18 @@
+$ vitest run
+
+ RUN  v3.2.7 /Users/rongts/www/EssLab/workbench
+
+ ✓ src/shared/api/workspace.test.ts (5 tests) 11ms
+ ✓ src/features/workspace/selectEditor.test.ts (1 test) 8ms
+ ✓ src/features/workspace/pointDraft.test.ts (5 tests) 7ms
+ ✓ src/shared/api/window.test.ts (2 tests) 5ms
+ ✓ src/features/workspace/pointImport.test.ts (2 tests) 8ms
+ ✓ src/features/workspace/DraftSource.test.ts (2 tests) 11ms
+ ✓ src/features/workspace/pointClipboard.test.ts (2 tests) 16ms
+ ✓ src/features/workspace/model.test.ts (11 tests) 106ms
+
+ Test Files  8 passed (8)
+      Tests  30 passed (30)
+   Start at  12:40:30
+   Duration  818ms (transform 514ms, setup 0ms, collect 967ms, tests 172ms, environment 2ms, prepare 1.35s)
+

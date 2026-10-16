@@ -1,0 +1,9 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+error[E0432]: unresolved import `essim_core::domain::foundation`
+ --> crates/core/tests/foundation.rs:2:25
+  |
+2 | use essim_core::domain::foundation::*;
+  |                         ^^^^^^^^^^ could not find `foundation` in `domain`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `essim-core` (test "foundation") due to 1 previous error

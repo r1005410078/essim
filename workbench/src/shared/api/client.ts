@@ -1,12 +1,2 @@
-import type { BackendInfo, Communication, RtuConfig, SimulatorSnapshot } from './contracts';
-export interface EssimClient {
-  getBackendInfo(): Promise<BackendInfo>;
-  getSnapshot(): Promise<SimulatorSnapshot>;
-  start(address: string, port: number): Promise<SimulatorSnapshot>;
-  configure(communication: Communication): Promise<SimulatorSnapshot>;
-  startRtu(config: RtuConfig): Promise<SimulatorSnapshot>;
-  stop(): Promise<SimulatorSnapshot>;
-  addUnit(unitId: number): Promise<SimulatorSnapshot>;
-  updateSoc(raw: number, unitId?: number): Promise<SimulatorSnapshot>;
-  subscribe(listener: (snapshot: SimulatorSnapshot) => void): Promise<() => Promise<void>>;
-}
+/** 业务组件依赖统一客户端契约，不导入Tauri。 */
+export type { WorkspaceClient as EssimClient } from "./contracts";

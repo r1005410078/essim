@@ -44,12 +44,13 @@ def main():
     shutil.copytree(source,destination,symlinks=True)
     info = plistlib.loads((destination/'Contents/Info.plist').read_bytes())
     binary = destination/'Contents/MacOS'/info['CFBundleExecutable']
+    links_modbus = 'libmodbus' in subprocess.check_output(['otool', '-L', str(binary)], text=True)
     license_dir = destination/'Contents/Resources/third-party/libmodbus'
     license_dir.mkdir(parents=True,exist_ok=True)
     package = ROOT/'crates/libmodbus/libmodbus-src'
     shutil.copy2(package/'vendor/libmodbus/COPYING.LESSER',license_dir/'COPYING.LESSER')
     shutil.copy2(package/'SOURCE.md',license_dir/'SOURCE.md')
-    if args.mode == 'dynamic':
+    if args.mode == 'dynamic' and links_modbus:
         manifest = json.loads((prefix/'libmodbus-build.json').read_text())
         library_name = manifest['library']
         if Path(library_name).name != library_name:
@@ -66,8 +67,10 @@ def main():
     commands = subprocess.check_output(['otool','-l',str(binary)],text=True)
     if '/opt/homebrew' in dependencies or (args.mode=='dynamic' and str(prefix) in commands):
         raise RuntimeError('包仍引用宿主机或构建前缀')
-    if ('libmodbus' in dependencies) != (args.mode=='dynamic'):
+    if links_modbus and ('libmodbus' in dependencies) != (args.mode=='dynamic'):
         raise RuntimeError('最终链接模式与所选模式不符')
+    if not links_modbus:
+        print('M01配置工作台不链接libmodbus；库的静态／动态模式请用独立测试验证。')
     print(destination)
     print(dependencies)
 

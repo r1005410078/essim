@@ -1,0 +1,39 @@
+$ vitest run
+
+ RUN  v3.2.7 /Users/rongts/www/EssLab/workbench
+
+ ✓ src/shared/api/workspace.test.ts (3 tests) 3ms
+ ❯ src/features/workspace/model.test.ts (8 tests | 1 failed) 9ms
+   ✓ Unit切换不发命令，独立草稿不会被查询覆盖，保存与应用分开 4ms
+   ✓ 树路径变化和设备快捷入口仍定位同一个端点与稳定单元 0ms
+   ✓ 超过JS整数精度的快照只接受较新完整目录 0ms
+   ✓ 不同单元和四遥保留自己的NovaSheet草稿，查询与分类不会重置编辑 0ms
+   ✓ 保存失败保留草稿和明确错误，不显示假成功 1ms
+   ✓ 应用确认刷新只读值，保留本地草稿 0ms
+   ✓ 保存等待期间的新编辑不被较早的保存确认清除 0ms
+   × 关闭欢迎页后，新文档不再引用已关闭的面板 2ms
+     → (0 , documentPosition) is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/workspace/model.test.ts > 关闭欢迎页后，新文档不再引用已关闭的面板
+TypeError: (0 , documentPosition) is not a function
+ ❯ src/features/workspace/model.test.ts:217:10
+    215| });
+    216| it('关闭欢迎页后，新文档不再引用已关闭的面板', () => {
+    217|   expect(documentPosition(['project','inspector','observations'])).toE…
+       |          ^
+    218|   expect(documentPosition(['project','endpoint:a','observations'])).to…
+    219| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 10 passed (11)
+   Start at  16:37:33
+   Duration  301ms (transform 67ms, setup 0ms, collect 108ms, tests 12ms, environment 0ms, prepare 91ms)
+
+/Users/rongts/www/EssLab/workbench:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @essim/workbench@0.1.0 test: `vitest run`
+Exit status 1

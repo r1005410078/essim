@@ -1,60 +1,66 @@
 # ESSim 正式工程
 
-当前使用 pnpm 11.1.2、Turborepo、TypeScript、React、Vite、Tailwind CSS 4；`packages/ui` 通过官方 shadcn CLI 安装共享组件，包含 Button、Input、Label、Separator、Tooltip、Dialog、DropdownMenu；主题支持明暗变量和动画样式。工作台使用 Dockview。NovaSheet 已复用原型 vendor 快照用于单 SOC 教学点表；`@pierre/trees` 尚未迁移。
+正式客户端使用TypeScript／React／Vite、pnpm workspace、Turborepo、shadcn/ui与Tailwind CSS；桌面壳为Tauri。工作台采用浅色紧凑Dockview、`@pierre/trees`资源与模拟器树、NovaSheet点表。
 
-## 依赖方向
+## 依赖与职责
 
-- 前端页面依赖 `EssimClient`，应用组装层选择 Tauri 适配器。
-- `workbench/src-tauri` 负责 Tauri 命令与 DTO 转换，依赖核心与基础设施。
-- `essim-core` 定义领域和应用用例，不依赖 Tauri、SQLite 或 C 协议库。
-- `essim-infrastructure` 依赖核心，实现 libmodbus 协议适配及有界 worker；数据库未接入。
+- `crates/core/domain/foundation.rs`：稳定身份、采集模型版本、端点聚合、可选设备关联及纯值迁移。
+- `crates/core/application/workspace.rs`：配置命令、权威目录校验、只读投影和最小仓储端口。保存不自动应用，应用不启动。
+- `crates/core/application/runtime.rs`：运行状态机、执行器／可靠录制／历史读取／时钟窄端口及隔离回放契约。
+- `crates/infrastructure/workspace.rs`：会话内内存仓储与Mutex保护的配置服务。没有生产ProtocolExecutor或可靠Recorder。
+- `workbench/src-tauri/commands/`：DTO、命令／查询、订阅生命周期；`lib.rs`组装同一个WorkspaceEngine并注入State。
+- 前端业务组件依赖统一客户端契约；Tauri导入只在应用适配层，后续可新增HTTP／WebSocket适配器。
 
-已实现核心信息、快照、启动、停止、SOC 更新与订阅/取消命令。单实例 ID 为 `demo-bms`，点 ID 为 `soc`。Tauri 持有应用服务，耗时命令在 blocking task 等待协议 worker 确认；订阅线程通过 channel 推送完整快照。序号/代次用字符串传输，前端过滤旧事件。浏览器无后端明确报错。
+core依赖serde及num-bigint／num-rational／num-traits精确数值库，不依赖Tauri、数据库、libmodbus或窗口。内存目录提交是整体替换，模型引用与版本检查在同一短临界区完成，不持锁等待协议I/O。
 
-## 后续替换传输
+## 配置与状态
 
-增加 Rust 服务入口和 `remote.ts`，在应用组装层选择 HTTP/WebSocket 适配器。业务组件不直接导入 Tauri。远程连接地址、重连和断线提示属于必要新增界面；不承诺纯粹零界面修改。配置、运行值、协议线程的所有权由 Rust 核心掌握。
+模型保存产生不可变版本；单元明确引用ModelId/version，旧版本不被新保存覆盖。角色在端点统一确定，四遥和Modbus数据区独立。线上站号不作为UnitId，同端点站号唯一；首版产品站号范围1–247不是TCP标准上限。RTU从站配置最多一个单元，RTU主站可表示多个目标。
 
-## 当前范围
+前端EndpointConfig草稿与已保存、已应用副本分离。保存／应用携带expectedRevision，冲突不覆盖。应用预先迁移全部单元，失败不半应用；原始值按稳定点ID和同类型保留，新点用初值，删除移除；倍率变化不重算原始值。M02已增加精确编码、显式字节／字序及值兼容迁移规划。
 
-已接入真实 Modbus TCP 单寄存器教学映射，未实现 SQLite、104/61850、串口、通用点表或策略。macOS 完成独立客户端与 Tauri 闭环；其他平台和大表行为未验证。资源所有权、内部 socketpair、有界接收与依赖版本见 [接入说明](../test-records/libmodbus-dependency.md)。
+版本／事件序号以十进制字符串跨IPC。配置事件投影幂等处理重复序号、拒绝缺口和未知schema；界面订阅发送可替换的完整快照，可以合并配置通知，不承担历史持久化。
 
-## 添加 shadcn/ui 组件
+## 运行与录制
 
-根目录执行 `pnpm ui:add <组件名>`，例如 `pnpm ui:add select`。CLI 固定在根开发依赖及锁文件中；工作台与 UI 包的 `components.json` 统一使用 new-york、slate、lucide，Tailwind 4 无单独配置文件。组件安装到 `packages/ui/src/components`，工作台使用 `@essim/ui/components/<名称>` 导入。共享样式位于 `packages/ui/src/styles.css`，工作台负责 Tailwind 入口与共享源码扫描；全局 TooltipProvider 延迟 400ms。Vite 与 TypeScript 的 `@/` 别名均指向工作台源码。
+一次显式启动对应RunId，覆盖端点全部单元；重连／暂停单元不创建新运行。状态与录制状态分别表示，停止请求返回后保持Stopping，资源释放确认后才能Stopped。录制创建成功前不打开通道；外部效果遵循可靠意图→执行一次→可靠结果，结果记录失败保留未确认范围并停止，不重发。
 
-官方新组件使用 `cn` 与 `radix-ui` 包；保留 `@essim/ui/lib/utils` 导出供项目代码使用。新增依赖应属于实际使用它的 workspace；不要仅安装到根目录或其他应用。安装后运行 `pnpm typecheck`、`pnpm build`。
+RunCoordinator通过测试适配器验证上述规则，生产工作台尚未装配执行器／可靠Recorder，启动、远端读写和回放命令返回CAPABILITY_UNAVAILABLE。回放类型不接收执行器，只重建独立值，固定模型版本，拒绝历史缺口／未知版本。不能将此契约测试宣称为可靠落盘或可用播放引擎。
 
-## NovaSheet 接入边界
+## 界面组件边界
 
-正式包依赖原型 `vendor/` 已有 core 0.17.3、canvas2d 0.6.6、react 0.4.14，pnpm overrides 保证包内 core/render backend 使用同一快照。没有修改 NovaSheet 源仓库或原型代码。
+设备／资源与模拟器导航统一使用`@pierre/trees@1.0.0-beta.6`的React入口。树模型在组件生命周期内复用；目录变化用resetPaths更新。显式路径→业务ID映射使设备快捷入口与协议树定位同一端点Tab；不将路径或显示名称当作业务身份。模型重命名／复制／删除已接入；设备与端点的完整CRUD仍由后续阶段交付。
 
-本快照 React 适配器没有转发 `isCellEditable`，因此用 `cellTypes` 注册只读类型保护模型字段与已生效值，只有草稿列可编辑。生产包的 vendor JSX 开发接口通过 Vite 的 importer 定向兼容模块转换；该转换只在 NovaSheet 引用中生效。页面加载错误通过边界展示，避免空白窗口。当前只验证一个点的桌面显示、编辑与应用；填充柄、自动滚动、Excel 多格粘贴、中文输入和大表性能需后续完整验收。
+正式工作台安装NovaSheet发布包：core 0.17.3、canvas2d 0.6.6、react 0.4.14；pnpm overrides固定同一份core与后端，不再引用`prototype/vendor/`快照。原型自身保留原有依赖。React适配器未转发isCellEditable，使用cellTypes只读类型保护模型及确认列；只允许本地值草稿编辑，草稿不执行通信。已访问单元／分类保留挂载的Grid以保留选区与滚动，数据源按稳定身份／分类／模型版本隔离。M01未提供点表结构编辑器，不将空表展示算作填充柄、Excel粘贴、中文输入或大表性能验收。
 
-## libmodbus 三包边界（2026-10-15）
+现有NovaSheet JSX开发接口的生产构建兼容模块仍仅对该包生效。全局错误边界保留。共享shadcn组件通过`@essim/ui/components/...`使用；`pnpm ui:add <组件名>`维护共享组件，不复制其他项目UI。
 
-`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}` 归同一个根 Cargo workspace；src 是构建辅助包，sys 是唯一原生链接所有者，rs 是安全 API。基础设施只依赖 rs，C 编译和原始指针已迁出；基础设施 build.rs 仅保留 headless/测试的动态开发 rpath，不编译 C。
+## 订阅与回收
 
-默认 vendored 静态；动态模式显式使用自行编译前缀 `LIBMODBUS_DIR`，没有宿主库探测。Tauri/基础设施入口均转发 feature。SOC 策略、帧门禁、内部传输、worker 与日志仍在 ESSim。动态应用通过打包脚本携带 dylib 并改用包内相对路径。详见 [三包构建说明](../../crates/libmodbus/README.md)。
+Tauri配置订阅上限8个，每个订阅仅在序号改变时发送最新完整目录，100ms检查取消。发送失败结束线程；取消幂等，在blocking任务等待线程回收；Subscriptions销毁时停止并回收剩余线程。当前是低频配置订阅，不是未来高频点值推送设计，M07还需批量订阅／背压及性能验证。
 
-## 同一端点多单元
+## 通用协议库与教学退役
 
-统一客户端支持 addUnit(unitId) 与 updateSoc(raw, unitId)，Tauri 适配器转发到应用服务，完整快照包含 units 列表。core 的 UnitId 校验本阶段范围 1–247；infrastructure 的 worker 为每个 ID 创建独立 Native/context/mapping，收到请求后按 MBAP Unit ID 选择映射，未知单元关闭连接。新增成功确认后才发布新单元；旧 update 与快照 soc 保持默认单元 1 兼容。
+`crates/libmodbus/`三包、官方源码／许可、通用示例和测试保留。src负责源码构建，sys是原生链接所有者，rs提供RAII安全API及TCP／RTU主从子集；句柄不Send／Sync，Rust拥有TCP socket、C借用；RTU资源按close→free释放。
 
-前端 UnitSocSheets 按 Unit ID 保存独立数据源及生效值，切换不共用草稿；订阅中的日志更新不覆盖未提交编辑。单元添加、切换仍位于紧凑通信配置栏，保留 Dockview 工作台。没有增加删除、磁盘保存、多端点或多客户端。
+M01删除固定SOC worker、旧Native、旧IPC和教学示例，不为维持旧链接断言保留无用协议依赖。当前桌面应用不链接libmodbus，静态／显式动态能力由保留库与独立client_demo验证。打包工具按实际链接依赖处理。真实多实例执行器、调度及可靠记录均是后续提案，不将历史SOC互操作当作新产品验收。
 
-## RTU 通信适配
+[实施与迁移记录](../test-records/2026-10-15-m01-foundation.md) · [通用库说明](../../crates/libmodbus/README.md)。
 
-core 用 Communication::Tcp(Endpoint) / Rtu(RtuEndpoint) 区分通信配置，RTU 配置和 SOC 独立保留；旧 TCP endpoint、units 和默认单点接口保留兼容。configure 只在停止后整组校验并发布；start_rtu 返回成功时真实串口已打开。Tauri DTO 使用带 transport 标记的配置和完整快照，RTU 活跃单元列表仅包含配置站号；前端经统一 EssimClient 调用，不直接引用 Tauri API。
+## v15 样式对齐（2026-10-15）
 
-infrastructure 按通信方式启动对应 worker；TCP 仍使用外部有界传输和内部 socketpair，RTU worker 独占 RtuContext 与 Mapping，直接调用库串口收发。RTU 只读 SOC 在进入会修改映射的正常 reply 前拒绝写入；广播不应答也不修改 SOC。错误状态仍可停止、释放并重配。串口 TX 只记录返回字节数与结果，未将构造字节伪装成抓包。
+工作台已按确认稿调整冷白配色、蓝线Tab、纯图标工具栏和右侧Details双列属性；导航及属性使用Dockview公开的header.hidden接口消除重复标题，底部事件／报文Tab保持可停靠布局，按后续确认移除运行历史Tab和独立历史面板。树节点以通信地址显示，但仍映射稳定业务ID。新增观测区仅为空态，不是历史录制交付，详见[样式验证](../test-records/2026-10-15-m01-v15-style.md)。
 
-libmodbus-rs 中的 RtuConfig 是不可变的已校验配置，RtuRequest 独立于 TCP Request；RtuContext 无 Send/Sync，C 串口资源在 worker 中 close 后 free。首版限制配置范围和接收超时，不开启自定义 RTS、自动重连或链路重试。发送采用上游 Unix O_NONBLOCK 路径；真实驱动的停止行为仍需硬件验证。
+## M02 点表管理
 
-工作台的 UnitSocSheets 以 transport + Unit ID 管理草稿，模式切换不串值；运行中锁定通信方式及参数，RTU 隐藏 TCP 多 Unit ID 与连接数控件。首版手填串口路径，不增加自动枚举或系统配置操作。
+`domain/point_table.rs`负责有理数十进制换算、精确RawValue、寄存器编码和整表占用校验。`infrastructure/point_exchange.rs`负责文本行适配和受限JSON／CSV／XLSX解析，不修改目录、不执行公式。Tauri文件命令在后台任务中处理原生文件选择、取消及导出；前端业务组件只调用统一客户端。
 
-### 通用 Modbus 主站库补充（2026-10-15）
+ModelDraft按ModelId持有单一文本草稿，PointEditor及Details共享状态。DraftSource只管理可见行和空白扩容，按稳定点ID合并一次粘贴／填充，草稿统一负责撤销。数据源订阅遍历快照，避免监听器同步重订阅造成循环。结构编辑使用同一NovaSheet公开Grid及canvas2d入口，提供isCellEditable和原生singleSelect编辑器，不改vendor。WKWebView系统粘贴使用隐藏textarea承接可信剪贴板事件，再调用组件公开TSV工具；普通单元格编辑仍由组件处理。
 
-`libmodbus-rs::ModbusClient` 独立提供同步 TCP/RTU 主站：TCP 使用 Rust 主动连接并拥有 socket，C 仅借用；RTU context 独占串口，按 close → free 释放。主站复用官方八个读写 API，发送前校验地址和数量，不依赖 Mapping、ESSim 核心或 Tauri。目标切换、错误与超时由库暴露，无自动重试/重连；轮询、设备语义和未来工作台入口属于上层。
+模型保存生成新版本，expectedRevision防止过期覆盖。删除权威检查配置、已应用及保留记录引用；后者仅有窄端口与测试。应用预览为纯规划，提交先停止完整端点，再重新核对权威配置并整体替换已应用副本。停机后失败保留原应用与值，报告已停止；当前只有StoppedBoundary，未接入真实I/O。主站映射变化使相应缓存失效，不把从站初值或本地值伪装成远端读取结果。
 
-合法 Modbus 异常保留通道；I/O、超时和上游检测出的无效响应关闭通道，后续须重建。上游 TCP 响应 Unit ID/MBAP 长度校验及非墙钟截止时间的等待边界见 [主站验收记录](../test-records/2026-10-15-modbus-master.md)。当前独立 PyModbus TCP/PTY 互通已验，工作台主站 UI、真实设备及 RS-485 硬件未验。
+配置序号未变化时订阅不克隆完整目录。配置全量快照仍不适用于未来高频值流。macOS自定义Quit菜单与窗口关闭共同保护会话；退出权限仅在处理器就绪后启用，用户明确确认后才允许退出。会话数据尚未落盘。
+
+详见[使用及交换说明](../point-table-format.md)与[M02验证记录](../test-records/2026-10-16-m02-progress.md)。旧M01章节的验收范围保持历史边界，不能据此宣称M02全部完成。
+
+2026-10-16选中态修复：选区是Canvas上方的DOM浮层，`selectionBg`必须半透明；此前不透明浅蓝色遮住表头及范围内文字，现改为`rgba(8, 117, 255, 0.09)`。已核对本地NovaSheet源码及其注册源最新版本并安装发布包，没有复制源码或新增tgz文件。

@@ -1,0 +1,12 @@
+$ vitest run
+
+ RUN  v3.2.7 /Users/rongts/www/EssLab/workbench
+
+ ✓ src/shared/api/workspace.test.ts (3 tests) 3ms
+ ✓ src/features/workspace/model.test.ts (8 tests) 7ms
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  16:39:26
+   Duration  287ms (transform 59ms, setup 0ms, collect 90ms, tests 10ms, environment 0ms, prepare 118ms)
+

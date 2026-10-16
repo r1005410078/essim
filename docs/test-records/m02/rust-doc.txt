@@ -1,0 +1,5 @@
+    Checking essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+ Documenting essim-core v0.1.0 (/Users/rongts/www/EssLab/crates/core)
+ Documenting essim-infrastructure v0.1.0 (/Users/rongts/www/EssLab/crates/infrastructure)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.74s
+   Generated /Users/rongts/www/EssLab/target/doc/essim_core/index.html and 1 other file

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1430",
+    "dev:web": "pnpm dev",
+    "dev:tauri": "tauri dev",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -12,13 +14,17 @@
   },
   "dependencies": {
     "@essim/ui": "workspace:*",
+    "@pierre/trees": "1.0.0-beta.6",
     "@tauri-apps/api": "^2.0.0",
+    "@zhiguang/novasheet-canvas2d": "0.6.6",
+    "@zhiguang/novasheet-core": "0.17.3",
+    "@zhiguang/novasheet-react": "0.4.14",
     "dockview-react": "^8.5.1",
     "lucide-react": "^0.575.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@zhiguang/novasheet-core": "file:../prototype/vendor/novasheet-core.tgz",
-    "@zhiguang/novasheet-react": "file:../prototype/vendor/novasheet-react.tgz"
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@essim/typescript-config": "workspace:*",

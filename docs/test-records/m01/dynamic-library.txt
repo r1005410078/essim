@@ -1,0 +1,112 @@
+   Compiling cpufeatures v0.2.17
+   Compiling serde_json v1.0.154
+   Compiling libmodbus-src v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-src)
+   Compiling sha2 v0.10.9
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-sys)
+   Compiling libmodbus-rs v0.1.0 (/Users/rongts/www/EssLab/crates/libmodbus/libmodbus-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.82s
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_rs-3e61710f7eef1046)
+
+running 4 tests
+test rtu::tests::allocation_failure_keeps_original_error ... ok
+test tests::failed_initialization_never_closes_a_borrowed_socket ... ok
+test tests::truncated_request_returns_timeout ... ok
+test rtu::tests::opened_failure_and_normal_drop_restore_the_serial_and_do_not_close_reused_fds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/client.rs (target/debug/deps/client-5a6a4a63e48ea8f1)
+
+running 6 tests
+test rejects_invalid_ranges_without_sending_and_preserves_exception_session ... ok
+test corrupt_rtu_reply_closes_the_channel ... ok
+test wrong_transaction_function_and_truncated_reply_are_rejected ... ok
+test rtu_reads_four_areas_writes_and_switches_station ... ok
+test timeout_closes_session_and_does_not_retry_a_write ... ok
+test invalid_timeouts_fail_before_open_and_rtu_timeout_releases_serial ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/registers.rs (target/debug/deps/registers-4ac889c736fa9762)
+
+running 4 tests
+test mapping_is_generic_and_checks_bounds ... ok
+test four_areas_are_independent_and_bounded ... ok
+test normal_writes_are_allowed_by_the_generic_library ... ok
+test four_area_protocol_reads_and_single_multiple_writes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/rtu.rs (target/debug/deps/rtu-11150b403c4084d6)
+
+running 5 tests
+test invalid_config_and_missing_device_fail_before_a_live_context ... ok
+test nonreading_serial_peer_fails_nonblocking_write_and_drop_returns ... ok
+test fragmented_valid_frame_is_received ... ok
+test actual_rtu_four_areas_writes_broadcast_and_exception_silence ... ok
+test crc_partial_foreign_and_back_to_back_frames_recover ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_src-c50823a141616522)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/build_rules.rs (target/debug/deps/build_rules-713196123adce7c1)
+
+running 2 tests
+test rejects_cross_target_before_building ... ok
+test missing_compiler_reports_tool_instead_of_using_system_library ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_sys-b45829fc65a10548)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mapping.rs (target/debug/deps/mapping-04fade7a8f9251cc)
+
+running 1 test
+test local_helper_rejects_invalid_area_address_and_bit_value ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/selection.rs (target/debug/deps/selection-9044551dd0626f6a)
+
+running 2 tests
+test explicit_selection_never_falls_back_to_host ... ok
+test rejects_invalid_provenance_and_corrupted_artifacts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_rs
+
+running 9 tests
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 302) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 309) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/client.rs - client::ModbusClient (line 31) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 113) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 106) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext<S>::reply (line 388) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 100) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - Mapping (line 138) ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuConfig (line 13) ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+   Doc-tests libmodbus_src
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_sys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

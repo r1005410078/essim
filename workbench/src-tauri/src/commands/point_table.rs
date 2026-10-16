@@ -1,0 +1,161 @@
+//! 点表预览及本机文件适配；选择对话框与后台格式转换不进入业务组件。
+use super::{dto::ErrorDto, Engine};
+use essim_core::domain::foundation::Error;
+use essim_infrastructure::point_exchange::{self, DraftInput, DraftPreview, InputFile, MAX_BYTES};
+use std::{
+    collections::HashMap,
+    io::Read,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+};
+use tauri::State;
+
+/// 当前会话文件任务的取消令牌，不携带模型或协议状态。
+#[derive(Default)]
+pub struct PointFileJobs(Mutex<HashMap<String, Arc<AtomicBool>>>);
+/// 中止指定文件任务；后台在安全的行／表边界退出。
+/// # Errors
+/// 任务注册锁中毒时失败。
+#[tauri::command]
+pub fn cancel_point_file(job_id: String, jobs: State<'_, PointFileJobs>) -> Result<(), ErrorDto> {
+    let jobs = jobs
+        .0
+        .lock()
+        .map_err(|_| Error::new("FILE_TASK", "文件任务状态不可用"))?;
+    if let Some(flag) = jobs.get(&job_id) {
+        flag.store(true, Ordering::Release);
+    }
+    Ok(())
+}
+/// 在后台精确校验点表草稿，不改变配置目录。
+/// # Errors
+/// 后台任务无法执行时失败；字段错误放入预览结果。
+#[tauri::command]
+pub async fn preview_point_table(input: DraftInput) -> Result<DraftPreview, ErrorDto> {
+    tauri::async_runtime::spawn_blocking(move || point_exchange::preview(input))
+        .await
+        .map_err(|e| Error::new("PREVIEW_FAILED", e.to_string()))
+}
+/// 由系统选择本机点表文件，在后台有界读取和解析；取消返回None。
+/// # Errors
+/// 文件过大、读取或格式错误时失败。
+#[tauri::command]
+pub async fn open_point_file(
+    job_id: String,
+    jobs: State<'_, PointFileJobs>,
+) -> Result<Option<InputFile>, ErrorDto> {
+    let flag = Arc::new(AtomicBool::new(false));
+    {
+        let mut entries = jobs
+            .0
+            .lock()
+            .map_err(|_| Error::new("FILE_TASK", "文件任务状态不可用"))?;
+        if entries.len() >= 8 || entries.contains_key(&job_id) {
+            return Err(Error::new("FILE_TASK", "文件任务已存在或过多"));
+        }
+        entries.insert(job_id.clone(), flag.clone());
+    }
+    let result = async {
+        let Some(file) = rfd::AsyncFileDialog::new()
+            .add_filter("点表", &["json", "csv", "xlsx"])
+            .pick_file()
+            .await
+        else {
+            return Ok(None);
+        };
+        let path = file.path().to_owned();
+        tauri::async_runtime::spawn_blocking(move || {
+            if flag.load(Ordering::Acquire) {
+                return Err(Error::new("IMPORT_CANCELLED", "导入已取消"));
+            }
+            let metadata =
+                std::fs::metadata(&path).map_err(|e| Error::new("FILE_READ", e.to_string()))?;
+            if metadata.len() > MAX_BYTES as u64 {
+                return Err(Error::new("IMPORT_LIMIT", "文件超过16MiB"));
+            }
+            let mut bytes = Vec::new();
+            std::fs::File::open(&path)
+                .map_err(|e| Error::new("FILE_READ", e.to_string()))?
+                .take(MAX_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|e| Error::new("FILE_READ", e.to_string()))?;
+            point_exchange::read_file_cancellable(
+                &path.file_name().unwrap_or_default().to_string_lossy(),
+                &bytes,
+                || flag.load(Ordering::Acquire),
+            )
+            .map(Some)
+        })
+        .await
+        .map_err(|e| Error::new("FILE_READ", e.to_string()))?
+    }
+    .await;
+    jobs.0
+        .lock()
+        .map_err(|_| Error::new("FILE_TASK", "文件任务状态不可用"))?
+        .remove(&job_id);
+    result
+}
+/// 导出权威目录中的选定保存版本，不导出未保存草稿。
+/// # Errors
+/// 版本不存在、格式写出或文件系统操作失败。
+#[tauri::command]
+pub async fn export_point_file(
+    id: String,
+    version: String,
+    format: String,
+    engine: State<'_, Engine>,
+) -> Result<bool, ErrorDto> {
+    let model = engine
+        .query()?
+        .catalog
+        .models
+        .into_iter()
+        .find(|m| m.id.0 == id && m.version.to_string() == version)
+        .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "保存版本不存在"))?;
+    save_exchange(model, format).await
+}
+/// 显式输出空点表模板，不读取或修改模型目录。
+/// # Errors
+/// 格式非法或文件写出失败时返回错误；系统取消返回false。
+#[tauri::command]
+pub async fn export_point_template(format: String) -> Result<bool, ErrorDto> {
+    use essim_core::domain::foundation::{CollectionModel, ModelId};
+    save_exchange(
+        CollectionModel {
+            id: ModelId("template".into()),
+            name: "点表模板".into(),
+            version: 1,
+            points: Vec::new(),
+        },
+        format,
+    )
+    .await
+}
+async fn save_exchange(
+    model: essim_core::domain::foundation::CollectionModel,
+    format: String,
+) -> Result<bool, ErrorDto> {
+    let version = model.version;
+    if !["json", "csv", "xlsx"].contains(&format.as_str()) {
+        return Err(Error::new("FILE_FORMAT", "未知导出格式"));
+    }
+    let Some(target) = rfd::AsyncFileDialog::new()
+        .add_filter("点表", &[&format])
+        .set_file_name(format!("点表-v{version}.{format}"))
+        .save_file()
+        .await
+    else {
+        return Ok(false);
+    };
+    let path = target.path().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = point_exchange::export(&model, &format)?;
+        point_exchange::write_export(&path, &bytes)?;
+        Ok(true)
+    })
+    .await
+    .map_err(|e| Error::new("FILE_WRITE", e.to_string()))?
+}
