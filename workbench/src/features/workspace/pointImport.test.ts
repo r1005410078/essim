@@ -3,12 +3,12 @@ import { ModelDraft, defaultRow } from "./pointDraft";
 import { appendValidated } from "./pointImport";
 import type { DraftPreview } from "../../shared/api/contracts";
 const valid = {
-  model: { id: "m", name: "M", version: "1", points: [] },
+  model: { id: "m", name: "M", points: [] },
   errors: [],
   previews: [],
 } satisfies DraftPreview;
 it("追加失败与取消不改变草稿和撤销；成功一次撤销全部追加", async () => {
-  const draft = new ModelDraft("m", "M", "1", [
+  const draft = new ModelDraft("m", "M", [
     defaultRow("measurement", "old"),
   ]);
   const rows = [defaultRow("measurement", "new")];
@@ -47,7 +47,7 @@ it("追加失败与取消不改变草稿和撤销；成功一次撤销全部追�
   expect(draft.content()).toBe(before);
 });
 it("预览期间目标变化时不使用旧校验追加", async () => {
-  const draft = new ModelDraft("m", "M", "1", []);
+  const draft = new ModelDraft("m", "M", []);
   let complete!: (value: DraftPreview) => void;
   const task = appendValidated(
     draft,

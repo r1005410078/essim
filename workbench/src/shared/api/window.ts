@@ -56,3 +56,9 @@ export async function armEditCommands(
     );
   });
 }
+
+/** 原生文件菜单保存与DOM保存快捷键共用当前文档操作。 */
+export async function armSaveCommand(save: () => void): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  return listen("workbench-save", save);
+}

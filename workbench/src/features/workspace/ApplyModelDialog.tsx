@@ -29,7 +29,7 @@ export function ApplyModelDialog({
       return;
     }
     store.client
-      .previewApply(endpoint.id, endpoint.revision, reset)
+      .previewApply(endpoint.id, reset)
       .then((value) => {
         if (active) setPreview(value);
       })
@@ -39,9 +39,9 @@ export function ApplyModelDialog({
     return () => {
       active = false;
     };
-  }, [store, endpoint.id, endpoint.revision, reset]);
+  }, [store, endpoint, reset]);
   return (
-    <dialog ref={dialog} className="resource-dialog" onCancel={close}>
+    <dialog ref={dialog} className="resource-dialog" onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}>
       <h2>应用端点配置</h2>
       <p>
         范围：{endpoint.name} 的完整{" "}
@@ -68,7 +68,7 @@ export function ApplyModelDialog({
               <strong>
                 Unit {unit.station} · {unit.name}
               </strong>{" "}
-              → 模型 v{unit.model.version}
+              → {store.view?.catalog.models.find(model => model.id === unit.model.id)?.name}
               <br />
               {endpoint.role === "master" ? "新增／失效" : "新增／恢复"}{" "}
               {migration?.initialized.length ?? 0} 点，移除{" "}
@@ -108,7 +108,6 @@ export function ApplyModelDialog({
               await store.execute({
                 kind: "apply",
                 id: endpoint.id,
-                expectedRevision: endpoint.revision,
                 resetIncompatible: reset,
               });
               close();

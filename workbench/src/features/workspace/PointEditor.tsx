@@ -85,8 +85,6 @@ function EditorBody({
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [exportVersion, setExportVersion] = useState(draft.version);
-  useEffect(() => setExportVersion(draft.version), [draft.version]);
   const grid = useRef<Grid>(null);
   const marked = useRef<{ row: number; col: number }[]>([]);
   const source = useMemo(
@@ -96,7 +94,7 @@ function EditorBody({
   useEffect(() => {
     source.sync(preview);
     grid.current?.clearHistory();
-  }, [source, draft.revision, preview]);
+  }, [source, draft.editCount, preview]);
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
@@ -118,7 +116,7 @@ function EditorBody({
       active = false;
       clearTimeout(timer);
     };
-  }, [draft, draft.revision, store]);
+  }, [draft, draft.editCount, store]);
   useEffect(() => {
     const api = grid.current;
     if (!api) return;
@@ -222,18 +220,13 @@ function EditorBody({
           source.flush();
           event.shiftKey ? draft.redo() : draft.undo();
         }
-        if (
-          (event.metaKey || event.ctrlKey) &&
-          event.key.toLowerCase() === "s"
-        ) {
-          event.preventDefault();
-          void save();
-        }
+
       }}
     >
       <div className="toolbar">
         <button
-          title="保存新版本（本次会话）"
+          data-save-document={`model:${draft.id}`}
+          title="保存模型（⌘S / Ctrl+S，本次会话）"
           aria-label="保存模型"
           disabled={busy}
           onClick={() => void save()}
@@ -277,8 +270,7 @@ function EditorBody({
         </button>
         <span>
           {draft.name} ·{" "}
-          {draft.version === "0" ? "未保存" : `v${draft.version}`}
-          {draft.dirty && draft.version !== "0" ? " · 未保存" : ""}
+          {draft.dirty ? "未保存" : "已保存"}
         </span>
         <span className="spacer" />
         <button
@@ -289,30 +281,15 @@ function EditorBody({
           <FileInput size={17} />
         </button>
         <select
-          aria-label="导出模型版本"
-          value={exportVersion}
-          disabled={draft.version === "0"}
-          onChange={(e) => setExportVersion(e.target.value)}
-        >
-          {(
-            store.view?.catalog.models.filter((m) => m.id === draft.id) ?? []
-          ).map((m) => (
-            <option key={m.version} value={m.version}>
-              v{m.version}
-            </option>
-          ))}
-        </select>
-        <select
           aria-label="导出格式"
           defaultValue=""
-          disabled={draft.version === "0"}
+          disabled={!draft.persisted}
           onChange={(event) => {
             const format = event.target.value;
             if (format)
               void task(async () => {
                 const done = await store.client.exportPointFile?.(
                   draft.id,
-                  exportVersion,
                   format,
                 );
                 if (done === undefined) throw Error("文件服务未接入");
@@ -320,7 +297,7 @@ function EditorBody({
             event.target.value = "";
           }}
         >
-          <option value="">导出保存版本</option>
+          <option value="">导出模型</option>
           {["json", "csv", "xlsx"].map((v) => (
             <option key={v} value={v}>
               {v.toUpperCase()}
@@ -432,16 +409,15 @@ export function ModelDetails({
   const draft = store.modelDraft(id);
   if (!draft) return null;
   const selected = draft.rows.find((r) => r.id === draft.selected);
-  const versions = store.view?.catalog.models.filter((m) => m.id === id) ?? [];
-  const references = (version: string) => [
+  const references = [
     ...(store.view?.catalog.endpoints ?? []).flatMap((e) =>
       e.units
-        .filter((u) => u.model.id === id && u.model.version === version)
+        .filter((u) => u.model.id === id)
         .map((u) => ({ endpoint: e, unit: u, applied: false })),
     ),
     ...(store.view?.catalog.applied ?? []).flatMap((e) =>
       e.units
-        .filter((u) => u.model.id === id && u.model.version === version)
+        .filter((u) => u.model.id === id)
         .map((u) => ({ endpoint: e, unit: u, applied: true })),
     ),
   ];
@@ -564,13 +540,12 @@ export function ModelDetails({
         </details>
       )}
       <details open>
-        <summary>版本与引用</summary>
-        {versions.map((model) => (
-          <div key={model.version} className="version-references">
+        <summary>模型引用</summary>
+          <div className="model-references">
             <strong>
-              v{model.version} · {references(model.version).length} 处引用
+              {references.length} 处引用
             </strong>
-            {references(model.version).map((ref, index) => (
+            {references.map((ref, index) => (
               <button
                 key={index}
                 onClick={() =>
@@ -586,7 +561,6 @@ export function ModelDetails({
               </button>
             ))}
           </div>
-        ))}
       </details>
     </div>
   );

@@ -5,6 +5,9 @@ import {
   type InMemoryDataSource,
 } from "@zhiguang/novasheet-core";
 import type {
+  Catalog,
+  EndpointConfig,
+  UnitConfig,
   Category,
   CollectionModel,
   UnitValues,
@@ -56,6 +59,16 @@ export const categories: [Category, string][] = [
   ["control", "遥控"],
   ["adjustment", "遥调"],
 ];
+/** 点表结构跟随当前模型引用；确认值只来自内容及通信配置一致的应用快照。 */
+export function resolveUnitSheet(catalog: Catalog | undefined, endpoint: EndpointConfig, unit: UnitConfig, matchesByEndpoint?: Record<string,Record<string,boolean>>) {
+  const model = catalog?.models.find(item => item.id === unit.model.id);
+  const applied = catalog?.applied.find(item => item.id === endpoint.id);
+  const appliedUnit = applied?.units.find(item => item.id === unit.id);
+  const values = catalog?.values[unit.id];
+  const matches = !!model && !!appliedUnit && !!matchesByEndpoint?.[endpoint.id]?.[unit.id];
+  return { model, values: matches ? values : undefined };
+}
+
 export class SheetViews {
   private views = new Map<string, InMemoryDataSource>();
   get(
@@ -65,12 +78,12 @@ export class SheetViews {
     values?: UnitValues,
     role: Role = "slave",
   ) {
-    // 已应用版本变化时新建视图，普通查询／分类切换不覆盖草稿。
+    // 已应用模型快照变化时新建视图，普通查询／分类切换不覆盖草稿。
     const key = JSON.stringify([
       identity,
       category,
       model?.id,
-      model?.version,
+      model?.points.map(p=>[p.id,p.category]),
       role,
     ]);
     const acquisition = category === "measurement" || category === "indication";
@@ -135,6 +148,9 @@ export class SheetViews {
     for (const [index, point] of (model?.points ?? [])
       .filter((point) => point.category === category)
       .entries()) {
+      for(const field of ["name","area","address","valueType","scale","unit"] as const) {
+        if(data.getCell(index,field)!==point[field]) data.updateCell(index,field,point[field]);
+      }
       const confirmed = values?.raw[point.id]
         ? String(values.raw[point.id].value)
         : null;

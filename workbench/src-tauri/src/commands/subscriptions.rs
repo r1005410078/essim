@@ -3,7 +3,7 @@ use super::{
     dto::{ErrorDto, WorkspaceView},
     Engine,
 };
-use essim_core::domain::foundation::Error;
+use essim_core::domain::error::Error;
 use std::{
     collections::HashMap,
     sync::{

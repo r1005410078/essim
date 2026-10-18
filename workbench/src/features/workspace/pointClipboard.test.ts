@@ -10,7 +10,7 @@ const selection = (col = 0) => ({
   selectedRange: { startRow: 0, endRow: 0, startCol: col, endCol: col },
 });
 it("系统TSV粘贴可扩展空表，500行一次撤销，64位文本不经Number", async () => {
-  const draft = new ModelDraft("m", "M", "1", []);
+  const draft = new ModelDraft("m", "M", []);
   const source = new DraftSource(draft, "measurement");
   await pastePointText(
     source,
@@ -20,7 +20,7 @@ it("系统TSV粘贴可扩展空表，500行一次撤销，64位文本不经Numbe
   );
   expect(draft.rows).toHaveLength(500);
   expect(new Set(draft.rows.map((r) => r.id)).size).toBe(500);
-  expect(draft.revision).toBe(1);
+  expect(draft.editCount).toBe(1);
   draft.undo();
   source.sync();
   expect(draft.rows).toHaveLength(0);
@@ -33,7 +33,7 @@ it("系统TSV粘贴可扩展空表，500行一次撤销，64位文本不经Numbe
   expect(draft.rows[0]!.initialEngineering).toBe("18446744073709551615");
 });
 it("排序键在粘贴中变化仍写入原目标身份，非适用字段跳过", async () => {
-  const draft = new ModelDraft("m", "M", "1", [
+  const draft = new ModelDraft("m", "M", [
     { ...defaultRow("measurement", "z"), name: "Z" },
     { ...defaultRow("measurement", "a"), name: "A" },
   ]);

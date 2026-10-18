@@ -31,6 +31,7 @@ pub(crate) fn build(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "文件",
         true,
         &[
+            &MenuItem::with_id(app, "workbench-save", "保存", true, Some("CmdOrCtrl+S"))?,
             &PredefinedMenuItem::close_window(app, Some("关闭窗口"))?,
             #[cfg(not(target_os = "macos"))]
             &quit,
@@ -84,6 +85,9 @@ pub(crate) fn dispatch(app: &AppHandle, event: tauri::menu::MenuEvent) {
             } else {
                 app.exit(0);
             }
+        }
+        "workbench-save" => {
+            let _ = app.emit_to("main", "workbench-save", ());
         }
         "workbench-undo" => {
             let _ = app.emit_to("main", "workbench-edit", "undo");

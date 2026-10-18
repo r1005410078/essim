@@ -1,6 +1,6 @@
 //! 点表预览及本机文件适配；选择对话框与后台格式转换不进入业务组件。
 use super::{dto::ErrorDto, Engine};
-use essim_core::domain::foundation::Error;
+use essim_core::domain::error::Error;
 use essim_infrastructure::point_exchange::{self, DraftInput, DraftPreview, InputFile, MAX_BYTES};
 use std::{
     collections::HashMap,
@@ -98,13 +98,12 @@ pub async fn open_point_file(
         .remove(&job_id);
     result
 }
-/// 导出权威目录中的选定保存版本，不导出未保存草稿。
+/// 导出权威目录中的当前已保存模型，不导出未保存草稿。
 /// # Errors
-/// 版本不存在、格式写出或文件系统操作失败。
+/// 模型不存在、格式写出或文件系统操作失败。
 #[tauri::command]
 pub async fn export_point_file(
     id: String,
-    version: String,
     format: String,
     engine: State<'_, Engine>,
 ) -> Result<bool, ErrorDto> {
@@ -113,8 +112,8 @@ pub async fn export_point_file(
         .catalog
         .models
         .into_iter()
-        .find(|m| m.id.0 == id && m.version.to_string() == version)
-        .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "保存版本不存在"))?;
+        .find(|m| m.id.0 == id)
+        .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "保存模型不存在"))?;
     save_exchange(model, format).await
 }
 /// 显式输出空点表模板，不读取或修改模型目录。
@@ -122,12 +121,11 @@ pub async fn export_point_file(
 /// 格式非法或文件写出失败时返回错误；系统取消返回false。
 #[tauri::command]
 pub async fn export_point_template(format: String) -> Result<bool, ErrorDto> {
-    use essim_core::domain::foundation::{CollectionModel, ModelId};
+    use essim_core::domain::{identity::ModelId, model::CollectionModel};
     save_exchange(
         CollectionModel {
             id: ModelId("template".into()),
             name: "点表模板".into(),
-            version: 1,
             points: Vec::new(),
         },
         format,
@@ -135,16 +133,15 @@ pub async fn export_point_template(format: String) -> Result<bool, ErrorDto> {
     .await
 }
 async fn save_exchange(
-    model: essim_core::domain::foundation::CollectionModel,
+    model: essim_core::domain::model::CollectionModel,
     format: String,
 ) -> Result<bool, ErrorDto> {
-    let version = model.version;
     if !["json", "csv", "xlsx"].contains(&format.as_str()) {
         return Err(Error::new("FILE_FORMAT", "未知导出格式"));
     }
     let Some(target) = rfd::AsyncFileDialog::new()
         .add_filter("点表", &[&format])
-        .set_file_name(format!("点表-v{version}.{format}"))
+        .set_file_name(format!("点表.{format}"))
         .save_file()
         .await
     else {

@@ -1,10 +1,9 @@
-//! 模型复制、版本和引用保护；无真实协议资源。
+//! 模型覆盖保存、复制和引用保护；无真实协议资源。
 use essim_core::{application::workspace::*, domain::foundation::*};
 
 #[derive(Default)]
 struct Memory {
     catalog: Catalog,
-    retained: Vec<ModelRef>,
 }
 impl ConfigRepository for Memory {
     fn load(&self) -> Catalog {
@@ -13,9 +12,6 @@ impl ConfigRepository for Memory {
     fn commit(&mut self, value: Catalog) -> Result<(), Error> {
         self.catalog = value;
         Ok(())
-    }
-    fn retained_models(&self) -> Vec<ModelRef> {
-        self.retained.clone()
     }
 }
 fn execute(w: &mut Workspace<Memory>, action: Action) -> Result<Receipt, Error> {
@@ -29,7 +25,7 @@ fn model() -> CollectionModel {
     CollectionModel {
         id: ModelId("a".into()),
         name: "A".into(),
-        version: 1,
+
         points: vec![PointDefinition {
             id: PointId("b:point:0:0".into()),
             name: "点".into(),
@@ -50,89 +46,40 @@ fn model() -> CollectionModel {
     }
 }
 #[test]
-fn copies_are_independent_and_old_versions_are_immutable() {
+fn saves_replace_current_model_and_copies_remain_independent() {
     let mut w = Workspace::new(Memory::default());
-    execute(
-        &mut w,
-        Action::SaveModel {
-            model: model(),
-            expected_revision: 0,
-        },
-    )
-    .unwrap();
+    execute(&mut w, Action::SaveModel { model: model() }).unwrap();
     execute(
         &mut w,
         Action::CopyModel {
             source: ModelRef {
                 id: ModelId("a".into()),
-                version: 1,
             },
             id: ModelId("b".into()),
             name: "B".into(),
-            expected_revision: 1,
         },
     )
     .unwrap();
-    let mut renamed = model();
-    renamed.name = "A2".into();
-    execute(
-        &mut w,
-        Action::SaveModel {
-            model: renamed,
-            expected_revision: 1,
-        },
-    )
-    .unwrap();
+    let mut changed = model();
+    changed.name = "A2".into();
+    execute(&mut w, Action::SaveModel { model: changed }).unwrap();
     let catalog = w.query().catalog;
-    assert_eq!(catalog.models[0].name, "A");
-    assert_eq!(catalog.models[1].id, ModelId("b".into()));
-    assert_ne!(
-        catalog.models[0].points[0].id,
-        catalog.models[1].points[0].id
-    );
-    assert_eq!(
-        catalog.models[0].points[0].id,
-        catalog.models[2].points[0].id
-    );
-    assert_eq!(catalog.models[2].version, 2);
-    assert!(execute(
-        &mut w,
-        Action::DeleteModel {
-            id: ModelId("a".into()),
-            expected_revision: 1
-        }
-    )
-    .is_err());
+    assert_eq!(catalog.models.len(), 2);
+    let current = catalog.models.iter().find(|m| m.id.0 == "a").unwrap();
+    let copy = catalog.models.iter().find(|m| m.id.0 == "b").unwrap();
+    assert_eq!(current.name, "A2");
+    assert_eq!(copy.name, "B");
+    assert_ne!(current.points[0].id, copy.points[0].id);
+    let json = serde_json::to_value(current).unwrap();
+    assert!(json.get("version").is_none());
     execute(
         &mut w,
         Action::DeleteModel {
             id: ModelId("a".into()),
-            expected_revision: 2,
         },
     )
     .unwrap();
-    assert!(w.query().catalog.models.iter().all(|m| m.id.0 == "b"));
-}
-#[test]
-fn recorded_version_protects_model_even_without_configuration_reference() {
-    let mut memory = Memory::default();
-    memory.catalog.models.push(model());
-    memory.retained.push(ModelRef {
-        id: ModelId("a".into()),
-        version: 1,
-    });
-    let mut w = Workspace::new(memory);
-    let before = w.query().catalog;
-    let error = execute(
-        &mut w,
-        Action::DeleteModel {
-            id: ModelId("a".into()),
-            expected_revision: 1,
-        },
-    )
-    .unwrap_err();
-    assert_eq!(error.code, "MODEL_REFERENCED");
-    assert_eq!(w.query().catalog, before);
+    assert_eq!(w.query().catalog.models.len(), 1);
 }
 #[test]
 fn old_applied_reference_survives_new_saved_configuration() {
@@ -141,8 +88,8 @@ fn old_applied_reference_survives_new_saved_configuration() {
     let endpoint = EndpointConfig {
         id: EndpointId("e".into()),
         name: "E".into(),
-        revision: 1,
-        applied_revision: Some(1),
+        note: String::new(),
+
         role: Role::Slave,
         transport: Transport::Tcp {
             address: "127.0.0.1".into(),
@@ -151,12 +98,12 @@ fn old_applied_reference_survives_new_saved_configuration() {
         units: vec![UnitConfig {
             id: UnitId("u".into()),
             name: "U".into(),
+            note: String::new(),
             station: 1,
             enabled: true,
             device: None,
             model: ModelRef {
                 id: ModelId("a".into()),
-                version: 1,
             },
         }],
     };
@@ -174,7 +121,6 @@ fn old_applied_reference_survives_new_saved_configuration() {
             &mut w,
             Action::DeleteModel {
                 id: ModelId("a".into()),
-                expected_revision: 1
             }
         )
         .unwrap_err()
@@ -185,14 +131,7 @@ fn old_applied_reference_survives_new_saved_configuration() {
 #[test]
 fn deletion_rechecks_references_created_after_a_read_only_preview() {
     let mut w = Workspace::new(Memory::default());
-    execute(
-        &mut w,
-        Action::SaveModel {
-            model: model(),
-            expected_revision: 0,
-        },
-    )
-    .unwrap();
+    execute(&mut w, Action::SaveModel { model: model() }).unwrap();
     assert!(w
         .query()
         .catalog
@@ -201,8 +140,8 @@ fn deletion_rechecks_references_created_after_a_read_only_preview() {
     let endpoint = EndpointConfig {
         id: EndpointId("new-e".into()),
         name: "E".into(),
-        revision: 0,
-        applied_revision: None,
+        note: String::new(),
+
         role: Role::Slave,
         transport: Transport::Tcp {
             address: "127.0.0.1".into(),
@@ -211,30 +150,22 @@ fn deletion_rechecks_references_created_after_a_read_only_preview() {
         units: vec![UnitConfig {
             id: UnitId("new-u".into()),
             name: "U".into(),
+            note: String::new(),
             station: 1,
             enabled: true,
             device: None,
             model: ModelRef {
                 id: ModelId("a".into()),
-                version: 1,
             },
         }],
     };
-    execute(
-        &mut w,
-        Action::SaveEndpoint {
-            endpoint,
-            expected_revision: 0,
-        },
-    )
-    .unwrap();
+    execute(&mut w, Action::CreateEndpoint { endpoint }).unwrap();
     let before = w.query().catalog;
     assert_eq!(
         execute(
             &mut w,
             Action::DeleteModel {
                 id: ModelId("a".into()),
-                expected_revision: 1
             }
         )
         .unwrap_err()
@@ -242,4 +173,79 @@ fn deletion_rechecks_references_created_after_a_read_only_preview() {
         "MODEL_REFERENCED"
     );
     assert_eq!(w.query().catalog, before);
+}
+
+#[test]
+fn overwrite_keeps_applied_snapshot_until_explicit_apply() {
+    let mut w = Workspace::new(Memory::default());
+    execute(&mut w, Action::SaveModel { model: model() }).unwrap();
+    let endpoint = EndpointConfig {
+        id: EndpointId("e".into()),
+        name: "E".into(),
+        note: String::new(),
+        role: Role::Slave,
+        transport: Transport::Tcp {
+            address: "127.0.0.1".into(),
+            port: 1502,
+        },
+        units: vec![UnitConfig {
+            id: UnitId("u".into()),
+            name: "U".into(),
+            note: String::new(),
+            station: 1,
+            enabled: true,
+            device: None,
+            model: ModelRef {
+                id: ModelId("a".into()),
+            },
+        }],
+    };
+    execute(
+        &mut w,
+        Action::CreateEndpoint {
+            endpoint: endpoint.clone(),
+        },
+    )
+    .unwrap();
+    execute(
+        &mut w,
+        Action::Apply {
+            id: endpoint.id.clone(),
+            reset_incompatible: false,
+        },
+    )
+    .unwrap();
+    let original = w.query().catalog.values;
+    let mut changed = model();
+    changed.name = "覆盖名称".into();
+    changed.points[0].address = 100;
+    execute(
+        &mut w,
+        Action::SaveModel {
+            model: changed.clone(),
+        },
+    )
+    .unwrap();
+    let saved = w.query().catalog;
+    assert_eq!(saved.models, vec![changed.clone()]);
+    assert_eq!(saved.values, original);
+    assert_eq!(saved.endpoints[0].units[0].model.id.0, "a");
+    execute(
+        &mut w,
+        Action::Apply {
+            id: endpoint.id.clone(),
+            reset_incompatible: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        w.query().catalog.values[&UnitId("u".into())].model,
+        Some(changed)
+    );
+    let serialized = serde_json::to_value(&w.query().catalog).unwrap();
+    assert!(serialized["endpoints"][0].get("revision").is_none());
+    assert!(serialized["endpoints"][0].get("appliedRevision").is_none());
+    assert!(serialized["endpoints"][0]["units"][0]["model"]
+        .get("version")
+        .is_none());
 }

@@ -1,3 +1,5 @@
+> 2026-10-16 后续范围调整：本文原有模型／配置版本规则已由M02单份当前配置与已应用快照方案取代，历史完成记录保持原边界。见[当前规格](../implement-modbus-point-table-management/specs/point-table-catalog/spec.md)。
+
 ## Context
 
 M01 决策见 [总计划](../../../docs/plans/modbus-simulator.md#m01-基础模型与架构边界)，流程见 [事件风暴图](../../../docs/design/modbus-event-storming.md)，界面以 [v15](../../../docs/design/m01-workbench-v15.png) 为当前参考。旧图中的示例值、旧版本号及生成图片的排版误差不是产品数据或强制逐像素规范。

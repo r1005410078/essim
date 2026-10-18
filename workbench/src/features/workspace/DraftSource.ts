@@ -15,6 +15,7 @@ export class DraftSource extends SnapshotDataSource {
   private blankIds = Array.from({ length: 30 }, () => crypto.randomUUID());
   private pending = new Map<string, InputRow>();
   private queued = false;
+  private viewIds: string[] = [];
   private canonical = new Map<string, InputRow>();
   constructor(
     readonly draft: ModelDraft,
@@ -44,14 +45,25 @@ export class DraftSource extends SnapshotDataSource {
     const previews = new Map(
       preview?.previews.map((p) => [p.pointId, p]) ?? [],
     );
-    const rows = this.draft.rows
-      .filter((r) => r.category === this.category)
-      .map((r) => ({
-        ...r,
-        width: String(widths[r.valueType!] ?? ""),
-        raw: String(previews.get(r.id!)?.raw.value ?? ""),
-      }));
-    super.setRows([...rows, ...this.blankIds.map((id) => ({ id }))]);
+    // 当前编辑视图按稳定ID保留行槽；修改分类不立即迁移，手动切页后重新过滤。
+    const blanks = new Set<string>(this.blankIds);
+    this.viewIds = this.viewIds.filter(id => this.canonical.has(id) || blanks.has(id));
+    const known = new Set(this.viewIds);
+    const added = this.draft.rows
+      .filter(row => row.category === this.category && !known.has(row.id!))
+      .map(row => row.id!);
+    const firstBlank = this.viewIds.findIndex(id => blanks.has(id));
+    this.viewIds.splice(firstBlank < 0 ? this.viewIds.length : firstBlank, 0, ...added);
+    this.viewIds.push(...this.blankIds.filter(id => !known.has(id)));
+    super.setRows(this.viewIds.map(id => {
+      const row = this.canonical.get(id);
+      return row ? {
+        ...row,
+        id,
+        width: String(widths[row.valueType!] ?? ""),
+        raw: String(previews.get(id)?.raw.value ?? ""),
+      } : { id };
+    }));
   }
   ensureCapacity(count: number) {
     const extra = Math.max(0, count - this.getRowCount());

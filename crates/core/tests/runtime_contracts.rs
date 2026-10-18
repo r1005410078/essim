@@ -62,7 +62,7 @@ fn snapshot(id: &str) -> RunSnapshot {
     RunSnapshot {
         run: RunId(id.into()),
         endpoint: EndpointId("endpoint".into()),
-        revision: 1,
+
         units: vec![UnitId("a".into()), UnitId("b".into())],
         models: vec![],
         initial_values: Default::default(),
@@ -191,7 +191,7 @@ fn shared_storage_fault_stops_every_affected_run_and_isolates_others() {
     );
 }
 #[test]
-fn replay_uses_fixed_versions_isolated_values_and_keeps_partial_intent() {
+fn replay_uses_fixed_snapshots_isolated_values_and_keeps_partial_intent() {
     use std::collections::BTreeMap;
     let unit = UnitId("a".into());
     let point = PointId("test".into());
@@ -199,9 +199,10 @@ fn replay_uses_fixed_versions_isolated_values_and_keeps_partial_intent() {
     config.initial_values.insert(
         unit.clone(),
         UnitValues {
-            model: Some(ModelRef {
+            model: Some(CollectionModel {
                 id: ModelId("m".into()),
-                version: 2,
+                name: "快照".into(),
+                points: vec![],
             }),
             raw: BTreeMap::from([(point.clone(), RawValue::Unsigned(10))]),
             stale: false,
@@ -228,7 +229,7 @@ fn replay_uses_fixed_versions_isolated_values_and_keeps_partial_intent() {
         RawValue::Unsigned(10)
     );
     assert_eq!(replay.values[&unit].raw[&point], RawValue::Unsigned(44));
-    assert_eq!(replay.values[&unit].model.as_ref().unwrap().version, 2);
+    assert_eq!(replay.values[&unit].model.as_ref().unwrap().name, "快照");
     event.sequence = 2;
     event.fact = Fact::Intent {
         operation: "unknown-result".into(),

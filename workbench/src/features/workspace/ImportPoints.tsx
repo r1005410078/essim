@@ -124,12 +124,11 @@ export function ImportPoints({
       await validate({
         id,
         name,
-        version: "0",
         points: rows,
       });
       if (!active.current) return;
       {
-        const draft = new ModelDraft(id, name, "0", rows, store.changed);
+        const draft = new ModelDraft(id, name, rows, store.changed, false);
         store.modelDrafts.set(id, draft);
         store.changed();
         created?.(id);

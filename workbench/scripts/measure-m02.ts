@@ -11,7 +11,6 @@ async function main() {
       const draft = new ModelDraft(
         "measure",
         "测量",
-        "1",
         Array.from({ length: count }, (_, i) => ({
           ...defaultRow(i % 2 ? "measurement" : "indication", `p${i}`),
           address: String(i),

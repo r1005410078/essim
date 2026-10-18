@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { WorkspaceStore, navigation, documentPosition } from "./model";
+import { WorkspaceStore, navigation, documentPosition, isEndpointApplied } from "./model";
 import { SheetViews } from "./sheets";
 import type {
   CollectionModel,
@@ -10,7 +10,6 @@ import type {
 const model: CollectionModel = {
   id: "model-a",
   name: "模型A",
-  version: "1",
   points: [
     {
       id: "voltage",
@@ -34,8 +33,6 @@ const model: CollectionModel = {
 const endpoint: EndpointConfig = {
   id: "endpoint-a",
   name: "端点A",
-  revision: "1",
-  appliedRevision: null,
   role: "slave",
   transport: { kind: "tcp", address: "127.0.0.1", port: 1502 },
   units: [
@@ -44,7 +41,7 @@ const endpoint: EndpointConfig = {
       name: "单元A",
       station: 1,
       enabled: true,
-      model: { id: model.id, version: "1" },
+      model: { id: model.id, },
       device: "device-a",
     },
     {
@@ -52,7 +49,7 @@ const endpoint: EndpointConfig = {
       name: "单元B",
       station: 2,
       enabled: true,
-      model: { id: model.id, version: "1" },
+      model: { id: model.id, },
       device: null,
     },
   ],
@@ -82,7 +79,6 @@ function client(): WorkspaceClient {
     query: vi.fn(async () => view()),
     execute: vi.fn(async () => ({
       objectId: endpoint.id,
-      revision: "2",
       sequence: "2",
     })),
     subscribe: vi.fn(async () => vi.fn(async () => {})),
@@ -103,14 +99,14 @@ it("Unit切换不发命令，独立草稿不会被查询覆盖，保存与应用
   await store.execute({
     kind: "saveEndpoint",
     endpoint: draft,
-    expectedRevision: "1",
+
   });
   expect(adapter.execute).toHaveBeenCalledTimes(1);
   expect(adapter.execute).toHaveBeenCalledWith(
     expect.objectContaining({
       action: expect.objectContaining({
         kind: "saveEndpoint",
-        expectedRevision: "1",
+
       }),
     }),
   );
@@ -160,16 +156,16 @@ it("不同单元和四遥保留自己的NovaSheet草稿，查询与分类不会�
 it("保存失败保留草稿和明确错误，不显示假成功", async () => {
   const adapter = client();
   vi.mocked(adapter.execute).mockRejectedValue({
-    code: "REVISION_CONFLICT",
-    message: "版本冲突",
+    code: "SAVE_FAILED",
+    message: "存储失败",
   });
   const store = new WorkspaceStore(adapter);
   store.edit(endpoint);
   await expect(
-    store.execute({ kind: "saveEndpoint", endpoint, expectedRevision: "0" }),
-  ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    store.execute({ kind: "saveEndpoint", endpoint,  }),
+  ).rejects.toMatchObject({ code: "SAVE_FAILED" });
   expect(store.drafts.has(endpoint.id)).toBe(true);
-  expect(store.error).toBe("版本冲突");
+  expect(store.error).toBe("存储失败");
   expect(store.busy).toBe(false);
 });
 it("应用确认刷新只读值，保留本地草稿", () => {
@@ -178,7 +174,7 @@ it("应用确认刷新只读值，保留本地草稿", () => {
   data.updateCell(0, "draft", 77);
   expect(
     sheets.get("a", "measurement", model, {
-      model: { id: model.id, version: "1" },
+      model,
       raw: { voltage: { kind: "unsigned", value: "10" } },
       stale: false,
     }),
@@ -190,7 +186,6 @@ it("保存等待期间的新编辑不被较早的保存确认清除", async () =
   const adapter = client();
   let confirm!: (value: {
     objectId: string;
-    revision: string;
     sequence: string;
   }) => void;
   vi.mocked(adapter.execute).mockImplementation(
@@ -201,20 +196,19 @@ it("保存等待期间的新编辑不被较早的保存确认清除", async () =
   );
   vi.mocked(adapter.query).mockResolvedValue({
     ...view("2"),
-    catalog: { ...view().catalog, endpoints: [{ ...endpoint, revision: "2" }] },
+    catalog: { ...view().catalog, endpoints: [{ ...endpoint, }] },
   });
   const store = new WorkspaceStore(adapter);
   store.edit(endpoint);
   const pending = store.execute({
     kind: "saveEndpoint",
     endpoint,
-    expectedRevision: "1",
+
   });
   store.edit({ ...endpoint, name: "保存期间继续编辑" });
-  confirm({ objectId: endpoint.id, revision: "2", sequence: "2" });
+  confirm({ objectId: endpoint.id, sequence: "2" });
   await pending;
   expect(store.endpoint(endpoint.id)?.name).toBe("保存期间继续编辑");
-  expect(store.endpoint(endpoint.id)?.revision).toBe("2");
   expect(store.drafts.has(endpoint.id)).toBe(true);
 });
 it("关闭欢迎页后，新文档不再引用已关闭的面板", () => {
@@ -258,33 +252,28 @@ it("主从与四遥共同确定运行草稿权限，主站没有伪造的采集�
   expect(types("master", "adjustment").getCell(0, "draft")).toBe("");
   expect(types("master", "measurement").getCell(0, "draft")).toBeNull();
 });
-it("保存预览期间版本推进时拒绝用旧内容创建新版本", async () => {
+it("保存提交当前模型且不携带版本，等待期间的后续编辑仍未保存", async () => {
   const adapter = client();
   let complete!: (value: unknown) => void;
-  adapter.previewPoints = vi.fn(
-    () =>
-      new Promise((resolve) => {
-        complete = resolve;
-      }),
-  ) as WorkspaceClient["previewPoints"];
+  adapter.previewPoints = vi.fn(() => new Promise(resolve => { complete = resolve; })) as WorkspaceClient["previewPoints"];
   const store = new WorkspaceStore(adapter);
   await store.refresh();
   const draft = store.modelDraft(model.id)!;
-  draft.change((s) => {
-    s.name = "未保存";
-  });
+  draft.change(s => { s.name = "保存的内容"; });
   const task = store.saveModelDraft(model.id);
-  draft.saved("2", draft.content());
-  complete({ model, errors: [], previews: [] });
-  await expect(task).rejects.toThrow("版本已变化");
-  expect(adapter.execute).not.toHaveBeenCalled();
+  draft.change(s => { s.name = "后续编辑"; });
+  complete({ model: { ...model, name: "保存的内容" }, errors: [], previews: [] });
+  await task;
+  expect(adapter.execute).toHaveBeenCalledWith(expect.objectContaining({ action: { kind: "saveModel", model: { ...model, name: "保存的内容" } } }));
+  expect(draft.name).toBe("后续编辑");
+  expect(draft.dirty).toBe(true);
 });
 it("应用已停机后失败也刷新同配置序号的实际状态", async () => {
   const adapter = client();
   const store = new WorkspaceStore(adapter);
   await store.refresh();
   vi.mocked(adapter.execute).mockRejectedValue({
-    code: "REVISION_CONFLICT",
+    code: "SAVE_FAILED",
     message: "停机期间配置变化",
   });
   vi.mocked(adapter.query).mockResolvedValue({
@@ -295,9 +284,35 @@ it("应用已停机后失败也刷新同配置序号的实际状态", async () =
     store.execute({
       kind: "apply",
       id: endpoint.id,
-      expectedRevision: "1",
+
       resetIncompatible: false,
     }),
-  ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+  ).rejects.toMatchObject({ code: "SAVE_FAILED" });
   expect(store.view?.applicationStates?.[endpoint.id]).toBe("stopped");
+});
+
+it("已应用状态比较实际内容，覆盖保存模型后提示待应用", () => {
+  const catalog = view().catalog;
+  catalog.applied = [structuredClone(endpoint)];
+  for (const unit of endpoint.units) catalog.values[unit.id] = { model: structuredClone(model), raw: {}, stale: false };
+  expect(isEndpointApplied(catalog, endpoint,{[endpoint.id]:Object.fromEntries(endpoint.units.map(u=>[u.id,true]))})).toBe(true);
+  catalog.models[0]!.points[0]!.address = 10;
+  expect(isEndpointApplied(catalog, endpoint,{[endpoint.id]:Object.fromEntries(endpoint.units.map(u=>[u.id,false]))})).toBe(false);
+  expect(catalog.values["unit-a"]!.model!.points[0]!.address).toBe(0);
+});
+
+it("同名模拟器在文件夹移动后仍以稳定身份定位，并保留草稿和选中Unit",()=>{
+ const catalog=view().catalog;const copy=structuredClone(catalog.endpoints[0]!);copy.id="other";copy.units=copy.units.map(u=>({...u,id:`other-${u.id}`}));catalog.endpoints.push(copy);
+ catalog.navigation={folders:[{id:"folder",name:"目录",parent:null}],members:{}};
+ const before=navigation(catalog,"simulators");expect(new Set(before.paths).size).toBe(before.paths.length);
+ catalog.navigation.members[copy.id]="folder";const after=navigation(catalog,"simulators");expect([...after.targets].find(([p,t])=>t.id===copy.id && !t.unit)?.[0]).toContain("目录/");
+ expect([...after.targets.values()].filter(t=>t.id===copy.id && t.unit).map(t=>t.unit)).toEqual(copy.units.map(u=>u.id));
+});
+
+it("核心草稿比较的迟到结果不能覆盖新的映射或展示编辑",async()=>{
+ let finishFirst!:(v:Record<string,boolean>)=>void;let finishSecond!:(v:Record<string,boolean>)=>void;
+ const adapter={...client(),inspectEndpoint:vi.fn().mockImplementationOnce(()=>new Promise(resolve=>{finishFirst=resolve;})).mockImplementationOnce(()=>new Promise(resolve=>{finishSecond=resolve;}))};
+ const store=new WorkspaceStore(adapter);await store.refresh();
+ store.edit({...endpoint,name:"展示名"});store.edit({...endpoint,units:endpoint.units.map(u=>({...u,station:10}))});
+ finishSecond({"unit-a":false});await Promise.resolve();finishFirst({"unit-a":true});await Promise.resolve();expect(store.draftMatches.get(endpoint.id)).toEqual({"unit-a":false});
 });

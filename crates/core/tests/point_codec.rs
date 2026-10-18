@@ -41,7 +41,7 @@ fn full_table_validation_crosses_categories_and_reports_stable_identity() {
     let model = |points| CollectionModel {
         id: ModelId("model".into()),
         name: "测试".into(),
-        version: 1,
+
         points,
     };
     let error = model(vec![first.clone(), second.clone()])

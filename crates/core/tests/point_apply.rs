@@ -27,17 +27,17 @@ impl ApplyBoundary for Boundary {
             return Err(Error::new("STOP_FAILED", "未确认停止"));
         }
         if self.conflict {
-            self.memory.0.borrow_mut().endpoints[0].revision += 1;
+            self.memory.0.borrow_mut().endpoints[0].name = "停机时改变".into();
         }
         Ok(())
     }
 }
-fn model(version: u64) -> CollectionModel {
-    let scale = if version == 1 { "1" } else { "0.1" };
+fn model(_sample: u64) -> CollectionModel {
+    let scale = if _sample == 1 { "1" } else { "0.1" };
     CollectionModel {
         id: ModelId("m".into()),
         name: "M".into(),
-        version,
+
         points: vec![PointDefinition {
             id: PointId("p".into()),
             name: "P".into(),
@@ -64,12 +64,15 @@ fn fixture(
     previous_role: Role,
 ) -> (Workspace<Memory, Boundary>, Rc<RefCell<Vec<Vec<UnitId>>>>) {
     let old = model(1);
-    let next = model(2);
+    let mut next = model(2);
+    next.id = ModelId("changed".into());
+    let mut previous_changed = old.clone();
+    previous_changed.id = next.id.clone();
     let mut e = EndpointConfig {
         id: EndpointId("tcp".into()),
         name: "E".into(),
-        revision: 1,
-        applied_revision: Some(1),
+        note: String::new(),
+
         role: Role::Slave,
         transport: Transport::Tcp {
             address: "127.0.0.1".into(),
@@ -81,12 +84,16 @@ fn fixture(
         e.units.push(UnitConfig {
             id: UnitId(format!("u{station}")),
             name: format!("U{station}"),
+        note: String::new(),
             station,
             enabled: true,
             device: None,
             model: ModelRef {
-                id: old.id.clone(),
-                version: 1,
+                id: if station == 2 {
+                    next.id.clone()
+                } else {
+                    old.id.clone()
+                },
             },
         });
     }
@@ -95,7 +102,14 @@ fn fixture(
     e.role = previous_role;
     catalog.applied.push(e.clone());
     for u in &e.units {
-        let mut values = reset_values(Role::Slave, &old);
+        let mut values = reset_values(
+            Role::Slave,
+            if u.station == 2 {
+                &previous_changed
+            } else {
+                &old
+            },
+        );
         values.raw.insert(
             PointId("p".into()),
             RawValue::Unsigned(100 * u.station as u64),
@@ -103,8 +117,6 @@ fn fixture(
         catalog.values.insert(u.id.clone(), values);
     }
     e.role = role;
-    e.revision = 2;
-    e.units[1].model.version = 2;
     catalog.endpoints.push(e);
     let memory = Memory(Rc::new(RefCell::new(catalog)));
     let calls = Rc::new(RefCell::new(vec![]));
@@ -121,7 +133,7 @@ fn apply(w: &mut Workspace<Memory, Boundary>) -> Result<(Receipt, ConfigEvent), 
         command_id: "apply".into(),
         action: Action::Apply {
             id: EndpointId("tcp".into()),
-            expected_revision: 2,
+
             reset_incompatible: false,
         },
     })
@@ -130,9 +142,7 @@ fn apply(w: &mut Workspace<Memory, Boundary>) -> Result<(Receipt, ConfigEvent), 
 fn preview_is_pure_and_apply_stops_all_units_preserving_others() {
     let (mut w, calls) = fixture(false, false, Role::Slave, Role::Slave);
     let before = w.query().catalog;
-    let preview = w
-        .preview_apply(&EndpointId("tcp".into()), 2, false)
-        .unwrap();
+    let preview = w.preview_apply(&EndpointId("tcp".into()), false).unwrap();
     assert_eq!(w.query().catalog, before);
     assert!(calls.borrow().is_empty());
     let changed = &preview.units[&UnitId("u2".into())].engineering_changed[0];
@@ -151,12 +161,12 @@ fn preview_is_pure_and_apply_stops_all_units_preserving_others() {
     );
     let after = w.query().catalog;
     assert_eq!(
-        before.values[&UnitId("u1".into())],
-        after.values[&UnitId("u1".into())]
+        before.values[&UnitId("u1".into())].raw,
+        after.values[&UnitId("u1".into())].raw
     );
     assert_eq!(
-        before.values[&UnitId("u3".into())],
-        after.values[&UnitId("u3".into())]
+        before.values[&UnitId("u3".into())].raw,
+        after.values[&UnitId("u3".into())].raw
     );
     assert_eq!(
         after.values[&UnitId("u2".into())].raw[&PointId("p".into())],
@@ -172,8 +182,8 @@ fn preview_is_pure_and_apply_stops_all_units_preserving_others() {
 fn conflict_after_stop_keeps_old_application_and_records_stopped_state() {
     let (mut w, _) = fixture(true, false, Role::Slave, Role::Slave);
     let before = w.query().catalog;
-    assert_eq!(apply(&mut w).unwrap_err().code, "REVISION_CONFLICT");
-    assert_eq!(w.query().catalog.endpoints[0].revision, 3);
+    assert_eq!(apply(&mut w).unwrap_err().code, "CONFIG_CHANGED");
+    assert_eq!(w.query().catalog.endpoints[0].name, "停机时改变");
     assert_eq!(w.query().catalog.applied, before.applied);
     assert_eq!(w.query().catalog.values, before.values);
     assert_eq!(
@@ -187,7 +197,7 @@ fn unconfirmed_stop_never_changes_application() {
     let before = w.query().catalog;
     assert_eq!(apply(&mut w).unwrap_err().code, "STOP_FAILED");
     assert_eq!(w.query().catalog, before);
-    assert_eq!(w.application_state(&EndpointId("tcp".into())), None);
+    assert_eq!(w.application_state(&EndpointId("tcp".into())), Some(ApplyState::Failed));
 }
 
 #[test]
@@ -197,9 +207,10 @@ fn master_invalidates_only_changed_mapping_and_never_invents_remote_initials() {
     apply(&mut w).unwrap();
     let after = w.query().catalog;
     assert_eq!(
-        after.values[&UnitId("u1".into())],
-        before.values[&UnitId("u1".into())]
+        after.values[&UnitId("u1".into())].raw,
+        before.values[&UnitId("u1".into())].raw
     );
+    assert!(after.values[&UnitId("u1".into())].stale);
     assert!(after.values[&UnitId("u2".into())].raw.is_empty());
     assert!(after.values[&UnitId("u2".into())].stale);
 }

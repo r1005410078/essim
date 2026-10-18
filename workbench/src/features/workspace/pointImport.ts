@@ -8,12 +8,12 @@ export async function appendValidated(
   validate: (input: DraftInput) => Promise<DraftPreview>,
   active: () => boolean,
 ) {
-  const revision = target.revision;
+  const editCount = target.editCount;
   const input = target.input();
   input.points.push(...structuredClone(rows));
   const result = await validate(input);
   if (!active()) return false;
-  if (target.revision !== revision)
+  if (target.editCount !== editCount)
     throw Error("目标草稿已变化，请重新确认并校验导入。");
   if (!result.model) throw result.errors[0] ?? Error("导入校验失败");
   target.change((state) => state.rows.push(...structuredClone(rows)));

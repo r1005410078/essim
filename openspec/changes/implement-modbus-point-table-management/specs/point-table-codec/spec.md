@@ -14,7 +14,7 @@ coil／discrete SHALL 只接受Bool并占1个位地址；holding／input SHALL �
 
 #### Scenario: 地址占用和边界
 - **WHEN** holding地址100的Float32与地址101的Int16同时保存，或地址65535配置Float32
-- **THEN** 保存失败，分别指出冲突双方或越界字段，原模型版本不变
+- **THEN** 保存失败，分别指出冲突双方或越界字段，原模型配置不变
 
 #### Scenario: 跨区与类型
 - **WHEN** holding和input分别使用地址100，或coil采用Int16

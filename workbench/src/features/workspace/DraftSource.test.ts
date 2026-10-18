@@ -1,10 +1,10 @@
 import { expect, it } from "vitest";
 import { DraftSource } from "./DraftSource";
-import { ModelDraft } from "./pointDraft";
+import { ModelDraft, defaultRow } from "./pointDraft";
 
 it("网格重建期间重订阅不会再次收到正在派发的 reset", () => {
   const source = new DraftSource(
-    new ModelDraft("m", "M", "1", []),
+    new ModelDraft("m", "M", []),
     "measurement",
   );
   let calls = 0;
@@ -24,7 +24,7 @@ it("排序后的写入仍指向稳定点身份，一次粘贴只产生一个草�
   const { SortLayer, isMutableDataSource } = await import(
     "@zhiguang/novasheet-core"
   );
-  const draft = new ModelDraft("m", "M", "1", [
+  const draft = new ModelDraft("m", "M", [
     { ...defaultRow("measurement", "z"), name: "Z" },
     { ...defaultRow("measurement", "a"), name: "A" },
   ]);
@@ -41,7 +41,39 @@ it("排序后的写入仍指向稳定点身份，一次粘贴只产生一个草�
   source.flush();
   expect(draft.rows[1]?.name).toBe("B");
   expect(draft.rows[0]?.name).toBe("Z");
-  expect(draft.revision).toBe(1);
+  expect(draft.editCount).toBe(1);
   draft.undo();
   expect(draft.rows[1]?.name).toBe("A");
+});
+
+
+it("修改分类后原位保留当前行，重新打开分类才重新过滤", () => {
+  const row = { ...defaultRow("measurement", "p"), name: "SOC", address: "100" };
+  const next = defaultRow("measurement", "q");
+  const draft = new ModelDraft("m", "M", [row, next]);
+  const source = new DraftSource(draft, "measurement");
+  source.updateCell(0, "category", "indication");
+  source.flush();
+  source.sync();
+  expect(source.getRows(0, 1).map(r => r.id)).toEqual(["p", "q"]);
+  expect(source.getRows(0, 0)[0]).toMatchObject({ ...row, category: "indication" });
+  expect(new DraftSource(draft, "measurement").getRows(0, 0)[0]?.id).toBe("q");
+  expect(new DraftSource(draft, "indication").getRows(0, 0)[0]?.id).toBe("p");
+  draft.undo();
+  source.sync();
+  expect(source.getRows(0, 0)[0]).toMatchObject(row);
+});
+
+it("在中间空行选下拉后保持原行位置，后续预览同步不重排", () => {
+  const draft = new ModelDraft("m", "M", []);
+  const source = new DraftSource(draft, "measurement");
+  const ids = source.getRows(0, 5).map(r => r.id);
+  source.updateCell(4, "area", "input");
+  source.flush();
+  source.sync();
+  expect(source.getRows(0, 5).map(r => r.id)).toEqual(ids);
+  expect(source.getRows(4, 4)[0]).toMatchObject({ id: ids[4], name: "新点", area: "input" });
+  draft.undo();
+  source.sync();
+  expect(draft.rows).toHaveLength(0);
 });

@@ -5,25 +5,25 @@ fn endpoint(id: &str) -> EndpointConfig {
     EndpointConfig {
         id: EndpointId(id.into()),
         name: id.into(),
-        revision: 1,
+        note: String::new(),
+
         role: Role::Slave,
         transport: Transport::Tcp {
             address: "127.0.0.1".into(),
             port: 1502,
         },
         units: vec![],
-        applied_revision: None,
     }
 }
 fn unit(id: &str, station: u8) -> UnitConfig {
     UnitConfig {
         id: UnitId(id.into()),
         name: id.into(),
+        note: String::new(),
         station,
         enabled: true,
         model: ModelRef {
             id: ModelId("model-a".into()),
-            version: 1,
         },
         device: None,
     }
@@ -77,60 +77,60 @@ fn command(action: Action) -> Command {
         action,
     }
 }
-fn model(version: u64) -> CollectionModel {
+fn model(_sample: u64) -> CollectionModel {
     CollectionModel {
         id: ModelId("model-a".into()),
         name: "测试表".into(),
-        version,
+
         points: vec![],
     }
 }
 fn save_model(workspace: &mut Workspace<Memory>) -> ConfigEvent {
     workspace
-        .execute(command(Action::SaveModel {
-            model: model(1),
-            expected_revision: 0,
-        }))
+        .execute(command(Action::SaveModel { model: model(1) }))
         .unwrap()
         .1
 }
 #[test]
-fn save_is_not_apply_and_conflicts_or_bad_references_never_mutate() {
+fn save_is_not_apply_and_bad_references_never_mutate() {
     let mut workspace = Workspace::new(Memory::default());
     save_model(&mut workspace);
     let mut config = endpoint("endpoint-a");
     config.units = vec![unit("unit-a", 1)];
+    if !workspace
+        .query()
+        .catalog
+        .endpoints
+        .iter()
+        .any(|e| e.id == config.id)
+    {
+        let mut first = config.clone();
+        first.units.truncate(1);
+        workspace
+            .execute(command(Action::CreateEndpoint { endpoint: first }))
+            .unwrap();
+    }
     workspace
         .execute(command(Action::SaveEndpoint {
             endpoint: config.clone(),
-            expected_revision: 0,
         }))
         .unwrap();
     assert!(workspace.query().catalog.applied.is_empty());
     let before = workspace.query();
+    config.units[0].model.id = ModelId("missing".into());
     assert!(workspace
-        .execute(command(Action::SaveEndpoint {
-            endpoint: config.clone(),
-            expected_revision: 0
-        }))
-        .is_err());
-    config.units[0].model.version = 99;
-    assert!(workspace
-        .execute(command(Action::SaveEndpoint {
-            endpoint: config,
-            expected_revision: 1
-        }))
+        .execute(command(Action::SaveEndpoint { endpoint: config }))
         .is_err());
     assert_eq!(before.catalog, workspace.query().catalog);
     assert_eq!(before.sequence, workspace.query().sequence);
     workspace
         .execute(command(Action::Apply {
             id: EndpointId("endpoint-a".into()),
-            expected_revision: 1,
+
             reset_incompatible: false,
         }))
         .unwrap();
-    assert_eq!(workspace.query().catalog.applied[0].revision, 1);
+    assert_eq!(workspace.query().catalog.applied[0].id.0, "endpoint-a");
     assert!(!workspace.query().capabilities.execution);
     assert!(workspace
         .execute(command(Action::Start {
@@ -144,12 +144,6 @@ fn projection_dedupe_gap_and_staleness_do_not_control_authority() {
     let event = save_model(&mut workspace);
     let mut projection = Projection::default();
     assert!(projection.query().catalog.models.is_empty());
-    assert!(workspace
-        .execute(command(Action::SaveModel {
-            model: model(2),
-            expected_revision: 0
-        }))
-        .is_err());
     assert!(projection.accept(&event).unwrap());
     assert!(!projection.accept(&event).unwrap());
     let mut gap = event.clone();
@@ -190,10 +184,7 @@ fn migration_keeps_raw_across_scale_and_address_changes_and_is_atomic() {
     let mut old = model(1);
     old.points = vec![point("keep"), point("removed")];
     let current = UnitValues {
-        model: Some(ModelRef {
-            id: old.id.clone(),
-            version: 1,
-        }),
+        model: Some(old.clone()),
         raw: [
             (PointId("keep".into()), RawValue::Unsigned(55)),
             (PointId("removed".into()), RawValue::Unsigned(22)),
@@ -202,7 +193,7 @@ fn migration_keeps_raw_across_scale_and_address_changes_and_is_atomic() {
         stale: false,
     };
     let mut next = old.clone();
-    next.version = 2;
+
     next.points.pop();
     next.points[0].scale = "1".into();
     next.points[0].initial_engineering = "10".into();
@@ -239,23 +230,32 @@ fn apply_all_units_is_atomic_but_batch_reports_each_endpoint() {
     let mut v1 = model(1);
     v1.points = vec![point("p")];
     workspace
-        .execute(command(Action::SaveModel {
-            model: v1.clone(),
-            expected_revision: 0,
-        }))
+        .execute(command(Action::SaveModel { model: v1.clone() }))
         .unwrap();
     let mut config = endpoint("endpoint-a");
     config.units = vec![unit("unit-a", 1), unit("unit-b", 2)];
+    if !workspace
+        .query()
+        .catalog
+        .endpoints
+        .iter()
+        .any(|e| e.id == config.id)
+    {
+        let mut first = config.clone();
+        first.units.truncate(1);
+        workspace
+            .execute(command(Action::CreateEndpoint { endpoint: first }))
+            .unwrap();
+    }
     workspace
         .execute(command(Action::SaveEndpoint {
             endpoint: config.clone(),
-            expected_revision: 0,
         }))
         .unwrap();
     workspace
         .execute(command(Action::Apply {
             id: config.id.clone(),
-            expected_revision: 1,
+
             reset_incompatible: false,
         }))
         .unwrap();
@@ -266,23 +266,31 @@ fn apply_all_units_is_atomic_but_batch_reports_each_endpoint() {
     v2.points[0].initial_engineering = "false".into();
     v2.points[0].scale = "1".into();
     workspace
-        .execute(command(Action::SaveModel {
-            model: v2,
-            expected_revision: 1,
-        }))
+        .execute(command(Action::SaveModel { model: v2 }))
         .unwrap();
-    config.units[1].model.version = 2;
+    if !workspace
+        .query()
+        .catalog
+        .endpoints
+        .iter()
+        .any(|e| e.id == config.id)
+    {
+        let mut first = config.clone();
+        first.units.truncate(1);
+        workspace
+            .execute(command(Action::CreateEndpoint { endpoint: first }))
+            .unwrap();
+    }
     workspace
         .execute(command(Action::SaveEndpoint {
             endpoint: config.clone(),
-            expected_revision: 1,
         }))
         .unwrap();
     let before = workspace.query().catalog;
     assert!(workspace
         .execute(command(Action::Apply {
             id: config.id.clone(),
-            expected_revision: 2,
+
             reset_incompatible: false
         }))
         .is_err());
@@ -290,18 +298,18 @@ fn apply_all_units_is_atomic_but_batch_reports_each_endpoint() {
     let results = workspace.execute_batch(vec![
         command(Action::Apply {
             id: config.id,
-            expected_revision: 2,
+
             reset_incompatible: true,
         }),
         command(Action::Apply {
             id: EndpointId("missing".into()),
-            expected_revision: 1,
+
             reset_incompatible: false,
         }),
     ]);
     assert!(results[0].is_ok());
     assert!(results[1].is_err());
-    assert_eq!(workspace.query().catalog.models.len(), 2);
+    assert_eq!(workspace.query().catalog.models.len(), 1);
 }
 #[test]
 fn independent_models_optional_devices_and_transport_validation() {
@@ -311,10 +319,7 @@ fn independent_models_optional_devices_and_transport_validation() {
     other.id = ModelId("model-b".into());
     other.name = "测试表B".into();
     workspace
-        .execute(command(Action::SaveModel {
-            model: other,
-            expected_revision: 0,
-        }))
+        .execute(command(Action::SaveModel { model: other }))
         .unwrap();
     let device = Device {
         id: DeviceId("device-a".into()),
@@ -330,10 +335,22 @@ fn independent_models_optional_devices_and_transport_validation() {
     config.units = vec![unit("a", 1), unit("b", 2)];
     config.units[1].model.id = ModelId("model-b".into());
     config.units[0].device = Some(device.id);
+    if !workspace
+        .query()
+        .catalog
+        .endpoints
+        .iter()
+        .any(|e| e.id == config.id)
+    {
+        let mut first = config.clone();
+        first.units.truncate(1);
+        workspace
+            .execute(command(Action::CreateEndpoint { endpoint: first }))
+            .unwrap();
+    }
     workspace
         .execute(command(Action::SaveEndpoint {
             endpoint: config.clone(),
-            expected_revision: 0,
         }))
         .unwrap();
     assert_ne!(
@@ -341,10 +358,22 @@ fn independent_models_optional_devices_and_transport_validation() {
         workspace.query().catalog.endpoints[0].units[1].model
     );
     config.units[0].device = None;
+    if !workspace
+        .query()
+        .catalog
+        .endpoints
+        .iter()
+        .any(|e| e.id == config.id)
+    {
+        let mut first = config.clone();
+        first.units.truncate(1);
+        workspace
+            .execute(command(Action::CreateEndpoint { endpoint: first }))
+            .unwrap();
+    }
     workspace
         .execute(command(Action::SaveEndpoint {
             endpoint: config.clone(),
-            expected_revision: 1,
         }))
         .unwrap();
     assert!(workspace.query().catalog.endpoints[0].units[0]

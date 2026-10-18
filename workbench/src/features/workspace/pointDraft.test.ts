@@ -7,7 +7,6 @@ describe("模型唯一草稿事务", () => {
     const draft = new ModelDraft(
       "m",
       "M",
-      "1",
       [defaultRow("measurement", "a")],
       () => notifications++,
     );
@@ -18,7 +17,7 @@ describe("模型唯一草稿事务", () => {
     expect(draft.dirty).toBe(false);
   });
   it("分类切换保留身份；批量操作可一次撤销", () => {
-    const draft = new ModelDraft("m", "M", "0", []);
+    const draft = new ModelDraft("m", "M", [], undefined, false);
     const a = defaultRow("measurement", "a");
     const b = defaultRow("indication", "b");
     draft.change((s) => {
@@ -38,7 +37,7 @@ describe("模型唯一草稿事务", () => {
     expect(draft.rows[1]!.name).toBe("B");
   });
   it("保存期间的新编辑不被较早保存确认清除", () => {
-    const draft = new ModelDraft("m", "M", "1", [
+    const draft = new ModelDraft("m", "M", [
       defaultRow("measurement", "a"),
     ]);
     draft.change((s) => {
@@ -48,13 +47,13 @@ describe("模型唯一草稿事务", () => {
     draft.change((s) => {
       s.rows[0]!.name = "后续修改";
     });
-    draft.saved("2", submitted);
+    draft.saved(submitted);
     expect(draft.dirty).toBe(true);
     expect(draft.rows[0]!.name).toBe("后续修改");
-    expect(draft.version).toBe("2");
+    expect(draft.persisted).toBe(true);
   });
   it("导入追加保持旧点且单次撤销，取消不修改", () => {
-    const draft = new ModelDraft("m", "M", "1", [
+    const draft = new ModelDraft("m", "M", [
       defaultRow("measurement", "a"),
     ]);
     const before = draft.content();
@@ -73,7 +72,7 @@ it("类型变为单地址或Bool时清除不适用编码，同一事务可恢复
     byteOrder: "little",
     scale: "0.1",
   };
-  const draft = new ModelDraft("m", "M", "1", [row]);
+  const draft = new ModelDraft("m", "M", [row]);
   draft.change((s) => {
     s.rows[0]!.valueType = "bool";
   });

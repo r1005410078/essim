@@ -22,7 +22,7 @@ fn three_formats_keep_every_field_and_exact_u64_text() {
     let model = preview(DraftInput {
         id: "m".into(),
         name: "M".into(),
-        version: "0".into(),
+
         points: vec![row()],
     })
     .model
@@ -63,7 +63,7 @@ fn invalid_draft_is_kept_outside_the_authoritative_model() {
     let result = preview(DraftInput {
         id: "m".into(),
         name: "M".into(),
-        version: "0".into(),
+
         points: vec![bad],
     });
     assert!(result.model.is_none());
@@ -78,7 +78,7 @@ fn formula_like_csv_text_is_escaped_reversibly_and_xlsx_is_literal() {
     let model = preview(DraftInput {
         id: "m".into(),
         name: "M".into(),
-        version: "1".into(),
+
         points: vec![row],
     })
     .model

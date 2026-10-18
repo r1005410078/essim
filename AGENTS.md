@@ -40,7 +40,7 @@
 
 1. 设备类型、通信角色、协议实例分别建模；设备状态与协议映射分开，同一设备可暴露多种协议。
 2. 配置与运行状态分开；点定义使用稳定 ID，不用表格行号作为身份。
-3. 区分运行值修改与点表结构修改。应用配置前批量校验；明确版本、生效范围和失败行为，不能留下半应用状态。
+3. 区分运行值修改与点表结构修改。应用配置前批量校验；明确保存与应用的生效范围和失败行为，不能留下半应用状态。
 4. 协议回调、配置编辑、仿真调度之间明确状态所有权和同步机制。协议线程不能直接操作前端或无同步修改共享配置。
 5. C 库封装使用 RAII（Rust Drop），明确句柄释放、回调对象生命周期及停机顺序；异常不得跨越 C ABI 边界。一个设备的断连或异常不应阻塞其他设备。
 6. 仿真引擎独立于页面；实时消息按需订阅和批量发送，高频点变化不逐条写配置数据库。
@@ -82,6 +82,10 @@ Read `docs/README.md` inside that installed package first, then read the relevan
 
 This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
 <!-- END:turborepo-agent-rules -->
+
+## 配置简化约束
+
+模型与端点不提供配置版本管理。每个模型仅保存当前内容，单元通过稳定ID引用；保存覆盖当前内容，显式应用后更新独立快照。不重新引入历史版本、选版、升级或expectedRevision。内部通知序号与文件格式标记不属于配置版本功能。
 
 ## 正式工程约束
 

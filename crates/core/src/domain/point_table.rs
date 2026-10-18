@@ -5,9 +5,12 @@
 //! use essim_core::domain::point_table::{from_engineering, encode, ValueType, Order};
 //! let raw = from_engineering(ValueType::U32, "305419896", "1")?;
 //! assert_eq!(encode(ValueType::U32, &raw, Order::Big, Order::Little)?, vec![0x5678, 0x1234]);
-//! # Ok::<(), essim_core::domain::foundation::Error>(())
+//! # Ok::<(), essim_core::domain::error::Error>(())
 //! ```
-use super::foundation::{Area, Error, PointDefinition, Telemetry};
+use super::{
+    error::Error,
+    model::{Area, PointDefinition, Telemetry},
+};
 use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{One, ToPrimitive, Zero};
@@ -80,7 +83,7 @@ pub enum RawValue {
     /// 有符号整数，文本序列化避免JS精度丢失。
     Signed(#[serde(with = "signed_text")] i64),
     /// 无符号整数，文本序列化避免JS精度丢失。
-    Unsigned(#[serde(with = "super::foundation::decimal")] u64),
+    Unsigned(#[serde(with = "super::serialization::decimal")] u64),
     /// 有限浮点数，文本序列化。
     Float(#[serde(with = "float_text")] f64),
 }

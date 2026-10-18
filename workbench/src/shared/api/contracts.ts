@@ -1,5 +1,5 @@
-/** u64版本和事件序号跨IPC保持十进制字符串。 */
-export type Revision = string;
+/** 配置通知序号跨IPC保持十进制字符串。 */
+export type Sequence = string;
 export type Role = "master" | "slave";
 export type Category = "measurement" | "indication" | "control" | "adjustment";
 export type ValueType =
@@ -35,12 +35,10 @@ export interface PointDefinition {
 export interface CollectionModel {
   id: string;
   name: string;
-  version: Revision;
   points: PointDefinition[];
 }
 export interface ModelRef {
   id: string;
-  version: Revision;
 }
 export interface Device {
   id: string;
@@ -58,6 +56,7 @@ export type Transport =
       stopBits: 1 | 2;
     };
 export interface UnitConfig {
+  note?: string;
   id: string;
   name: string;
   station: number;
@@ -66,20 +65,21 @@ export interface UnitConfig {
   device: string | null;
 }
 export interface EndpointConfig {
+  note?: string;
   id: string;
   name: string;
-  revision: Revision;
-  appliedRevision: Revision | null;
   role: Role;
   transport: Transport;
   units: UnitConfig[];
 }
 export interface UnitValues {
-  model: ModelRef | null;
+  model: CollectionModel | null;
   raw: Record<string, RawValue>;
   stale: boolean;
 }
+export interface Folder { id: string; name: string; parent: string | null; }
 export interface Catalog {
+  navigation?: { folders: Folder[]; members: Record<string, string> };
   models: CollectionModel[];
   endpoints: EndpointConfig[];
   devices: Device[];
@@ -95,31 +95,36 @@ export interface Capabilities {
   reason: string;
 }
 export interface WorkspaceView {
-  applicationStates?: Record<string, "stopped">;
-  sequence: Revision;
+  applicationMatches?: Record<string, Record<string, boolean>>;
+  applicationStates?: Record<string, "stopped" | "running" | "releasing" | "failed">;
+  sequence: Sequence;
   catalog: Catalog;
   capabilities: Capabilities;
 }
 export type Action =
+  | { kind: "createEndpoint"; endpoint: EndpointConfig }
+  | { kind: "copyEndpoint"; source: string; id: string }
+  | { kind: "deleteEndpoint"; id: string }
+  | { kind: "resetUnit"; id: string; unit: string }
+  | { kind: "saveFolder"; folder: Folder }
+  | { kind: "deleteFolder"; id: string }
+  | { kind: "moveEndpoint"; id: string; parent: string | null }
   | {
       kind: "copyModel";
       source: ModelRef;
       id: string;
       name: string;
-      expectedRevision: Revision;
     }
-  | { kind: "deleteModel"; id: string; expectedRevision: Revision }
-  | { kind: "saveModel"; model: CollectionModel; expectedRevision: Revision }
+  | { kind: "deleteModel"; id: string }
+  | { kind: "saveModel"; model: CollectionModel }
   | {
       kind: "saveEndpoint";
       endpoint: EndpointConfig;
-      expectedRevision: Revision;
     }
   | { kind: "createDevice"; device: Device }
   | {
       kind: "apply";
       id: string;
-      expectedRevision: Revision;
       resetIncompatible: boolean;
     }
   | { kind: "start" | "readRemote" | "writeRemote"; id: string }
@@ -130,10 +135,12 @@ export interface Command {
 }
 export interface Receipt {
   objectId: string;
-  revision: Revision;
-  sequence: Revision;
+  sequence: Sequence;
 }
 export interface ApiError {
+  endpointId?: string;
+  unitId?: string;
+  relatedUnitId?: string;
   code: string;
   message: string;
   pointId?: string;
@@ -143,7 +150,6 @@ export interface ApiError {
 export interface DraftInput {
   id: string;
   name: string;
-  version: Revision;
   points: Record<string, string>[];
 }
 export interface DraftPreview {
@@ -176,17 +182,16 @@ export interface PointFile {
 export interface WorkspaceClient {
   query(): Promise<WorkspaceView>;
   execute(command: Command): Promise<Receipt>;
+  inspectEndpoint?(endpoint: EndpointConfig): Promise<Record<string,boolean>>;
   previewPoints?(input: DraftInput): Promise<DraftPreview>;
   previewApply?(
     id: string,
-    revision: Revision,
     reset: boolean,
   ): Promise<ApplyPreview>;
   openPointFile?(signal?: AbortSignal): Promise<PointFile | null>;
   exportPointTemplate?(format: string): Promise<boolean>;
   exportPointFile?(
     id: string,
-    version: Revision,
     format: string,
   ): Promise<boolean>;
   subscribe(

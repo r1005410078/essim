@@ -32,7 +32,7 @@ it("无后端时查询、命令和订阅全部明确失败", async () => {
   });
   expect(invoke).not.toHaveBeenCalled();
 });
-it("稳定对象与字符串版本原样传递，后端拒绝不转为成功", async () => {
+it("稳定对象原样传递，后端拒绝不转为成功", async () => {
   const client = createWorkspaceClient();
   invoke.mockRejectedValueOnce({
     code: "CAPABILITY_UNAVAILABLE",
@@ -61,12 +61,11 @@ it("订阅取消幂等，停止向已关闭面板交付更新", async () => {
     invoke.mock.calls.filter((call) => call[0] === "unsubscribe_workspace"),
   ).toHaveLength(1);
 });
-it("点表预览保留64位文本和字段错误，导出指向明确保存版本", async () => {
+it("点表预览保留64位文本和字段错误，导出当前已保存模型", async () => {
   const client = createWorkspaceClient();
   const input = {
     id: "m",
     name: "M",
-    version: "9007199254740993",
     points: [{ id: "p", initialEngineering: "18446744073709551615" }],
   };
   const error = {
@@ -79,12 +78,11 @@ it("点表预览保留64位文本和字段错误，导出指向明确保存版�
   expect((await client.previewPoints!(input)).errors[0]).toEqual(error);
   expect(invoke).toHaveBeenCalledWith("preview_point_table", { input });
   invoke.mockResolvedValueOnce(false);
-  expect(await client.exportPointFile!("m", "9007199254740993", "xlsx")).toBe(
+  expect(await client.exportPointFile!("m", "xlsx")).toBe(
     false,
   );
   expect(invoke).toHaveBeenLastCalledWith("export_point_file", {
     id: "m",
-    version: "9007199254740993",
     format: "xlsx",
   });
 });

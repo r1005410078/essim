@@ -136,7 +136,7 @@ button:focus-visible {
 .point-errors button{display:block;text-align:left;color:#ae3c2e;font-size:12px;padding:2px 0}
 .point-editor .toolbar button {display:flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:3px}.point-editor .toolbar button:hover{background:#edf2f8}
 .point-editor .toolbar select{font-size:11px;background:transparent;border:1px solid #e0e7f0;border-radius:4px;padding:3px;max-width:130px}
-.version-references{padding:7px 13px;border-bottom:1px solid #edf1f6;font-size:12px}.version-references button{display:block;text-align:left;color:#086cff;font-size:11px;padding:4px 0}
+.model-references{padding:7px 13px;border-bottom:1px solid #edf1f6;font-size:12px}.model-references button{display:block;text-align:left;color:#086cff;font-size:11px;padding:4px 0}
 .tree-context-menu {position:fixed;min-width:180px;display:flex;flex-direction:column;padding:4px;background:#fff;border:1px solid #dce4ef;border-radius:6px;box-shadow:0 6px 20px #1b345c24;z-index:1000;font-size:12px;color:#26324a}
 .tree-context-menu button {padding:6px 12px;text-align:left;border-radius:3px}.tree-context-menu button:hover,.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
 .tree-menu-backdrop{position:fixed;inset:0;z-index:999}.root-tree-menu{position:absolute}
@@ -417,9 +417,6 @@ dialog select {
   background: #c9d1de;
   margin: 0 3px;
 }
-.toolbar .version {
-  display: none;
-}
 .icon {
   color: #27344d;
   border-radius: 5px;
@@ -638,18 +635,6 @@ dialog select {
 .reference-field select {
   min-width: 0;
   flex: 1;
-}
-.model-version-value {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.model-version-value .pending {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #e69b0d;
-  font-size: 11px;
 }
 .details-hint {
   color: #8692a8;

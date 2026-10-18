@@ -1,3 +1,7 @@
+import { NavigationDialog, type NavigationRequest } from "../features/workspace/NavigationDialog";
+import { EnumSelect } from "../features/workspace/EnumSelect";
+import { bindSaveShortcut, hasOpenSaveDialog } from "../features/workspace/saveShortcut";
+import { nextStation, applicationStateLabel, isEndpointApplied } from "../features/workspace/model";
 import { ApplyModelDialog } from "../features/workspace/ApplyModelDialog";
 import {
   createContext,
@@ -65,6 +69,7 @@ import {
 } from "../features/workspace/model";
 import {
   SheetViews,
+  resolveUnitSheet,
   categories,
   readonlyTypes,
   sheetTheme,
@@ -76,6 +81,7 @@ import { ModelDraft } from "../features/workspace/pointDraft";
 import {
   armCloseGuard,
   armEditCommands,
+  armSaveCommand,
   closeWorkbenchWindow,
 } from "../shared/api/window";
 
@@ -88,6 +94,7 @@ interface WorkbenchContext {
   dialog: (kind: DialogKind) => void;
   closeDocument: (id: string, close: () => void) => void;
   removedModel: (id: string) => void;
+  removedEndpoint: (id: string) => void;
 }
 const workbenchTheme = { ...themeLight, gap: 6 };
 const Context = createContext<WorkbenchContext | null>(null);
@@ -105,7 +112,9 @@ function Icon({
   disabled,
   children,
   onClick,
+  saveDocument,
 }: {
+  saveDocument?: string;
   label: string;
   disabled?: boolean;
   children: ReactNode;
@@ -117,6 +126,7 @@ function Icon({
         <span className="icon-wrap">
           <button
             type="button"
+            data-save-document={saveDocument}
             className="icon"
             aria-label={label}
             disabled={disabled}
@@ -134,13 +144,13 @@ function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
 }
 function ProjectPanel() {
-  const { store, open, dialog, removedModel } = useWorkbench();
+  const { store, open, dialog, removedModel, removedEndpoint } = useWorkbench();
   const [section, setSection] = useState<"resources" | "simulators">(
     "simulators",
   );
   const originalCatalog = store.view?.catalog;
   const draftResourceKey = JSON.stringify(
-    [...store.modelDrafts.values()].map((d) => [d.id, d.name, d.version]),
+    [...store.modelDrafts.values()].map((d) => [d.id, d.name, d.persisted]),
   );
   const catalog = useMemo(
     () =>
@@ -153,11 +163,10 @@ function ProjectPanel() {
                 name: store.modelDrafts.get(model.id)?.name ?? model.name,
               })),
               ...[...store.modelDrafts.values()]
-                .filter((d) => d.version === "0")
+                .filter((d) => !d.persisted)
                 .map((d) => ({
                   id: d.id,
                   name: d.name,
-                  version: "0",
                   points: [],
                 })),
             ],
@@ -165,6 +174,7 @@ function ProjectPanel() {
         : undefined,
     [originalCatalog, draftResourceKey],
   );
+  const [navigationAction,setNavigationAction]=useState<NavigationRequest|null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [appendImport, setAppendImport] = useState<string | null>(null);
@@ -187,6 +197,7 @@ function ProjectPanel() {
   const { model } = useFileTree({
     paths: [],
     initialExpansion: "open",
+    flattenEmptyDirectories: false,
     density: "default",
     itemHeight: 30,
     search: false,
@@ -305,18 +316,23 @@ function ProjectPanel() {
                 }}
                 data-file-tree-context-menu-root="true"
               >
-                <button
+                {section==="simulators" && <>
+                  <button role="menuitem" onClick={()=>act(()=>dialog("endpoint"))}>新建模拟器…</button>
+                  <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",target:target?.kind==="folder"?target:undefined}))}>新建文件夹…</button>
+                  {(target?.kind==="endpoint" || target?.kind==="folder") && <>
+                    {target.kind==="endpoint" && <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"copy",target}))}>复制模拟器…</button>}
+                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"rename",target}))}>重命名…</button>
+                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target}))}>移动到…</button>
+                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"delete",target}))}>删除…</button>
+                  </>}
+                </>}
+                {section==="resources" && <button
                   role="menuitem"
                   onClick={() => act(() => dialog("model"))}
                 >
                   新建采集模型
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={() => act(() => setImporting(true))}
-                >
-                  导入新模型…
-                </button>
+                </button>}
+                {section === "resources" && <button role="menuitem" onClick={() => act(() => setImporting(true))}>导入新模型…</button>}
                 {target?.kind === "model" && (
                   <>
                     <button
@@ -344,7 +360,7 @@ function ProjectPanel() {
                         )
                       }
                     >
-                      复制保存版本…
+                      复制模型…
                     </button>
                     <button
                       role="menuitem"
@@ -381,7 +397,6 @@ function ProjectPanel() {
                               attempt(
                                 store.client.exportPointFile?.(
                                   saved.id,
-                                  saved.version,
                                   format,
                                 ) ?? Promise.reject(Error("文件服务不可用")),
                               );
@@ -402,7 +417,9 @@ function ProjectPanel() {
           {store.view ? "尚无配置，请点击上方新建。" : "等待连接 Rust 核心。"}
         </Empty>
       )}
-      <div className="navigation-note">本次会话 · 退出后不保留配置</div>
+      {section==="simulators" && <button onClick={()=>setNavigationAction({kind:"newFolder"})} disabled={!store.view || store.busy}>新建文件夹…</button>}
+      {navigationAction && <NavigationDialog store={store} request={navigationAction} close={()=>setNavigationAction(null)} open={open} removed={removedEndpoint} />}
+      <div className="navigation-note">本次会话 · 退出后不保留配置和目录</div>
       {rootMenu && (
         <div
           className="tree-menu-backdrop"
@@ -504,15 +521,12 @@ function ResourceActionDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const draft = store.modelDraft(action.id);
-  const versions =
-    store.view?.catalog.models.filter((m) => m.id === action.id) ?? [];
-  const latest = versions.at(-1);
+  const latest = store.view?.catalog.models.find((m) => m.id === action.id);
   const [name, setName] = useState(
     action.kind === "copy"
       ? `${latest?.name ?? draft?.name ?? "模型"} 副本`
       : (draft?.name ?? ""),
   );
-  const [version, setVersion] = useState(latest?.version ?? "0");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const references = [
@@ -534,14 +548,14 @@ function ResourceActionDialog({
         });
         open(action.id);
       } else if (action.kind === "copy") {
-        if (!latest) throw Error("请先保存一个模型版本再复制。");
+        if (!latest) throw Error("请先保存模型再复制。");
         const id = crypto.randomUUID();
         await store.execute({
           kind: "copyModel",
-          source: { id: action.id, version },
+          source: { id: action.id },
           id,
           name,
-          expectedRevision: latest.version,
+
         });
         open(id);
       } else {
@@ -549,7 +563,7 @@ function ResourceActionDialog({
           await store.execute({
             kind: "deleteModel",
             id: action.id,
-            expectedRevision: latest.version,
+
           });
         store.modelDrafts.delete(action.id);
         removed(action.id);
@@ -568,12 +582,12 @@ function ResourceActionDialog({
         {action.kind === "rename"
           ? "重命名模型草稿"
           : action.kind === "copy"
-            ? "复制保存版本"
+            ? "复制模型"
             : "删除模型"}
       </h2>
       {action.kind === "delete" ? (
         <>
-          <p>确认删除“{draft?.name}”及其全部会话内版本和未保存草稿？</p>
+          <p>确认删除“{draft?.name}”及其未保存草稿？</p>
           {references.length > 0 && (
             <>
               <p className="error">模型仍被引用，须先更换或解除引用。</p>
@@ -586,7 +600,7 @@ function ResourceActionDialog({
                   }}
                 >
                   {" "}
-                  {e.name} → Unit {u.station} → v{u.model.version}
+                  {e.name} → Unit {u.station}
                 </button>
               ))}
             </>
@@ -600,22 +614,6 @@ function ResourceActionDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-        </label>
-      )}
-      {action.kind === "copy" && (
-        <label>
-          保存版本
-          <select
-            aria-label="复制版本"
-            value={version}
-            onChange={(e) => setVersion(e.target.value)}
-          >
-            {versions.map((v) => (
-              <option key={v.version} value={v.version}>
-                v{v.version}
-              </option>
-            ))}
-          </select>
         </label>
       )}
       {error && (
@@ -656,6 +654,7 @@ function EndpointPanel({ params }: { params: { id: string } }) {
   const endpoint = store.endpoint(params.id);
   const [more, setMore] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [resetting,setResetting]=useState(false);
   const [visited, setVisited] = useState<string[]>([]);
   const unit = currentUnit(store, endpoint);
   const key = unit?.id ?? "";
@@ -679,11 +678,8 @@ function EndpointPanel({ params }: { params: { id: string } }) {
     unit &&
     store.view?.catalog.models.find(
       (model) =>
-        model.id === unit.model.id && model.version === unit.model.version,
+        model.id === unit.model.id,
     );
-  const latest =
-    model &&
-    store.view?.catalog.models.filter((item) => item.id === model.id).at(-1);
   const choose = (next: Category) => {
     store.categories.set(key, next);
     store.changed();
@@ -692,14 +688,15 @@ function EndpointPanel({ params }: { params: { id: string } }) {
     <div className="panel column">
       <div className="toolbar">
         <Icon
-          label="保存配置到本次会话"
+          label="保存配置到本次会话（⌘S / Ctrl+S）"
+          saveDocument={`endpoint:${endpoint.id}`}
           disabled={store.busy || !store.drafts.has(endpoint.id)}
           onClick={() =>
             attempt(
               store.execute({
                 kind: "saveEndpoint",
                 endpoint,
-                expectedRevision: endpoint.revision,
+
               }),
             )
           }
@@ -716,7 +713,7 @@ function EndpointPanel({ params }: { params: { id: string } }) {
             store.busy ||
             !saved ||
             store.drafts.has(endpoint.id) ||
-            saved.appliedRevision === saved.revision
+            isEndpointApplied(store.view?.catalog, saved, store.view?.applicationMatches)
           }
           onClick={() => setApplying(true)}
         >
@@ -739,15 +736,11 @@ function EndpointPanel({ params }: { params: { id: string } }) {
         <span className="spacer" />
         <span className="run-status">
           <span className="status-dot" />
-          {store.view?.applicationStates?.[endpoint.id] === "stopped"
-            ? "已停止"
-            : "未运行"}
+          {applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}
         </span>
-        <span className="version">
-          保存 v{endpoint.revision} ·{" "}
-          {applied ? `已应用 v${applied.revision}` : "未应用"}
-        </span>
+        <span>{isEndpointApplied(store.view?.catalog, endpoint, store.view?.applicationMatches) ? "已应用" : applied ? "待应用" : "未应用"}</span>
       </div>
+      {resetting && unit && <ConfirmAction title={`恢复 ${unit.name} 初值`} message={endpoint.role === "slave" ? "仅恢复选定Unit已应用模型的初值，不应用未保存或待应用修改。" : "仅清空选定Unit本地缓存并标记过期，不向远端写入。"} close={()=>setResetting(false)} submit={()=>store.execute({kind:"resetUnit",id:endpoint.id,unit:unit.id})} />}
       {applying && (
         <ApplyModelDialog
           store={store}
@@ -757,7 +750,8 @@ function EndpointPanel({ params }: { params: { id: string } }) {
       )}
       {more && (
         <div className="more-tools" role="menu">
-          {["批量置数", "恢复初值", "导出", "录制", "回放"].map((label) => (
+          <button disabled={!unit || !store.view?.catalog.values[unit.id] || store.busy} onClick={()=>setResetting(true)}>恢复选定Unit初值…</button>
+          {["批量置数", "导出", "录制", "回放"].map((label) => (
             <button key={label} disabled title="后续阶段接入">
               {label} · 未接入
             </button>
@@ -771,13 +765,13 @@ function EndpointPanel({ params }: { params: { id: string } }) {
         <span className="spacer" />
         <span>
           {model
-            ? `${model.name} · 配置引用 v${model.version} · ${applied?.units.find((item) => item.id === unit?.id)?.model.version ? `已应用 v${applied.units.find((item) => item.id === unit?.id)!.model.version}` : "未应用"}`
+            ? model.name
             : "请在属性栏添加单元并选择模型"}
         </span>
-        {latest && latest.version !== model?.version && (
-          <span className="pending">新版本 v{latest.version} 可选</span>
-        )}
       </div>
+      {unit && store.modelDrafts.get(unit.model.id)?.dirty && (
+        <div className="panel-note">引用模型有未保存修改，请先保存模型；当前显示已保存点表。</div>
+      )}
       <div className="sheet-area">
         {!unit ? (
           <Empty>在右侧属性栏添加 Unit，并引用一个已保存的采集模型。</Empty>
@@ -786,16 +780,12 @@ function EndpointPanel({ params }: { params: { id: string } }) {
             {visited.map((id) => {
               const viewUnit = endpoint.units.find((item) => item.id === id);
               if (!viewUnit) return null;
-              const appliedUnit = applied?.units.find((item) => item.id === id);
-              const reference = appliedUnit?.model ?? viewUnit.model;
-              const viewModel = store.view?.catalog.models.find(
-                (item) =>
-                  item.id === reference.id &&
-                  item.version === reference.version,
+              const { model: viewModel, values: viewValues } = resolveUnitSheet(
+                store.view?.catalog, endpoint, viewUnit, store.drafts.has(endpoint.id) ? {[endpoint.id]:store.draftMatches.get(endpoint.id) ?? store.view?.applicationMatches?.[endpoint.id] ?? {}} : store.view?.applicationMatches,
               );
               return categories.map(([value, label]) => (
                 <div
-                  key={`${id}:${value}:${viewModel?.version}`}
+                  key={`${id}:${value}`}
                   className="sheet-slot"
                   style={{
                     display:
@@ -810,7 +800,7 @@ function EndpointPanel({ params }: { params: { id: string } }) {
                       id,
                       value,
                       viewModel,
-                      store.view?.catalog.values[id],
+                      viewValues,
                       endpoint.role,
                     )}
                     theme={sheetTheme}
@@ -877,6 +867,11 @@ function ModelPanel({ params }: { params: { id: string } }) {
   const { store } = useWorkbench();
   return <PointEditor store={store} id={params.id} />;
 }
+function ConfirmAction({title,message,close,submit}:{title:string;message:string;close:()=>void;submit:()=>Promise<unknown>}) {
+ const ref=useRef<HTMLDialogElement>(null);const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+ useEffect(()=>{ref.current?.showModal();},[]);
+ return <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}><h2>{title}</h2><p>{message}</p>{error && <p role="alert" className="error">{error}</p>}<div className="dialog-actions"><button disabled={busy} onClick={close}>取消</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await submit();close();}catch(e){setError(errorMessage(e));}finally{setBusy(false);}}}>确认</button></div></dialog>;
+}
 function CloseDraftDialog({
   store,
   request,
@@ -892,13 +887,15 @@ function CloseDraftDialog({
   useEffect(() => {
     ref.current?.showModal();
   }, []);
+  const endpointId = request.id.startsWith("endpoint:") ? request.id.slice(9) : null;
+  const modelId = request.id.startsWith("model:") ? request.id.slice(6) : request.id;
   const finish = () => {
     request.close();
     cancel();
   };
   return (
-    <dialog ref={ref} onCancel={cancel}>
-      <h2>模型有未保存修改</h2>
+    <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)cancel();}}>
+      <h2>{endpointId ? "模拟器" : "模型"}有未保存修改</h2>
       <p>保存仅保留本次会话。请选择如何关闭。</p>
       {error && (
         <p className="error" role="alert">
@@ -912,8 +909,9 @@ function CloseDraftDialog({
         <button
           disabled={busy}
           onClick={() => {
-            const d = store.modelDrafts.get(request.id);
-            if (d?.version === "0") store.modelDrafts.delete(request.id);
+            if(endpointId) store.drafts.delete(endpointId);
+            const d = endpointId ? undefined : store.modelDrafts.get(modelId);
+            if (d && !d.persisted) store.modelDrafts.delete(modelId);
             else d?.discard();
             store.changed();
             finish();
@@ -926,8 +924,11 @@ function CloseDraftDialog({
           onClick={async () => {
             setBusy(true);
             try {
-              await store.saveModelDraft(request.id);
-              if (store.modelDrafts.get(request.id)?.dirty) {
+              if(endpointId) {
+                const endpoint=store.endpoint(endpointId); if(!endpoint) throw Error("模拟器不存在");
+                await store.execute({kind:"saveEndpoint",endpoint});
+              } else await store.saveModelDraft(modelId);
+              if (endpointId ? store.drafts.has(endpointId) : store.modelDrafts.get(modelId)?.dirty) {
                 setError("保存期间又有新修改，请再次保存或取消。");
                 return;
               }
@@ -953,7 +954,7 @@ function ExitDialog({ cancel }: { cancel: () => void }) {
   return (
     <dialog ref={ref} onCancel={cancel}>
       <h2>退出本次会话？</h2>
-      <p>当前所有配置（包括已保存版本）及未保存草稿，退出后都会丢失。</p>
+      <p>当前所有配置（包括已保存配置）、文件夹结构及未保存草稿，退出后都会丢失。</p>
       <div className="dialog-actions">
         <button onClick={cancel}>取消退出</button>
         <button onClick={() => void closeWorkbenchWindow()}>放弃并退出</button>
@@ -963,12 +964,12 @@ function ExitDialog({ cancel }: { cancel: () => void }) {
 }
 
 const PropertySearch = createContext("");
-function Property({ label, children }: { label: string; children: ReactNode }) {
+function Property({ label, children, field }: { label: string; children: ReactNode; field?: string }) {
   const search = useContext(PropertySearch);
   if (search && !label.toLowerCase().includes(search.toLowerCase()))
     return null;
   return (
-    <label className="property">
+    <label className="property" data-config-field={field}>
       <span>{label}</span>
       <div>{children}</div>
     </label>
@@ -978,10 +979,21 @@ function InspectorPanel() {
   const { store, selected, open } = useWorkbench();
   const [search, setSearch] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
+  const inspector=useRef<HTMLDivElement>(null);
   const endpoint =
     selected?.kind === "endpoint" ? store.endpoint(selected.id) : undefined;
   const unit = currentUnit(store, endpoint);
   const catalog = store.view?.catalog;
+  useEffect(()=>{
+    const error=store.lastError;if(!error || error.endpointId!==endpoint?.id)return;
+    setSearch("");
+    requestAnimationFrame(()=>{
+      const target=inspector.current?.querySelector<HTMLElement>(`[data-config-field="${CSS.escape(error.unitId && error.field === "name" ? "unit.name" : error.field ?? "")}"]`);
+      const details=target?.closest("details");if(details)details.open=true;
+      target?.querySelector<HTMLElement>("input,button")?.focus({preventScroll:true});
+      target?.scrollIntoView({block:"nearest"});
+    });
+  },[store.lastError,endpoint?.id]);
   const device =
     selected?.kind === "device"
       ? catalog?.devices.find((device) => device.id === selected.id)
@@ -996,23 +1008,15 @@ function InspectorPanel() {
         ),
       });
   };
-  const latest = [
-    ...new Map(catalog?.models.map((model) => [model.id, model])).values(),
-  ];
-  const referenced = latest.find((model) => model.id === unit?.model.id);
+  const latest = catalog?.models ?? [];
   const applied = catalog?.applied
     .find((item) => item.id === endpoint?.id)
     ?.units.find((item) => item.id === unit?.id);
   const add = () => {
     const model = latest[0];
     if (!model || !endpoint) return;
-    let station = 1;
-    while (
-      endpoint.units.some((unit) => unit.station === station) &&
-      station <= 247
-    )
-      station++;
-    if (station > 247) return;
+    const station=nextStation(endpoint);
+    if(station===undefined)return;
     const id = crypto.randomUUID();
     edit({
       ...endpoint,
@@ -1023,7 +1027,7 @@ function InspectorPanel() {
           name: `单元 ${station}`,
           station,
           enabled: true,
-          model: { id: model.id, version: model.version },
+          model: { id: model.id },
           device: null,
         },
       ],
@@ -1042,7 +1046,7 @@ function InspectorPanel() {
       endpoint.units.length > 0
     );
   return (
-    <div className="panel details inspector-panel">
+    <div ref={inspector} className="panel details inspector-panel">
       <div className="details-title">
         <Menu size={16} />
         <strong>详细信息</strong>
@@ -1078,7 +1082,7 @@ function InspectorPanel() {
           device ? (
             <details open>
               <summary>设备</summary>
-              <Property label="名称">{device.name}</Property>
+              <Property label="名称" field="unit.name">{device.name}</Property>
               <Property label="类型">{device.kind}</Property>
             </details>
           ) : (
@@ -1088,24 +1092,9 @@ function InspectorPanel() {
           <>
             <details open>
               <summary>单元</summary>
-              <Property label="当前单元">
+              <Property label="当前单元" field="units">
                 <div className="unit-select">
-                  <select
-                    aria-label="选择单元"
-                    value={unit?.id ?? ""}
-                    onChange={(event) =>
-                      store.selectUnit(endpoint.id, event.target.value)
-                    }
-                  >
-                    <option value="" disabled>
-                      尚无单元
-                    </option>
-                    {endpoint.units.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        Unit {item.station} · {item.name}
-                      </option>
-                    ))}
-                  </select>
+                  <EnumSelect label="选择单元" value={unit?.id ?? ""} onChange={v=>store.selectUnit(endpoint.id,v)} options={[["","尚无单元"],...endpoint.units.map(u=>[u.id,`${u.name} · Unit ${u.station}${u.enabled ? "" : " · 已禁用"}`] as const)]} />
                   <Icon
                     label={
                       canAdd
@@ -1121,7 +1110,7 @@ function InspectorPanel() {
               </Property>
               {unit && (
                 <>
-                  <Property label="Unit ID">
+                  <Property label="Unit ID" field="station">
                     <input
                       aria-label="线上站号"
                       type="number"
@@ -1133,12 +1122,14 @@ function InspectorPanel() {
                       }
                     />
                   </Property>
-                  <Property label="名称">
+                  <Property label="名称" field="name">
                     <input
                       value={unit.name}
                       onChange={(event) => patch({ name: event.target.value })}
                     />
                   </Property>
+                  <Property label="Unit备注"><input value={unit.note ?? ""} onChange={e=>patch({note:e.target.value})} /></Property>
+                  <Property label="删除单元"><button onClick={()=>edit({...endpoint,units:endpoint.units.filter(u=>u.id!==unit.id)})}>从草稿移除 {unit.name}</button></Property>
                   <Property label="启用">
                     <input
                       type="checkbox"
@@ -1148,21 +1139,9 @@ function InspectorPanel() {
                       }
                     />
                   </Property>
-                  <Property label="关联设备">
+                  <Property label="关联设备" field="device">
                     <div className="reference-field">
-                      <select
-                        value={unit.device ?? ""}
-                        onChange={(event) =>
-                          patch({ device: event.target.value || null })
-                        }
-                      >
-                        <option value="">独立模拟器</option>
-                        {catalog?.devices.map((device) => (
-                          <option key={device.id} value={device.id}>
-                            {device.name}
-                          </option>
-                        ))}
-                      </select>
+                      <EnumSelect label="关联设备" value={unit.device ?? ""} onChange={v=>patch({device:v || null})} options={[["","独立模拟器"],...(catalog?.devices ?? []).map(d=>[d.id,d.name] as const)]} />
                       <Icon
                         label="定位关联设备"
                         disabled={!unit.device}
@@ -1182,26 +1161,9 @@ function InspectorPanel() {
                       </Icon>
                     </div>
                   </Property>
-                  <Property label="采集模型">
+                  <Property label="采集模型" field="model">
                     <div className="reference-field">
-                      <select
-                        value={unit.model.id}
-                        onChange={(event) => {
-                          const model = latest.find(
-                            (model) => model.id === event.target.value,
-                          );
-                          if (model)
-                            patch({
-                              model: { id: model.id, version: model.version },
-                            });
-                        }}
-                      >
-                        {latest.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.name}
-                          </option>
-                        ))}
-                      </select>
+                      <EnumSelect label="采集模型" value={unit.model.id} onChange={v=>patch({model:{id:v}})} options={latest.map(m=>[m.id,m.name] as const)} />
                       <Icon
                         label="打开采集模型"
                         onClick={() =>
@@ -1215,53 +1177,16 @@ function InspectorPanel() {
                 </>
               )}
             </details>
-            {unit && (
-              <details open>
-                <summary>模型版本</summary>
-                <Property label="已应用">
-                  {applied ? `v${applied.model.version}` : "未应用"}
-                </Property>
-                <Property label="引用版本">
-                  <select
-                    value={unit.model.version}
-                    onChange={(event) =>
-                      patch({
-                        model: { ...unit.model, version: event.target.value },
-                      })
-                    }
-                  >
-                    {catalog?.models
-                      .filter((model) => model.id === unit.model.id)
-                      .map((model) => (
-                        <option key={model.version} value={model.version}>
-                          v{model.version}
-                        </option>
-                      ))}
-                  </select>
-                </Property>
-                <Property label="最新">
-                  <div className="model-version-value">
-                    v{referenced?.version ?? "—"}
-                    {referenced &&
-                      referenced.version !== unit.model.version && (
-                        <span className="pending">
-                          <span className="status-dot warning" />
-                          有新版本
-                        </span>
-                      )}
-                  </div>
-                </Property>
-              </details>
-            )}
             <details open>
               <summary>所属端点</summary>
+              <Property label="模拟器备注"><input value={endpoint.note ?? ""} onChange={e=>edit({...endpoint,note:e.target.value})} /></Property>
               <Property label="角色">
                 {endpoint.role === "slave" ? "从站" : "主站"}
               </Property>
               <Property label="协议">
                 Modbus {endpoint.transport.kind.toUpperCase()}
               </Property>
-              <Property label="名称">
+              <Property label="名称" field="name">
                 <input
                   value={endpoint.name}
                   onChange={(event) =>
@@ -1288,7 +1213,7 @@ function InspectorPanel() {
                       }}
                     />
                   </Property>
-                  <Property label="端口">
+                  <Property label="端口" field="transport">
                     <input
                       type="number"
                       min="1"
@@ -1309,7 +1234,7 @@ function InspectorPanel() {
                 </>
               ) : (
                 <>
-                  <Property label="串口路径">
+                  <Property label="串口路径" field="transport">
                     <input
                       value={endpoint.transport.path}
                       onChange={(event) => {
@@ -1324,24 +1249,16 @@ function InspectorPanel() {
                       }}
                     />
                   </Property>
-                  <Property label="串口参数">
-                    {endpoint.transport.baud} / {endpoint.transport.parity} / 8
-                    / {endpoint.transport.stopBits}
-                  </Property>
+                  <Property label="波特率" field="transport"><EnumSelect label="波特率" value={String(endpoint.transport.baud)} onChange={v=>{if(endpoint.transport.kind==="rtu")edit({...endpoint,transport:{...endpoint.transport,baud:Number(v)}});}} options={[9600,19200,38400,57600,115200].map(v=>[String(v),String(v)])} /></Property>
+                  <Property label="校验位" field="transport"><EnumSelect label="校验位" value={endpoint.transport.parity} onChange={v=>{if(endpoint.transport.kind==="rtu")edit({...endpoint,transport:{...endpoint.transport,parity:v as "none"|"even"|"odd"}});}} options={[["none","无"],["even","偶校验"],["odd","奇校验"]]} /></Property>
+                  <Property label="停止位" field="transport"><EnumSelect label="停止位" value={String(endpoint.transport.stopBits)} onChange={v=>{if(endpoint.transport.kind==="rtu")edit({...endpoint,transport:{...endpoint.transport,stopBits:Number(v) as 1|2}});}} options={[["1","1"],["2","2"]]} /></Property>
+                  <Property label="数据位">8</Property>
                 </>
               )}
-              <Property label="配置版本">
-                保存 v{endpoint.revision} ·{" "}
-                {endpoint.appliedRevision
-                  ? `已应用 v${endpoint.appliedRevision}`
-                  : "未应用"}
-              </Property>
               <Property label="状态">
                 <span className="run-status">
                   <span className="status-dot" />
-                  {store.view?.applicationStates?.[endpoint.id] === "stopped"
-                    ? "已停止"
-                    : "未运行"}
+                  {applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}
                 </span>
               </Property>
             </details>
@@ -1392,7 +1309,14 @@ function CreateDialog({
   const [path, setPath] = useState("");
   const [baud, setBaud] = useState("19200");
   const [deviceKind, setDeviceKind] = useState("PCS");
+  const models=store.view?.catalog.models ?? [];
+  const [modelId,setModelId]=useState(models.length===1 ? models[0].id : "");
+  const [unitName,setUnitName]=useState("Unit 1");
+  const [station,setStation]=useState("1");
+  const [creatingModel,setCreatingModel]=useState(false);
+  useEffect(()=>{if(!modelId && models.length===1) setModelId(models[0].id);},[models,modelId]);
   useEffect(() => {
+    store.error="";store.lastError=null;store.changed();
     ref.current?.showModal();
   }, []);
   const title =
@@ -1406,11 +1330,11 @@ function CreateDialog({
     const id = crypto.randomUUID();
     try {
       if (kind === "model") {
-        const model: CollectionModel = { id, name, version: "1", points: [] };
+        const model: CollectionModel = { id, name, points: [] };
         await store.execute({
           kind: "saveModel",
           model,
-          expectedRevision: "0",
+
         });
         open({ kind: "model", id });
       } else if (kind === "device") {
@@ -1423,8 +1347,6 @@ function CreateDialog({
         const endpoint: EndpointConfig = {
           id,
           name,
-          revision: "0",
-          appliedRevision: null,
           role,
           transport:
             transport === "tcp"
@@ -1437,12 +1359,12 @@ function CreateDialog({
                   dataBits: 8,
                   stopBits: 1,
                 },
-          units: [],
+          units: [{id:crypto.randomUUID(),name:unitName,station:Number(station),enabled:true,model:{id:modelId},device:null}],
         };
         await store.execute({
-          kind: "saveEndpoint",
+          kind: "createEndpoint",
           endpoint,
-          expectedRevision: "0",
+
         });
         open({ kind: "endpoint", id });
       }
@@ -1452,7 +1374,7 @@ function CreateDialog({
     }
   }
   return (
-    <dialog ref={ref} onCancel={close} aria-label={title}>
+    <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!store.busy)close();}} aria-label={title}>
       <form onSubmit={submit}>
         <h2>{title}</h2>
         <label>
@@ -1476,27 +1398,17 @@ function CreateDialog({
         )}
         {kind === "endpoint" && (
           <>
+            <label>首个Unit名称<input value={unitName} onChange={e=>setUnitName(e.target.value)} required /></label>
+            <label>站号<input type="number" min="1" max="247" value={station} onChange={e=>setStation(e.target.value)} required /></label>
+            <label>采集模型<EnumSelect label="首个Unit模型" value={modelId} onChange={setModelId} options={[["","请选择已保存模型"],...models.map(m=>[m.id,m.name] as const)]} /></label>
+            {models.length===0 && <p>请先创建采集模型。<button type="button" onClick={()=>setCreatingModel(true)}>创建模型并返回</button></p>}
             <label>
               通信角色
-              <select
-                value={role}
-                onChange={(event) =>
-                  setRole(event.target.value as "master" | "slave")
-                }
-              >
-                <option value="slave">从站</option>
-                <option value="master">主站</option>
-              </select>
+              <EnumSelect label="通信角色" value={role} onChange={v=>setRole(v as "master"|"slave")} options={[["slave","从站"],["master","主站"]]} />
             </label>
             <label>
               传输
-              <select
-                value={transport}
-                onChange={(event) => setTransport(event.target.value)}
-              >
-                <option value="tcp">TCP</option>
-                <option value="rtu">RTU 串口</option>
-              </select>
+              <EnumSelect label="传输" value={transport} onChange={setTransport} options={[["tcp","TCP"],["rtu","RTU 串口"]]} />
             </label>
             {transport === "tcp" ? (
               <>
@@ -1533,14 +1445,7 @@ function CreateDialog({
                 </label>
                 <label>
                   波特率
-                  <select
-                    value={baud}
-                    onChange={(event) => setBaud(event.target.value)}
-                  >
-                    {[9600, 19200, 38400, 57600, 115200].map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
+                  <EnumSelect label="波特率" value={baud} onChange={setBaud} options={[9600,19200,38400,57600,115200].map(v=>[String(v),String(v)])} />
                 </label>
                 <p className="muted">
                   首版创建参数：无校验、8 数据位、1 停止位。
@@ -1552,18 +1457,19 @@ function CreateDialog({
         <p className="muted">保存到本次会话，不启动通信；退出后不保留。</p>
         {store.error && (
           <p role="alert" className="error">
-            {store.error}
+            {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
           </p>
         )}
         <div className="dialog-actions">
           <button type="button" disabled={store.busy} onClick={close}>
             取消
           </button>
-          <button className="primary" disabled={store.busy || !name.trim()}>
+          <button className="primary" disabled={store.busy || !name.trim() || (kind === "endpoint" && (!modelId || !models.some(m=>m.id===modelId)))}>
             创建
           </button>
         </div>
       </form>
+      {creatingModel && <CreateDialog kind="model" close={()=>setCreatingModel(false)} />}
     </dialog>
   );
 }
@@ -1579,7 +1485,7 @@ function DocumentTab({
     ? store.endpoint(params.id)
     : undefined;
   const title = endpoint
-    ? `${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"} · ${endpoint.transport.kind === "tcp" ? endpoint.transport.port : endpoint.transport.path}`
+    ? endpoint.name
     : (draft?.name ?? api.title);
   return (
     <div
@@ -1595,7 +1501,7 @@ function DocumentTab({
       {endpoint ? <Table2 size={16} /> : <FileSpreadsheet size={16} />}
       <span>
         {title}
-        {draft?.dirty ? " ●" : ""}
+        {draft?.dirty || (endpoint && store.drafts.has(endpoint.id)) ? " ●" : ""}
       </span>
       <button
         type="button"
@@ -1664,6 +1570,26 @@ export function App() {
   const sheets = useMemo(() => new SheetViews(), []);
   useSyncExternalStore(store.subscribe, store.snapshot);
   const api = useRef<DockviewApi | null>(null);
+  const activeDocument = useRef<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let cancelNative: (() => void) | undefined;
+    const save = () => {
+      if (hasOpenSaveDialog(document)) return;
+      const button = [...document.querySelectorAll<HTMLButtonElement>("button[data-save-document]")]
+        .find(item => item.dataset.saveDocument === activeDocument.current);
+      if (!button || button.disabled) return;
+      // 聚焦工具栏先提交NovaSheet尚在编辑的文本，再走原有保存／错误处理。
+      button.focus({ preventScroll: true });
+      queueMicrotask(() => { if (active && button.isConnected) button.click(); });
+    };
+    const cancelKeys = bindSaveShortcut(window, save);
+    void armSaveCommand(save).then(cancel => {
+      if (active) cancelNative = cancel;
+      else cancel();
+    });
+    return () => { active = false; cancelKeys(); cancelNative?.(); };
+  }, []);
   const [selected, setSelected] = useState<Target | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [closeRequest, setCloseRequest] = useState<{
@@ -1675,7 +1601,8 @@ export function App() {
     const draft = id.startsWith("model:")
       ? store.modelDrafts.get(id.slice(6))
       : undefined;
-    if (draft?.dirty) setCloseRequest({ id: draft.id, close });
+    if (draft?.dirty) setCloseRequest({ id, close });
+    else if(id.startsWith("endpoint:") && store.drafts.has(id.slice(9))) setCloseRequest({id,close});
     else close();
   };
   useEffect(() => {
@@ -1688,7 +1615,8 @@ export function App() {
           store.drafts.size ||
           store.view?.catalog.models.length ||
           store.view?.catalog.endpoints.length ||
-          store.view?.catalog.devices.length
+          store.view?.catalog.devices.length ||
+          store.view?.catalog.navigation?.folders.length
         ),
       () => setExitRequest(true),
     ).then((fn) => {
@@ -1720,7 +1648,7 @@ export function App() {
         ? previous
         : target,
     );
-    if (target.kind === "device") return;
+    if (target.kind === "device" || target.kind === "folder") return;
     if (target.unit) store.selectUnit(target.id, target.unit);
     const id = `${target.kind}:${target.id}`;
     const existing = api.current?.getPanel(id);
@@ -1744,6 +1672,10 @@ export function App() {
       ),
     });
   };
+  useEffect(()=>{
+    const error=store.lastError;
+    if(error?.endpointId)open({kind:"endpoint",id:error.endpointId,unit:error.unitId});
+  },[store.lastError]);
   const ready = ({ api: layout }: DockviewReadyEvent) => {
     api.current = layout;
     layout.addPanel({ id: "welcome", component: "welcome", title: "工作台" });
@@ -1785,6 +1717,7 @@ export function App() {
       if (panel) panel.group.model.header.hidden = true;
     }
     layout.onDidActivePanelChange(({ panel }) => {
+      if (panel?.id.startsWith("endpoint:") || panel?.id.startsWith("model:")) activeDocument.current = panel.id;
       if (panel?.id.startsWith("endpoint:"))
         setSelected({ kind: "endpoint", id: panel.id.slice(9) });
       else if (panel?.id.startsWith("model:"))
@@ -1816,6 +1749,7 @@ export function App() {
           selected,
           dialog: setDialog,
           closeDocument,
+          removedEndpoint: (id) => {api.current?.getPanel(`endpoint:${id}`)?.api.close();setSelected(previous=>previous?.kind==="endpoint" && previous.id===id ? null : previous);},
           removedModel: (id) => {
             api.current?.getPanel(`model:${id}`)?.api.close();
             setSelected((current) =>
@@ -1847,7 +1781,7 @@ export function App() {
           </header>
           {store.error && (
             <div className="error-banner" role="alert">
-              {store.error}
+              {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
             </div>
           )}
           <main>

@@ -93,15 +93,15 @@ export class ModelDraft {
   private baseline: string;
   private past: DraftState[] = [];
   private future: DraftState[] = [];
-  revision = 0;
+  editCount = 0;
   preview: DraftPreview | null = null;
   selected: string | null = null;
   constructor(
     readonly id: string,
     name: string,
-    public version: string,
     rows: InputRow[],
     readonly notify: () => void = () => {},
+    public persisted = true,
   ) {
     this.state = { name, rows: structuredClone(rows) };
     this.baseline = this.content();
@@ -113,7 +113,7 @@ export class ModelDraft {
     return this.state.rows;
   }
   get dirty() {
-    return this.version === "0" || this.content() !== this.baseline;
+    return !this.persisted || this.content() !== this.baseline;
   }
   get canUndo() {
     return this.past.length > 0;
@@ -133,7 +133,6 @@ export class ModelDraft {
     return {
       id: this.id,
       name: this.name,
-      version: this.version,
       points: structuredClone(this.rows),
     };
   }
@@ -157,7 +156,7 @@ export class ModelDraft {
     if (this.past.length > 40) this.past.shift();
     this.state = next;
     this.future = [];
-    this.revision++;
+    this.editCount++;
     this.notify();
   }
   undo() {
@@ -165,7 +164,7 @@ export class ModelDraft {
     if (previous) {
       this.future.push(this.state);
       this.state = previous;
-      this.revision++;
+      this.editCount++;
       this.notify();
     }
   }
@@ -174,12 +173,12 @@ export class ModelDraft {
     if (next) {
       this.past.push(this.state);
       this.state = next;
-      this.revision++;
+      this.editCount++;
       this.notify();
     }
   }
-  saved(version: string, submitted: string) {
-    this.version = version;
+  saved(submitted: string) {
+    this.persisted = true;
     this.baseline = submitted;
     this.notify();
   }
@@ -187,7 +186,7 @@ export class ModelDraft {
     this.state = JSON.parse(this.baseline);
     this.past = [];
     this.future = [];
-    this.revision++;
+    this.editCount++;
     this.notify();
   }
 }

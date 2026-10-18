@@ -1,6 +1,11 @@
 //! 点表编辑输入与文件格式适配；不修改权威目录，不执行公式。
 use calamine::{Data, Reader, Xlsx};
-use essim_core::domain::{foundation::*, point_table::*};
+use essim_core::domain::{
+    error::Error,
+    identity::{ModelId, PointId},
+    model::{CollectionModel, PointDefinition},
+    point_table::*,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -46,8 +51,6 @@ pub struct DraftInput {
     pub id: String,
     /// 草稿模型名称。
     pub name: String,
-    /// 期望的保存版本，未保存模型为0。
-    pub version: String,
     /// 包含稳定点ID的全部分类行。
     pub points: Vec<InputRow>,
 }
@@ -176,7 +179,6 @@ pub fn preview(input: DraftInput) -> DraftPreview {
     let model = CollectionModel {
         id: ModelId(input.id),
         name: input.name,
-        version: input.version.parse::<u64>().unwrap_or(0).max(1),
         points,
     };
     if result.errors.is_empty() {

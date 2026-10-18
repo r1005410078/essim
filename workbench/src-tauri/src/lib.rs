@@ -24,6 +24,7 @@ pub fn run() {
             commands::simulator::exit_workbench,
             commands::simulator::set_exit_guard_ready,
             commands::simulator::preview_apply,
+            commands::simulator::inspect_endpoint,
             commands::simulator::execute_workspace,
             commands::point_table::preview_point_table,
             commands::point_table::open_point_file,

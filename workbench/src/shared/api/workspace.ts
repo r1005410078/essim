@@ -23,8 +23,9 @@ export function createWorkspaceClient(): WorkspaceClient {
   return {
     query: () => invoke("query_workspace"),
     execute: (command) => invoke("execute_workspace", { command }),
-    previewApply: (id, revision, reset) =>
-      invoke("preview_apply", { id, revision, reset }),
+    inspectEndpoint: endpoint => invoke("inspect_endpoint",{endpoint}),
+    previewApply: (id, reset) =>
+      invoke("preview_apply", { id, reset }),
     previewPoints: (input) => invoke("preview_point_table", { input }),
     openPointFile: async (signal) => {
       if (signal?.aborted) return null;
@@ -45,8 +46,8 @@ export function createWorkspaceClient(): WorkspaceClient {
     },
     exportPointTemplate: (format) =>
       invoke("export_point_template", { format }),
-    exportPointFile: (id, version, format) =>
-      invoke("export_point_file", { id, version, format }),
+    exportPointFile: (id, format) =>
+      invoke("export_point_file", { id, format }),
     subscribe: async (listener) => {
       const channel = new Channel<WorkspaceView>();
       channel.onmessage = listener;
