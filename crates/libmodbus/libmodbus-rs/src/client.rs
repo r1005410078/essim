@@ -17,6 +17,7 @@ pub fn exception_code(error: &io::Error) -> Option<u8> {
 enum Channel {
     Tcp(TcpContext<TcpStream>),
     Rtu(RtuContext),
+    Local(TcpContext<std::os::unix::net::UnixStream>),
 }
 
 /// 主动访问 TCP 或 RTU 从站的同步主站，独占通道且不实现 Send/Sync。
@@ -68,6 +69,23 @@ impl ModbusClient {
         client.configure(unit, response_timeout)?;
         Ok(client)
     }
+    /// 在调用方提供的私有Unix通道上执行TCP协议，供真实传输观测桥使用。
+    /// socket所有权移入上下文；C仅借用句柄，Drop由Rust释放，不跨线程。
+    /// # Errors
+    /// 超时、上下文分配或配置失败时返回错误并释放socket。
+    pub fn tcp_channel(
+        socket: std::os::unix::net::UnixStream,
+        unit: u8,
+        timeout: Duration,
+    ) -> io::Result<Self> {
+        timeout_parts(timeout)?;
+        socket.set_write_timeout(Some(timeout))?;
+        let mut client = Self {
+            channel: Some(Channel::Local(TcpContext::with_socket(socket, timeout)?)),
+        };
+        client.configure(unit, timeout)?;
+        Ok(client)
+    }
     /// 打开 RTU 串口主站；串口参数复用 RtuConfig，目标站号为其中的 1–247。
     /// 独立 response_timeout，不受从站接收等待 10–100ms 限制。
     /// 不启用 RTS 方向控制；真实 RS-485 时序和驱动须在目标硬件另验。
@@ -92,6 +110,7 @@ impl ModbusClient {
         match self.channel.as_mut() {
             Some(Channel::Tcp(c)) => Ok(c.handle.as_ptr()),
             Some(Channel::Rtu(c)) => Ok(c.handle.as_ptr()),
+            Some(Channel::Local(c)) => Ok(c.handle.as_ptr()),
             None => Err(io::Error::new(
                 io::ErrorKind::NotConnected,
                 "主站通道已关闭，请重新连接",

@@ -1,4 +1,6 @@
 import { expect, it } from "vitest";
+import {acknowledgeMasterWrites} from "./masterWrites";
+import type {MasterView} from "../../shared/api/contracts";
 import { resolveUnitSheet, SheetViews } from "./sheets";
 import type { Catalog, CollectionModel, EndpointConfig } from "../../shared/api/contracts";
 
@@ -72,4 +74,23 @@ it("待修改按当前Unit和模型归集，不取决于分类或选区；撤销
  expect(views.pending("u",mixed).map(item=>item.point.id)).toEqual(["p","b"]);
  expect(views.pending("other",mixed)).toEqual([]);
  a.updateCell(0,"draft","220");expect(views.pending("u",mixed).map(item=>item.point.id)).toEqual(["b"]);
+});
+
+it("主站待写值独立于最近读取值，失败结果与更新时间可见",()=>{
+ const m=structuredClone(model);m.points[0]!.category="adjustment";const sheets=new SheetViews();
+ const values={model:m,raw:{p:{kind:"unsigned" as const,value:"7"}},stale:false};
+ const data=sheets.get("u","adjustment",m,values,"master",{p:{value:values.raw.p,unixMs:"1792300000000",quality:"failed",error:"超时",writeResult:"未执行"}});
+ data.updateCell(0,"draft","42");
+ sheets.get("u","adjustment",m,{...values,raw:{p:{kind:"unsigned",value:"9"}}},"master",{p:{value:values.raw.p,unixMs:"1792300000000",quality:"failed",error:"超时",writeResult:"未执行"}});
+ expect(data.getCell(0,"draft")).toBe("42");expect(data.getCell(0,"confirmed")).toBe("9");expect(data.getCell(0,"quality")).toBe("读取失败");expect(data.getCell(0,"result")).toBe("未执行");
+ expect(sheets.pendingMaster("u",m).map(e=>e.point.id)).toEqual(["p"]);
+ sheets.discardMaster("u");expect(sheets.pendingMaster("u",m)).toEqual([]);
+});
+
+it("旧批次成功不会确认新草稿，下发期间继续编辑也不会被清空",()=>{
+ const m=structuredClone(model);m.points[0]!.category="adjustment";const sheets=new SheetViews();const data=sheets.get("u","adjustment",m,undefined,"master");data.updateCell(0,"draft","42");const edits=sheets.pendingMaster("u",m);
+ const view:MasterView={endpoint:"e",state:"connected",polling:false,pausedUnits:[],busy:false,operation:"new",completed:1,total:1,requests:1,error:null,revision:"1",observations:[],recordPath:null,points:{p:{value:null,unixMs:null,quality:"unread",error:null,writeOperation:"old",writeResult:"协议已确认，回验一致"}}};
+ acknowledgeMasterWrites(sheets,"new",edits,view);expect(sheets.pendingMaster("u",m)).toHaveLength(1);
+ data.updateCell(0,"draft","43");view.points.p!.writeOperation="new";acknowledgeMasterWrites(sheets,"new",edits,view);expect(sheets.pendingMaster("u",m)[0]?.text).toBe("43");
+ data.updateCell(0,"draft","42");expect(sheets.pendingMaster("u",m)).toHaveLength(0);
 });

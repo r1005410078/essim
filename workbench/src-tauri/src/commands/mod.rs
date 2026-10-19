@@ -10,3 +10,6 @@ pub type Engine = Arc<WorkspaceEngine>;
 
 /// 真实TCP从站运行命令与按需查询。
 pub mod slave;
+
+/// TCP主站IPC。
+pub mod master;

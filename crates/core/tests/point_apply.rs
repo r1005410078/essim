@@ -69,6 +69,7 @@ fn fixture(
     let mut previous_changed = old.clone();
     previous_changed.id = next.id.clone();
     let mut e = EndpointConfig {
+        master: Default::default(),
         id: EndpointId("tcp".into()),
         name: "E".into(),
         note: String::new(),

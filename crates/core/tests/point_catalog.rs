@@ -86,6 +86,7 @@ fn old_applied_reference_survives_new_saved_configuration() {
     let mut memory = Memory::default();
     memory.catalog.models.push(model());
     let endpoint = EndpointConfig {
+        master: Default::default(),
         id: EndpointId("e".into()),
         name: "E".into(),
         note: String::new(),
@@ -138,6 +139,7 @@ fn deletion_rechecks_references_created_after_a_read_only_preview() {
         .model_references(&ModelId("a".into()))
         .is_empty());
     let endpoint = EndpointConfig {
+        master: Default::default(),
         id: EndpointId("new-e".into()),
         name: "E".into(),
         note: String::new(),
@@ -180,6 +182,7 @@ fn overwrite_keeps_applied_snapshot_until_explicit_apply() {
     let mut w = Workspace::new(Memory::default());
     execute(&mut w, Action::SaveModel { model: model() }).unwrap();
     let endpoint = EndpointConfig {
+        master: Default::default(),
         id: EndpointId("e".into()),
         name: "E".into(),
         note: String::new(),

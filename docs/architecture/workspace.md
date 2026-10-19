@@ -162,3 +162,12 @@ workbench/src/features/workspace/RuntimeDataSource.ts     # 草稿基线及待�
 运行事实按自包含JSONL文件可靠确认，默认目录为Tauri应用数据目录下runs。高频值不写配置数据库；配置仍仅本次会话保存。请求事实先落盘，再执行C映射并记录准备响应，随后实际写出并记录发送事实；文件失败停止该端点且保留最后可靠位置。当前同步落盘会影响同工作线程尾延迟，实测如实记录，尚未提供历史浏览及可用回放。
 
 工作台仅为可见端点面板每500ms查询当前Unit当前分类的真实可见行，单次最多1024点；通过NovaSheet公开后端工厂读取视口区域和组合数据源稳定ID，不读取选区。运行修订号独立于配置sequence。未修改的草稿跟随实际值；已修改草稿保留并计数，提交覆盖当前Unit各分类待修改点，成功只清除本次提交版本。恢复初值明确填写数据区及地址闭区间，整Unit复位单独确认。原生滚动、跨分类提交及独立PyModbus联合验证见[M04记录](../test-records/2026-10-18-m04-tcp-slave.md)。
+
+
+## M05 TCP主站职责（2026-10-19）
+
+- `core/domain/master.rs`：完整点请求规划、地址／数量上限、设置校验，无socket／Tauri。
+- `core/application/commands/master.rs`：连接／采集／读取／写入意图；`events/master.rs`：状态、真实帧、失败与操作完成事实；`queries/master.rs`：按需最近值、质量、更新时间及逐点下发结果。
+- `infrastructure/tcp_master/worker.rs`：端点独立所有者，调度同步libmodbus客户端；`bridge.rs`：私有socket pair透传及真实帧观测，不改vendored源、不生成模拟响应；`journal.rs`：连接前快照与sync_data可靠记录。
+- `infrastructure/workspace.rs`：配置应用门、断开等待及快照迁移；前端经统一WorkspaceClient和Tauri适配调用，不直接访问运行线程。
+- 首版32槽，每槽一个所有者、连接后另一个透传线程，命令队列容量1。查询读取投影不等待远端网络。该上限是资源门禁，非已验持续性能数字。

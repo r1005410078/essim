@@ -11,6 +11,7 @@ import type {
   CollectionModel,
   UnitValues,
   Role,
+  MasterPoint,
 } from "../../shared/api/contracts";
 export const readonlyTypes = {
   readonly: {
@@ -70,7 +71,7 @@ export function resolveUnitSheet(catalog: Catalog | undefined, endpoint: Endpoin
 
 export interface PendingRuntimeEdit {point:CollectionModel["points"][number];text:string;source:RuntimeDataSource;row:number;}
 function viewKey(identity:string,category:Category,model:CollectionModel|undefined,role:Role){
- return JSON.stringify([identity,category,model?.id,model?.points.map(p=>[p.id,p.category]),role]);
+ return JSON.stringify([identity,category,model?.id,model?.points.map(p=>role==="master"?[p.id,p.category,p.area,p.address,p.valueType,p.byteOrder,p.wordOrder,p.scale]:[p.id,p.category]),role]);
 }
 export class SheetViews {
   private views = new Map<string, RuntimeDataSource>();
@@ -88,6 +89,15 @@ export class SheetViews {
     return source.pendingRows().flatMap(row=>points[row]?[{point:points[row]!,text:String(source.getCell(row,"draft")??""),source,row}]:[]);
    });
   }
+  pendingMaster(identity:string,model:CollectionModel):PendingRuntimeEdit[]{
+    return categories.flatMap(([category])=>{
+      if(category!=="control"&&category!=="adjustment")return [];
+      const source=this.views.get(viewKey(identity,category,model,"master"));if(!source)return [];
+      const points=model.points.filter(p=>p.category===category);
+      return source.pendingRows().flatMap(row=>points[row]?[{point:points[row]!,text:String(source.getCell(row,"draft")??""),source,row}]:[]);
+    });
+  }
+  discardMaster(identity:string){for(const key of [...this.views.keys()]){const parts=JSON.parse(key);if(parts[0]===identity&&parts.at(-1)==="master")this.views.delete(key);}this.changed();}
   acknowledge(edits:PendingRuntimeEdit[]){for(const edit of edits)edit.source.acknowledge(edit.row,edit.text);}
 
   get(
@@ -96,6 +106,7 @@ export class SheetViews {
     model: CollectionModel | undefined,
     values?: UnitValues,
     role: Role = "slave",
+    metadata?:Record<string,MasterPoint>,
   ) {
     // 已应用模型快照变化时新建视图，普通查询／分类切换不覆盖草稿。
     const key = viewKey(identity,category,model,role);
@@ -120,17 +131,23 @@ export class SheetViews {
                     ? "置数草稿"
                     : "控制观测值"
                   : acquisition
-                    ? "采集结果"
-                    : "待发值",
+                    ? "采集结果（原始）"
+                    : "待发值（原始）",
               type: editable ? "text" : "readonly",
               width: 110,
             },
             {
               id: "confirmed",
-              name: role === "master" ? "最近采集／下发确认" : "当前应用值",
+              name: role === "master" ? "最近读取值（原始）" : "当前应用值",
               type: "readonly",
               width: 110,
             },
+            ...(role==="master"?[
+              {id:"quality",name:"质量",type:"readonly",width:90},
+              {id:"updated",name:"成功更新时间",type:"readonly",width:145},
+              {id:"result",name:"下发／回验结果",type:"readonly",width:230},
+              {id:"error",name:"读取错误",type:"readonly",width:220},
+            ]:[]),
           ],
         },
         rows: (model?.points ?? [])
@@ -169,6 +186,12 @@ export class SheetViews {
         : null;
       if (data.getRows(index, index)[0]?.confirmed !== confirmed)
         data.updateCell(index, "confirmed", confirmed);
+      if(role==="master"){
+        const meta=metadata?.[point.id];
+        const labels:Record<string,string>={unread:"未读取",valid:"有效",stale:"过期／待重读",failed:"读取失败",disconnected:"通信中断"};
+        const fields={quality:labels[meta?.quality??"unread"]??"未读取",updated:meta?.unixMs?new Date(Number(meta.unixMs)).toLocaleString("zh-CN",{hour12:false}):"",result:meta?.writeResult??"",error:meta?.error??""};
+        for(const [field,text]of Object.entries(fields))if(data.getCell(index,field)!==text)data.updateCell(index,field,text);
+      }
       if (editable && role === "slave" && confirmed !== null) data.syncActual(index,confirmed);
       if (!editable && data.getCell(index, "draft") !== confirmed)
         data.syncActual(index,confirmed??"");

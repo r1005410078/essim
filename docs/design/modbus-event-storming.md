@@ -283,3 +283,31 @@ flowchart TD
 ## 图与实现的维护约定
 
 新增或调整服务、命令、查询、事件消费和存储路径时，同时核对第0节时序及代码映射；行为尚未接入的部分继续标为目标／契约，不能仅因目录拆分或类型存在就改为已实现。业务范围变化还需同步实现计划和对应OpenSpec提案。历史验收记录保留原证据边界，本次不关闭M02／M03未验任务。
+
+
+## M05 TCP主站实际流程（2026-10-19）
+
+```mermaid
+sequenceDiagram
+    participant UI as Dockview主站面板
+    participant API as Tauri适配
+    participant Service as WorkspaceEngine
+    participant Owner as 主站所有者
+    participant Wire as 透传观测与libmodbus
+    participant Remote as 外部从站
+    UI->>API: MasterCommand（因果ID）
+    API->>Service: execute_master
+    Service->>Owner: 已应用快照／有界命令
+    Owner-->>UI: busy操作投影（仅接收）
+    Owner->>Wire: 单在途读写
+    Wire->>Wire: 实际帧事实可靠记录
+    Wire->>Remote: TX请求
+    Remote-->>Wire: RX响应
+    Wire-->>Owner: libmodbus确认／异常／I/O错误
+    Owner->>Owner: 成功值与质量、逐点结果；写后回验
+    UI->>API: MasterQuery（可见点）
+    API->>Owner: 查询独立投影
+    Owner-->>UI: 时间／质量／实际值／最近观测
+```
+
+事件来自真实所有者与传输路径，经同步投影和可靠文件记录消费；没有引入通用消息总线或配置事件溯源。连接命令接收、协议写入确认、回验一致与设备动作完成是不同语义。应用配置走同端点操作门，先断开并确认释放后原子替换，保持断开，不自动重发控制。

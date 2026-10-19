@@ -25,6 +25,8 @@ pub fn run() {
         .manage(commands::point_table::PointFileJobs::default())
         .invoke_handler(tauri::generate_handler![
             commands::simulator::query_workspace,
+            commands::master::execute_master,
+            commands::master::query_master,
             commands::slave::execute_slave,
             commands::slave::query_slave,
             commands::simulator::exit_workbench,

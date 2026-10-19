@@ -19,3 +19,6 @@ pub use workspace_view::WorkspaceView;
 
 /// 独立从站运行查询。
 pub mod slave;
+
+/// TCP主站职责。
+pub mod master;

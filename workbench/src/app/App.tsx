@@ -4,6 +4,8 @@ import {Button} from "@essim/ui/components/button";
 import {ActionMenu} from "../features/workspace/ActionMenu";
 import {ObservationPanel} from "../features/workspace/ObservationPanel";
 import { RuntimeGrid } from "../features/workspace/RuntimeGrid";
+import { MasterRuntimeControls } from "../features/workspace/MasterRuntimeControls";
+import type {MasterPoint} from "../shared/api/contracts";
 import { SlaveRuntimeControls } from "../features/workspace/SlaveRuntimeControls";
 import type { RawValue } from "../shared/api/contracts";
 import { NavigationDialog, type NavigationRequest } from "../features/workspace/NavigationDialog";
@@ -457,7 +459,7 @@ function Welcome() {
           新建模拟器
         </button>
       </div>
-      <p>TCP 从站可在端点运行栏启动、置数和查看通信；RTU、主站运行及回放待接入。</p>
+      <p>TCP 主从站可在端点运行栏连接／采集或启动／置数，并查看真实通信；RTU工作台及回放待接入。</p>
     </Empty>
   );
 }
@@ -612,6 +614,8 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
   const { store, sheets } = useWorkbench();
   const endpoint = store.endpoint(params.id);
   const runtimeReaders=useRef(new Map<string,()=>string[]>());
+  const [masterPoints,setMasterPoints]=useState<Record<string,Record<string,MasterPoint>>>({});
+  const updateMasterPoints=(id:string,points:Record<string,MasterPoint>)=>{setMasterPoints(old=>({...old,[id]:points}));updateLiveValues(id,Object.fromEntries(Object.entries(points).flatMap(([key,p])=>p.value?[[key,p.value]]:[])));};
   const [liveValues,setLiveValues]=useState<Record<string,Record<string,RawValue>>>({});
   const updateLiveValues=(id:string,values:Record<string,RawValue>|undefined)=>setLiveValues(previous=>{
     if(JSON.stringify(previous[id])===JSON.stringify(values))return previous;
@@ -655,17 +659,22 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
         <Button size="sm" variant="outline" disabled={store.busy||!saved||store.drafts.has(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/>应用配置</Button>
         <span className={`configuration-badge ${store.drafts.has(endpoint.id)?"pending":""}`}>{store.drafts.has(endpoint.id)?"未保存":isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)?"已应用":applied?"待应用":"未应用"}</span>
         <span className="spacer"/>
-        {!(endpoint.role==="slave"&&endpoint.transport.kind==="tcp")&&<span className="run-status">{applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}</span>}
-        {!(endpoint.role==="slave"&&endpoint.transport.kind==="tcp")&&<ActionMenu label="运行值" disabled={!unit||!store.view?.catalog.values[unit.id]||store.busy} items={[{label:"恢复当前 Unit 初值…",action:()=>setResetting(true)}]}/>}
+        {endpoint.transport.kind!=="tcp"&&<span className="run-status">{applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}</span>}
+        {endpoint.transport.kind!=="tcp"&&<ActionMenu label="运行值" disabled={!unit||!store.view?.catalog.values[unit.id]||store.busy} items={[{label:"恢复当前 Unit 初值…",action:()=>setResetting(true)}]}/>}
       </div>
       <SlaveRuntimeControls visible={visible} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model} category={category}
         readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onValues={updateLiveValues}/>
+      <MasterRuntimeControls visible={visible} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
+        model={unit?(store.view?.catalog.values[unit.id]?.model??model):model}
+        readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onPoints={updateMasterPoints}/>
       {resetting && unit && <ConfirmAction title={`恢复 ${unit.name} 初值`} message={endpoint.role === "slave" ? "仅恢复选定Unit已应用模型的初值，不应用未保存或待应用修改。" : "仅清空选定Unit本地缓存并标记过期，不向远端写入。"} close={()=>setResetting(false)} submit={()=>store.execute({kind:"resetUnit",id:endpoint.id,unit:unit.id})} />}
       {applying && (
         <ApplyModelDialog
           store={store}
           endpoint={saved ?? endpoint}
+          pendingWrites={endpoint.role==="master"?endpoint.units.reduce((sum,u)=>sum+sheets.pendingMaster(u.id,store.view?.catalog.values[u.id]?.model??{id:"",name:"",points:[]}).length,0):0}
+          discardWrites={()=>{for(const u of endpoint.units)sheets.discardMaster(u.id);setMasterPoints({});setLiveValues({});}}
           close={() => setApplying(false)}
         />
       )}
@@ -717,6 +726,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
                       viewModel,
                       viewValues,
                       endpoint.role,
+                      masterPoints[id],
                     )}
                   />
                   {!viewModel?.points.some(

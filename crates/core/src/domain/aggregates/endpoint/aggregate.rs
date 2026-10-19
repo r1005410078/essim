@@ -20,6 +20,9 @@ pub struct EndpointConfig {
     pub transport: Transport,
     /// 独立模型引用的单元集合。
     pub units: Vec<UnitConfig>,
+    /// 当前主站运行参数。
+    #[serde(default)]
+    pub master: crate::domain::master::MasterSettings,
 }
 impl EndpointConfig {
     /// 校验既存端点的角色和传输种类不变；名称与通信参数可编辑。
@@ -52,6 +55,7 @@ impl EndpointConfig {
             return Err(Error::new("INVALID_ENDPOINT", "端点身份和名称不能为空")
                 .at_unit(&self.id, None, "name"));
         }
+        self.master.validate()?;
         match &self.transport {
             Transport::Tcp { address, port }
                 if address.parse::<std::net::Ipv4Addr>().is_err() || *port == 0 =>

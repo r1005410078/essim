@@ -23,3 +23,6 @@ pub mod serialization;
 pub mod values;
 /// 从站模型索引与纯点值规划。
 pub mod slave;
+
+/// TCP主站职责。
+pub mod master;

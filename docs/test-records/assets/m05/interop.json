@@ -1,0 +1,27 @@
+{
+  "pymodbus": "3.11.3",
+  "units": 2,
+  "pointsPerUnit": 16,
+  "functionCodes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    15,
+    16
+  ],
+  "wireFrames": 106,
+  "requests": 54,
+  "stopPollingNoBacklog": true,
+  "reconnected": true,
+  "recorded": true,
+  "unitPauseIsolated": true,
+  "environment": {
+    "os": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.13.5"
+  },
+  "scope": "本机2 Unit × 16点短时软件互操作，非持续规模／真实设备动作验证"
+}

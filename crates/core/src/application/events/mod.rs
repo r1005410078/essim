@@ -10,3 +10,6 @@ pub mod history;
 
 /// 真实TCP从站运行事实。
 pub mod slave;
+
+/// TCP主站职责。
+pub mod master;

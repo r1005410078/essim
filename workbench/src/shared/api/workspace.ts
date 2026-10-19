@@ -11,6 +11,8 @@ export function createWorkspaceClient(): WorkspaceClient {
     };
     return {
       exportObservations:unavailable,
+      executeMaster:unavailable,
+      queryMaster:unavailable,
       executeSlave:unavailable,
       querySlave:unavailable,
       query: unavailable,
@@ -25,6 +27,8 @@ export function createWorkspaceClient(): WorkspaceClient {
   }
   return {
     exportObservations:content=>invoke("export_observations",{content}),
+    executeMaster:command=>invoke("execute_master",{command}),
+    queryMaster:query=>invoke("query_master",{query}),
     executeSlave:command=>invoke("execute_slave",{command}),
     querySlave:query=>invoke("query_slave",{query}),
     query: () => invoke("query_workspace"),

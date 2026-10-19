@@ -64,7 +64,9 @@ export interface UnitConfig {
   model: ModelRef;
   device: string | null;
 }
+export interface MasterSettings {connectTimeoutMs:number;requestTimeoutMs:number;reconnectMs:number;staleMultiplier:number}
 export interface EndpointConfig {
+  master?: MasterSettings;
   note?: string;
   id: string;
   name: string;
@@ -181,6 +183,8 @@ export interface PointFile {
 }
 export interface WorkspaceClient {
   exportObservations?(content:string):Promise<boolean>;
+  executeMaster?(command:MasterCommand):Promise<MasterView>;
+  queryMaster?(query:MasterQuery):Promise<MasterView>;
   executeSlave?(command:SlaveCommand):Promise<SlaveView>;
   querySlave?(query:SlaveQuery):Promise<SlaveView>;
   query(): Promise<WorkspaceView>;
@@ -224,3 +228,10 @@ export interface SlaveView {
  lastRequestMicros:string;error:string|null;recordPath:string|null;lastReliable:string;uncertain:boolean;
  observations?:SlaveObservation[];events:string[];values:Record<string,RawValue>;
 }
+
+/** 主站命令与配置提交分离，操作接收不等于执行成功。 */
+export type MasterAction={kind:"setUnitPolling";unit:string;enabled:boolean}|{kind:"connect"|"disconnect"|"startPolling"|"stopPolling"}|{kind:"read";unit:string;points:string[]}|{kind:"write";unit:string;values:[string,RawValue][]};
+export interface MasterCommand {commandId:string;endpoint:string;action:MasterAction}
+export interface MasterQuery {endpoint:string;unit:string|null;points:string[]}
+export interface MasterPoint {value:RawValue|null;unixMs:string|null;quality:string;error:string|null;writeResult:string|null;writeOperation?:string|null}
+export interface MasterView {endpoint:string;state:string;polling:boolean;pausedUnits:string[];busy:boolean;operation:string|null;completed:number;total:number;requests:number;error:string|null;revision:string;points:Record<string,MasterPoint>;observations:SlaveObservation[];recordPath:string|null}

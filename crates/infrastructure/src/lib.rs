@@ -7,3 +7,7 @@ pub mod point_exchange;
 /// 正式TCP从站运行适配器。
 #[cfg(feature="tcp-runtime")]
 pub mod tcp_slave;
+
+/// 正式TCP主站运行适配器。
+#[cfg(feature="tcp-runtime")]
+pub mod tcp_master;

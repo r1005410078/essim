@@ -13,7 +13,7 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 - Dockview停靠工作台，`@pierre/trees`资源／模拟器树，NovaSheet点表，属性栏Unit切换和四遥导航。
 - 运行／录制失败门禁及隔离回放的核心契约与测试；当时尚无生产执行器；当前 TCP 从站及文件录制进展见下文，可用回放仍未接入。
 
-**当前配置仅保留本次会话，退出即丢失。** SQLite、主站采集调度及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
+**当前配置仅保留本次会话，退出即丢失。** SQLite及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
 
 M02正在实施[点表管理提案](openspec/changes/implement-modbus-point-table-management/proposal.md)：已接入树右键CRUD、NovaSheet编辑、精确数值编码、模型引用、Markdown帮助和JSON／CSV／XLSX交换，自动化及主要原生流程已验证，下拉修改与属性同步已由用户确认，剩余快捷键／键盘帮助复核中。实际测试及限制见[实施记录](docs/test-records/2026-10-16-m02-progress.md)，未将实现中的功能标为整体验收完成。
 
@@ -37,7 +37,7 @@ cargo doc --workspace --no-deps --offline
 
 ## 通用 libmodbus 封装
 
-`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}`继续独立保留：官方固定源码构建、原始绑定和Rust安全封装。提供四区Mapping、TCP／RTU从站上下文、同步TCP／RTU主站四区读取及可写区单／多写。工作台 TCP 从站执行器已链接此库；RTU 和主站工作台运行仍待接入。
+`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}`继续独立保留：官方固定源码构建、原始绑定和Rust安全封装。提供四区Mapping、TCP／RTU从站上下文、同步TCP／RTU主站四区读取及可写区单／多写。工作台 TCP 从站执行器已链接此库；TCP主站工作台本轮接入，RTU工作台运行仍待接入。
 
 默认 vendored 静态链接；非vendored必须显式指定自行编译的动态前缀，不探测Homebrew或其他宿主库。构建方式及安全／协议边界见 [三包说明](crates/libmodbus/README.md)。
 
@@ -60,7 +60,7 @@ M03模拟器配置已接入：默认Unit与模型、固定类型、复制／删�
 配置架构已按CQRS／DDD职责拆分：[命令与处理器](crates/core/src/application/commands/mod.rs)、[查询／投影](crates/core/src/application/queries/mod.rs)、[具体配置事件](crates/core/src/application/events/mod.rs)、[聚合目录](crates/core/src/domain/aggregates/mod.rs)、[同步事件监听器](crates/core/src/application/event_handlers/mod.rs)。成功提交后返回具体事实，不将快照通知称为事件溯源。[重构提案](openspec/changes/refactor-workspace-cqrs-boundaries/proposal.md) · [验证记录](docs/test-records/2026-10-17-cqrs-boundaries.md)。
 
 
-M04 TCP从站已接入真实监听、四区基础8功能码、多Unit／多客户端、原子置数／复位、启停保值和可靠文件录制。工作台运行栏通过独立运行命令／查询访问固定线程所有者；主站运行、RTU诊断、配置数据库、历史查看及可用回放仍待实施。原生启停、置数、复位及独立主站读取已验证；1000端点典型亿点负载尚未完成验收，见[M04实施记录](docs/test-records/2026-10-18-m04-tcp-slave.md)及[提案任务](openspec/changes/implement-modbus-tcp-slave-runtime/tasks.md)。
+M04 TCP从站已接入真实监听、四区基础8功能码、多Unit／多客户端、原子置数／复位、启停保值和可靠文件录制。工作台运行栏通过独立运行命令／查询访问固定线程所有者；RTU诊断、配置数据库、历史查看及可用回放仍待实施。原生启停、置数、复位及独立主站读取已验证；1000端点典型亿点负载尚未完成验收，见[M04实施记录](docs/test-records/2026-10-18-m04-tcp-slave.md)及[提案任务](openspec/changes/implement-modbus-tcp-slave-runtime/tasks.md)。
 
 无界面入口读取已应用快照数组JSON（Snapshot字段为endpoint及values），不依赖Tauri窗口：
 
@@ -77,3 +77,12 @@ python3 scripts/verify_tcp_slave_runtime.py --binary target/debug/examples/tcp_s
 工作台外围已按确认方案整理：项目树、配置／运行操作、上下文属性、应用迁移预览和真实通信／事件／问题面板。点表保留 NovaSheet 样式；报文可筛选、暂停展示和导出当前视图（有界最近窗口，不是完整抓包）。见[UI 实施与原生截图](docs/test-records/2026-10-18-workbench-ui-v2.md)。M07 整体、历史查看与回放仍未完成。
 
 通信报文字节现支持点击／Enter打开字段解析，覆盖基础8功能码的TCP请求、响应及异常；读响应仅在唯一匹配请求时补地址。“详细”进入Dockview中的[Modbus指南](workbench/src/resources/protocols/modbus/guide.md)，项目树“文档资源”与采集模型平级，按协议分类、离线Markdown渲染。见[本轮记录](docs/test-records/2026-10-18-modbus-reference.md)与[解析边界](docs/test-records/2026-10-18-message-hover.md)。
+
+
+M05 TCP主站：单目标共享连接、多Unit独立结果、四区手动／周期读取、遥控／遥调显式下发及回验、质量／更新时间、采集中自动重连和真实字节观测。默认连接／请求／重连为3000／1000／3000ms，过期倍数3；主站设置进入配置草稿，保存并应用后生效。应用会断开并保持断开；待写草稿需明确丢弃。首版最多32个主站所有者槽，单批手动写入最多1024点（先整批校验，再按功能码上限拆请求），非主站规模性能承诺。RTU主站另立提案；[实施与验收边界](docs/test-records/2026-10-19-m05-tcp-master.md)。
+
+```sh
+cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_master --offline
+# 需要PyModbus 3.11.3；只访问脚本自己启动的回环从站。
+python3 scripts/verify_tcp_master_runtime.py
+```

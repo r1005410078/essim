@@ -42,3 +42,8 @@ it("同事务并发重复或不匹配的Unit不会借用地址",()=>{
  const rows=observationRows([entry(1,{kind:"request",client:1,bytes:req}),entry(2,{kind:"request",client:1,bytes:req}),entry(3,{kind:"responsePrepared",client:1,bytes:res}),entry(4,{kind:"responsePrepared",client:1,bytes:res}),entry(5,{kind:"responsePrepared",client:1,bytes:[...res.slice(0,6),2,...res.slice(7)]})]);
  expect(rows.slice(2).every(row=>row.requestHex===undefined)).toBe(true);
 });
+
+it("主站TX请求关联RX响应且保留实际方向",()=>{
+ const records=[{sequence:"1",unixMs:"1",event:JSON.stringify({kind:"frame",direction:"TX",hex:"00 01 00 00 00 06 01 03 00 0A 00 01"})},{sequence:"2",unixMs:"2",event:JSON.stringify({kind:"frame",direction:"RX",hex:"00 01 00 00 00 05 01 03 02 00 07"})}];
+ const rows=observationRows(records,true);expect(rows[0].direction).toBe("TX");expect(rows[1].direction).toBe("RX");expect(rows[1].requestHex).toBe(rows[0].hex);
+});

@@ -36,6 +36,8 @@ pub struct WorkspaceEngine {
     boundary: Mutex<Box<dyn ApplyBoundary + Send>>,
     #[cfg(feature = "tcp-runtime")]
     runtime: Option<std::sync::Arc<crate::tcp_slave::TcpSlaveRuntime>>,
+    #[cfg(feature = "tcp-runtime")]
+    master: Option<crate::tcp_master::TcpMasterRuntime>,
 }
 impl Default for WorkspaceEngine {
     fn default() -> Self {
@@ -44,6 +46,8 @@ impl Default for WorkspaceEngine {
             boundary: Mutex::new(Box::new(StoppedBoundary)),
             #[cfg(feature = "tcp-runtime")]
             runtime: None,
+            #[cfg(feature = "tcp-runtime")]
+            master: None,
         }
     }
 }
@@ -80,7 +84,7 @@ impl WorkspaceEngine {
             view.capabilities.execution = true;
             view.capabilities.recording = true;
             view.capabilities.reason =
-                "当前支持TCP从站运行及文件录制；RTU、主站运行和历史回放尚未接入".into();
+                "当前支持TCP主从站运行及文件录制；RTU工作台和历史回放尚未接入".into();
         }
         Ok(view)
     }
@@ -123,6 +127,9 @@ impl WorkspaceEngine {
             let _guard = gate
                 .lock()
                 .map_err(|_| Error::new("STATE_POISONED", "端点操作锁不可用"))?;
+            if let Some(master) = &self.master {
+                master.disconnect_wait(&id)?;
+            }
             if let Some(values) = runtime.stopped_values(&id)? {
                 self.workspace
                     .lock()
@@ -136,6 +143,9 @@ impl WorkspaceEngine {
                 .execute(command);
             if result.is_ok() {
                 runtime.forget(&id)?;
+                if let Some(master) = &self.master {
+                    master.forget(&id)?;
+                }
             }
             return result;
         }
@@ -169,6 +179,11 @@ impl WorkspaceEngine {
             #[allow(unused_mut)]
             let mut stopped_values = None;
             #[cfg(feature = "tcp-runtime")]
+            if let Some(master) = &self.master {
+                master.disconnect_wait(&plan.endpoint().id)?;
+                stopped_values = master.stopped_values(&plan.endpoint().id)?;
+            }
+            #[cfg(feature = "tcp-runtime")]
             if let Some(runtime) = &self.runtime {
                 let id = plan.endpoint().id.clone();
                 if let Err(error) = runtime.execute(
@@ -185,7 +200,9 @@ impl WorkspaceEngine {
                         .observe_release(id, essim_core::application::ports::ApplyState::Failed);
                     return Err(error);
                 }
-                stopped_values = runtime.stopped_values(&id)?;
+                if let Some(values) = runtime.stopped_values(&id)? {
+                    stopped_values = Some(values);
+                }
             }
             let id = plan.endpoint().id.clone();
             // 等待只持有边界锁；目录查询和其他端点保存可以继续。
@@ -204,6 +221,8 @@ impl WorkspaceEngine {
                 workspace.observe_release(id.clone(), state);
                 return Err(error);
             }
+            #[cfg(feature="tcp-runtime")]
+            let deleting = matches!(&command.action, Action::DeleteEndpoint { .. });
             let result = if let Some(values) = stopped_values {
                 workspace.finish_release_with_values(plan, values)
             } else {
@@ -214,6 +233,28 @@ impl WorkspaceEngine {
             if result.is_ok() {
                 if let Some(runtime) = &self.runtime {
                     runtime.forget(&id)?;
+                }
+                if let Some(master) = &self.master {
+                    if deleting {
+                        master.forget(&id)?;
+                    } else {
+                        let (endpoint, values) = self
+                            .workspace
+                            .lock()
+                            .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                            .applied_values(&id)?;
+                        if endpoint.role == essim_core::domain::endpoint::Role::Master
+                            && matches!(
+                                endpoint.transport,
+                                essim_core::domain::endpoint::Transport::Tcp { .. }
+                            )
+                        {
+                            master.reconfigure(crate::tcp_master::MasterSnapshot {
+                                endpoint,
+                                values,
+                            })?;
+                        }
+                    }
                 }
             }
             return result;
@@ -232,6 +273,9 @@ impl WorkspaceEngine {
     /// 工作线程或I/O轮询器创建失败。
     pub fn with_tcp_runtime(record_root: std::path::PathBuf) -> Result<Self, Error> {
         Ok(Self {
+            master: Some(crate::tcp_master::TcpMasterRuntime::new(
+                record_root.join("masters"),
+            )),
             runtime: Some(std::sync::Arc::new(crate::tcp_slave::TcpSlaveRuntime::new(
                 record_root,
             )?)),
@@ -288,6 +332,9 @@ impl WorkspaceEngine {
     }
     /// 应用退出时停止TCP所有者并等待连接及记录句柄回收。
     pub fn shutdown_slave(&self) {
+        if let Some(master) = &self.master {
+            master.shutdown();
+        }
         if let Some(runtime) = &self.runtime {
             runtime.shutdown();
         }
@@ -302,6 +349,54 @@ impl WorkspaceEngine {
         self.runtime
             .as_ref()
             .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP从站运行服务"))?
+            .query(query)
+    }
+}
+
+#[cfg(feature = "tcp-runtime")]
+impl WorkspaceEngine {
+    /// 提交TCP主站命令；连接只读取已应用快照，不混入保存或草稿。
+    /// # Errors
+    /// 未装配服务、未应用或操作不合法。
+    pub fn execute_master(
+        &self,
+        command: essim_core::application::commands::master::MasterCommand,
+    ) -> Result<essim_core::application::queries::master::MasterView, Error> {
+        use essim_core::application::commands::master::MasterAction;
+        let master = self
+            .master
+            .as_ref()
+            .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP主站"))?;
+        let runtime = self
+            .runtime
+            .as_ref()
+            .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配端点操作门"))?;
+        let gate = runtime.gate(&command.endpoint)?;
+        let _guard = gate
+            .lock()
+            .map_err(|_| Error::new("STATE_POISONED", "端点操作门不可用"))?;
+        let snapshot = if matches!(command.action, MasterAction::Connect) {
+            let (endpoint, values) = self
+                .workspace
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                .applied_values(&command.endpoint)?;
+            Some(crate::tcp_master::MasterSnapshot { endpoint, values })
+        } else {
+            None
+        };
+        master.execute(command, snapshot)
+    }
+    /// 查询主站值和质量，不等待网络请求。
+    /// # Errors
+    /// 查询非法或服务不可用。
+    pub fn query_master(
+        &self,
+        query: essim_core::application::queries::master::MasterQuery,
+    ) -> Result<essim_core::application::queries::master::MasterView, Error> {
+        self.master
+            .as_ref()
+            .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP主站"))?
             .query(query)
     }
 }

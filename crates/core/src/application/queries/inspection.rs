@@ -27,6 +27,7 @@ pub fn inspect_endpoint(catalog: &Catalog, endpoint: &EndpointConfig) -> BTreeMa
             let matches = applied.is_some_and(|e| {
                 e.role == endpoint.role
                     && e.transport == endpoint.transport
+                    && e.master == endpoint.master
                     && e.units.iter().any(|u| {
                         u.id == unit.id
                             && u.station == unit.station

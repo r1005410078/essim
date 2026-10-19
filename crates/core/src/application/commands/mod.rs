@@ -146,3 +146,6 @@ pub(crate) mod operations;
 
 /// 独立从站运行命令。
 pub mod slave;
+
+/// TCP主站职责。
+pub mod master;

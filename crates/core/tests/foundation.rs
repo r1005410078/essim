@@ -3,6 +3,7 @@ use essim_core::domain::foundation::*;
 
 fn endpoint(id: &str) -> EndpointConfig {
     EndpointConfig {
+        master: Default::default(),
         id: EndpointId(id.into()),
         name: id.into(),
         note: String::new(),
