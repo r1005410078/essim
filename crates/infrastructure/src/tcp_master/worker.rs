@@ -10,11 +10,14 @@ use essim_core::{
         point_table::{decode, encode, RawValue},
     },
 };
-use std::{net::SocketAddr, sync::mpsc::Receiver};
+use std::sync::mpsc::Receiver;
+fn request_error(error:std::io::Error)->Error{
+ if let Some(code)=libmodbus_rs::exception_code(&error){let label=match code{1=>"非法功能（远端不支持）",2=>"非法数据地址",3=>"非法数据值",4=>"设备故障",5=>"已接受但未完成",6=>"设备忙",8=>"存储奇偶校验错误",10=>"网关路径不可用",11=>"网关目标无响应",_=>"设备异常"};Error::new("MODBUS_EXCEPTION",format!("Modbus异常 {code}：{label}"))}else{failure(error)}
+}
 pub(super) fn validate(s: &MasterSnapshot) -> Result<(), Error> {
     s.endpoint.validate()?;
-    if s.endpoint.role != Role::Master || !matches!(s.endpoint.transport, Transport::Tcp { .. }) {
-        return Err(Error::new("MASTER_TYPE", "仅支持已应用TCP主站"));
+    if s.endpoint.role != Role::Master {
+        return Err(Error::new("MASTER_TYPE", "仅支持已应用主站"));
     }
     for u in s.endpoint.units.iter().filter(|u| u.enabled) {
         let model = s
@@ -167,12 +170,8 @@ impl Engine {
             .snapshot
             .as_ref()
             .ok_or_else(|| Error::new("NOT_APPLIED", "请先应用主站"))?;
-        let Transport::Tcp { address, port } = &s.endpoint.transport else {
-            unreachable!()
-        };
-        let address: SocketAddr = format!("{address}:{port}").parse().map_err(failure)?;
         self.state("connecting");
-        match Connection::open(address, &s.endpoint.master, self.shared.clone()) {
+        match Connection::open(&s.endpoint, self.shared.clone()) {
             Ok(c) => {
                 self.connection = Some(c);
                 if let Ok(mut p) = self.shared.lock() {
@@ -183,7 +182,7 @@ impl Engine {
             }
             Err(e) => {
                 self.state("failed");
-                Err(failure(e))
+                Err(request_error(e))
             }
         }
     }
@@ -202,6 +201,24 @@ impl Engine {
     }
     fn lost(&mut self, e: &std::io::Error) {
         if libmodbus_rs::exception_code(e).is_none() {
+            let is_rtu = self
+                .snapshot
+                .as_ref()
+                .is_some_and(|s| matches!(s.endpoint.transport, Transport::Rtu { .. }));
+            let recoverable = matches!(
+                e.kind(),
+                std::io::ErrorKind::TimedOut
+                    | std::io::ErrorKind::WouldBlock
+                    | std::io::ErrorKind::InvalidData
+            ) || e.raw_os_error().is_some_and(|code| code >= 112345678);
+            if is_rtu && recoverable {
+                if let Some(c) = self.connection.as_mut() {
+                    if c.recover_rtu(&self.disconnect, &self.shutdown).is_ok() {
+                        return;
+                    }
+                }
+            }
+
             self.connection.take();
             self.next_connect = Instant::now()
                 + Duration::from_millis(
@@ -226,19 +243,19 @@ impl Engine {
             .connection
             .as_mut()
             .ok_or_else(|| Error::new("NOT_CONNECTED", "请先连接主站"))?;
-        c.client.set_unit(station).map_err(failure)?;
+        c.client().set_unit(station).map_err(failure)?;
         self.shared.lock().map_err(failure)?.view.requests += 1;
         let result = match b.area {
             Area::Coil => c
-                .client
+                .client()
                 .read_coil(b.start, b.count)
                 .map(|v| v.into_iter().map(u16::from).collect()),
             Area::Discrete => c
-                .client
+                .client()
                 .read_discrete(b.start, b.count)
                 .map(|v| v.into_iter().map(u16::from).collect()),
-            Area::Holding => c.client.read_holding(b.start, b.count),
-            Area::Input => c.client.read_input(b.start, b.count),
+            Area::Holding => c.client().read_holding(b.start, b.count),
+            Area::Input => c.client().read_input(b.start, b.count),
         };
         let result = match result {
             Ok(words) => (|| {
@@ -258,7 +275,7 @@ impl Engine {
             })(),
             Err(e) => {
                 self.lost(&e);
-                Err(failure(e))
+                Err(request_error(e))
             }
         };
         let mut projection = self.shared.lock().map_err(failure)?;
@@ -318,6 +335,60 @@ impl Engine {
                 }
                 Ok(())
             }
+            MasterAction::Diagnose {
+                unit,
+                function,
+                sub,
+                data,
+            } => {
+                essim_core::domain::master::validate_diagnostic(*function, *sub, *data)?;
+                let (station, _) = self.unit_model(unit)?;
+                if !matches!(
+                    self.snapshot.as_ref().unwrap().endpoint.transport,
+                    Transport::Rtu { .. }
+                ) {
+                    return Err(Error::new("DIAGNOSTIC_TRANSPORT", "串行诊断仅用于RTU主站"));
+                }
+                {
+                    let mut p = self.shared.lock().map_err(failure)?;
+                    p.view.diagnostic = None;
+                    p.view.total = 1;
+                    p.view.requests += 1;
+                }
+                let timeout = Duration::from_millis(
+                    self.snapshot
+                        .as_ref()
+                        .unwrap()
+                        .endpoint
+                        .master
+                        .request_timeout_ms,
+                );
+                let c = self
+                    .connection
+                    .as_mut()
+                    .ok_or_else(|| Error::new("NOT_CONNECTED", "请先打开串口"))?;
+                match c
+                    .client()
+                    .diagnose(station, *function, *sub, *data, timeout)
+                {
+                    Ok(bytes) => {
+                        let mut p = self.shared.lock().map_err(failure)?;
+                        p.view.diagnostic = Some(
+                            bytes
+                                .iter()
+                                .map(|b| format!("{b:02X}"))
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                        );
+                        p.view.completed = 1;
+                        Ok(())
+                    }
+                    Err(e) => {
+                        self.lost(&e);
+                        Err(request_error(e))
+                    }
+                }
+            }
             MasterAction::Read { unit, points } => {
                 let (_, model) = self.unit_model(unit)?;
                 let blocks = plan(&model, points, false)?;
@@ -375,16 +446,16 @@ impl Engine {
                         .connection
                         .as_mut()
                         .ok_or_else(|| Error::new("NOT_CONNECTED", "连接已断开"))?;
-                    c.client.set_unit(station).map_err(failure)?;
+                    c.client().set_unit(station).map_err(failure)?;
                     self.shared.lock().map_err(failure)?.view.requests += 1;
                     let written = match b.area {
-                        Area::Coil if b.count == 1 => c.client.write_coil(b.start, words[0] != 0),
-                        Area::Coil => c.client.write_coils(
+                        Area::Coil if b.count == 1 => c.client().write_coil(b.start, words[0] != 0),
+                        Area::Coil => c.client().write_coils(
                             b.start,
                             &words.iter().map(|w| *w != 0).collect::<Vec<_>>(),
                         ),
-                        _ if b.count == 1 => c.client.write_holding(b.start, words[0]),
-                        _ => c.client.write_holdings(b.start, &words),
+                        _ if b.count == 1 => c.client().write_holding(b.start, words[0]),
+                        _ => c.client().write_holdings(b.start, &words),
                     };
                     if let Err(e) = written {
                         let known = libmodbus_rs::exception_code(&e).is_some();
@@ -398,7 +469,7 @@ impl Engine {
                             },
                         );
                         self.lost(&e);
-                        return Err(failure(e));
+                        return Err(request_error(e));
                     }
                     self.write_result(unit, block_ids.clone(), "协议已确认，待回验");
                     if self.aborted() {
@@ -552,7 +623,12 @@ pub(super) fn run(
                                 command: job.command.clone(),
                             },
                         );
-                        if e.aborted(){return Err(Error::new("CANCELLED","操作已取消或可靠记录失败，未发送剩余请求"));}
+                        if e.aborted() {
+                            return Err(Error::new(
+                                "CANCELLED",
+                                "操作已取消或可靠记录失败，未发送剩余请求",
+                            ));
+                        }
                         e.manual(&job.command)
                     })()
                 };

@@ -28,6 +28,10 @@ pub struct RtuConfig {
     byte_timeout_ms: u32,
 }
 impl RtuConfig {
+    pub(super) fn device_path(&self) -> &str {
+        self.device.to_str().expect("路径来自UTF8字符串")
+    }
+
     /// 校验设备路径、串口参数、1–247 站号及毫秒超时，不打开设备。
     ///
     /// # Errors
@@ -120,6 +124,35 @@ pub struct RtuContext {
     _thread_bound: PhantomData<Rc<()>>,
 }
 impl RtuContext {
+    pub(super) fn channel(
+        config: &RtuConfig,
+        socket: &std::os::unix::net::UnixStream,
+    ) -> io::Result<Self> {
+        use std::os::fd::AsRawFd;
+        if library_version() != (3, 2, 0) {
+            return Err(invalid("运行库必须为libmodbus3.2.0"));
+        }
+        // SAFETY: config已校验且CString存活；返回指针检查非空，由此对象唯一释放。
+        let handle = NonNull::new(unsafe {
+            sys::modbus_new_rtu(
+                config.device.as_ptr(),
+                config.baud,
+                config.parity as _,
+                config.data_bits.into(),
+                config.stop_bits.into(),
+            )
+        })
+        .ok_or_else(io::Error::last_os_error)?;
+        let ctx = Self {
+            handle,
+            opened: false,
+            _thread_bound: PhantomData,
+        };
+        // SAFETY: 私有socket存活，C仅借用；opened=false确保Drop只free而不关闭Rust描述符。
+        checked(unsafe { sys::modbus_set_socket(ctx.handle.as_ptr(), socket.as_raw_fd()) })?;
+        Ok(ctx)
+    }
+
     /// 创建、配置并打开串口，成功后串口由本对象唯一管理。
     ///
     /// # Errors

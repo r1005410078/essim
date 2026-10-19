@@ -1,5 +1,5 @@
 /** 仅用于展示真实TCP ADU；协议执行仍由Rust/libmodbus负责。 */
-export interface MessageField {section:"MBAP"|"PDU";hex:string;description:string;tone:"identity"|"neutral"|"unit"|"function"|"address"|"value";offset:number}
+export interface MessageField {section:"MBAP"|"PDU"|"RTU";hex:string;description:string;tone:"identity"|"neutral"|"unit"|"function"|"address"|"value";offset:number}
 export interface DecodedMessage {title:string;subtitle:string;fields:MessageField[];issues:string[];values:{label:string;value:string}[];valueCount:number;note:string}
 const functions:Record<number,string>={1:"读线圈",2:"读离散输入",3:"读保持寄存器",4:"读输入寄存器",5:"写单个线圈",6:"写单个寄存器",15:"写多个线圈",16:"写多个寄存器"};
 const exceptions:Record<number,string>={1:"非法功能",2:"非法数据地址",3:"非法数据值",4:"服务器设备故障",5:"确认，处理尚未完成",6:"服务器设备忙",8:"存储奇偶校验错误",10:"网关路径不可用",11:"网关目标设备未响应"};

@@ -41,6 +41,17 @@ pub enum MasterAction {
         /// 点身份。
         points: Vec<PointId>,
     },
+    /// 手动执行只读串行诊断，不加入周期任务。
+    Diagnose {
+        /// 目标单元身份。
+        unit: UnitId,
+        /// 07／08／0B／0C／11。
+        function: u8,
+        /// 仅08使用的只读子功能或回送测试。
+        sub: u16,
+        /// 回送测试数据；其他查询须为0。
+        data: u16,
+    },
     /// 整批预校验后逐请求写入并回验。
     Write {
         /// 单元身份。

@@ -44,3 +44,17 @@ fn settings_have_bounded_defaults() {
     s.stale_multiplier = 0;
     assert!(s.validate().is_err());
 }
+
+#[test]
+fn diagnostics_reject_state_changing_subfunctions() {
+    use essim_core::domain::master::validate_diagnostic;
+    for sub in [1, 3, 4, 10, 20] {
+        assert!(validate_diagnostic(8, sub, 0).is_err());
+    }
+    for sub in [0, 2, 11, 12, 13, 14, 15, 16, 17, 18] {
+        assert!(validate_diagnostic(8, sub, 0).is_ok());
+    }
+    assert!(validate_diagnostic(7, 0, 1).is_err());
+    assert!(validate_diagnostic(8, 2, 42).is_err());
+    assert!(validate_diagnostic(8, 0, 42).is_ok());
+}

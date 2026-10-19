@@ -84,7 +84,7 @@ impl WorkspaceEngine {
             view.capabilities.execution = true;
             view.capabilities.recording = true;
             view.capabilities.reason =
-                "当前支持TCP主从站运行及文件录制；RTU工作台和历史回放尚未接入".into();
+                "当前支持TCP从站及TCP／RTU主站运行与文件录制；RTU从站和历史回放尚未接入".into();
         }
         Ok(view)
     }
@@ -244,10 +244,7 @@ impl WorkspaceEngine {
                             .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
                             .applied_values(&id)?;
                         if endpoint.role == essim_core::domain::endpoint::Role::Master
-                            && matches!(
-                                endpoint.transport,
-                                essim_core::domain::endpoint::Transport::Tcp { .. }
-                            )
+
                         {
                             master.reconfigure(crate::tcp_master::MasterSnapshot {
                                 endpoint,

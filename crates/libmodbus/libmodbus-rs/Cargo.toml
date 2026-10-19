@@ -8,5 +8,6 @@ default = ["vendored"]
 vendored = ["libmodbus-sys/vendored"]
 [dependencies]
 libmodbus-sys.workspace = true
+libc = "0.2"
 [dev-dependencies]
 libc = "0.2"

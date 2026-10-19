@@ -43,13 +43,13 @@ impl Frames {
         Ok(frames)
     }
 }
-pub(super) struct Connection {
+pub(super) struct TcpConnection {
     pub client: ModbusClient,
     stop: Arc<AtomicBool>,
     interrupt: TcpStream,
     join: Option<JoinHandle<()>>,
 }
-impl Connection {
+impl TcpConnection {
     pub fn open(
         address: SocketAddr,
         settings: &essim_core::domain::master::MasterSettings,
@@ -172,7 +172,7 @@ impl Connection {
         })
     }
 }
-impl Drop for Connection {
+impl Drop for TcpConnection {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         let _ = self.interrupt.shutdown(Shutdown::Both);
@@ -195,5 +195,43 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert_eq!(out[0], a);
         assert!(f.feed(&[0, 0, 0, 0, 255, 255]).is_err());
+    }
+}
+
+pub(super) enum Connection {
+    Tcp(TcpConnection),
+    Rtu(super::rtu_bridge::RtuConnection),
+}
+impl Connection {
+    pub fn open(
+        endpoint: &essim_core::domain::endpoint::EndpointConfig,
+        shared: Shared,
+    ) -> io::Result<Self> {
+        match &endpoint.transport {
+            essim_core::domain::endpoint::Transport::Tcp { address, port } => {
+                Ok(Self::Tcp(TcpConnection::open(
+                    format!("{address}:{port}")
+                        .parse()
+                        .map_err(io::Error::other)?,
+                    &endpoint.master,
+                    shared,
+                )?))
+            }
+            _ => Ok(Self::Rtu(super::rtu_bridge::RtuConnection::open(
+                endpoint, shared,
+            )?)),
+        }
+    }
+    pub fn client(&mut self) -> &mut ModbusClient {
+        match self {
+            Self::Tcp(c) => &mut c.client,
+            Self::Rtu(c) => &mut c.client,
+        }
+    }
+    pub fn recover_rtu(&mut self, cancel: &AtomicBool, shutdown: &AtomicBool) -> io::Result<()> {
+        match self {
+            Self::Rtu(c) => c.recover(cancel, shutdown),
+            _ => Err(io::ErrorKind::Unsupported.into()),
+        }
     }
 }

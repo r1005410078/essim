@@ -39,6 +39,8 @@ pub struct MasterPoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MasterView {
+    /// 最近一次手动诊断的实际响应；成功不代表设备业务动作。
+    pub diagnostic: Option<String>,
     /// 目标端点。
     pub endpoint: EndpointId,
     /// disconnected、connecting、connected、reconnecting、failed。

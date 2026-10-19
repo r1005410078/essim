@@ -27,6 +27,15 @@ pub const MODBUS_ENOBASE: i32 = 112345678;
 // 并管理句柄和 socket 的生命周期，避免并发访问及重复释放。
 // 业务代码应通过 libmodbus-rs 的安全封装调用，具体公共约束见模块级 Safety 文档。
 unsafe extern "C" {
+    /// 上游获取借用描述符；不转移所有权，失败返回-1／errno。
+    /// # Safety
+    /// ctx须存活且独占；返回描述符仅可在上下文生命周期内借用。
+    pub fn modbus_get_socket(ctx:*mut modbus_t)->c_int;
+    /// 上游发送站号加PDU，按后端补CRC；成功为字节数，失败-1／errno。
+    /// # Safety
+    /// ctx存活且独占，无在途请求；req指向至少len字节，2～254字节合法请求。
+    pub fn modbus_send_raw_request(ctx:*mut modbus_t,req:*const u8,len:c_int)->c_int;
+
     /// 上游主站 read_bits，零基地址；成功返回处理数量，失败 -1 并设置 errno。
     ///
     /// # Safety

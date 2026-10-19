@@ -171,3 +171,12 @@ workbench/src/features/workspace/RuntimeDataSource.ts     # 草稿基线及待�
 - `infrastructure/tcp_master/worker.rs`：端点独立所有者，调度同步libmodbus客户端；`bridge.rs`：私有socket pair透传及真实帧观测，不改vendored源、不生成模拟响应；`journal.rs`：连接前快照与sync_data可靠记录。
 - `infrastructure/workspace.rs`：配置应用门、断开等待及快照迁移；前端经统一WorkspaceClient和Tauri适配调用，不直接访问运行线程。
 - 首版32槽，每槽一个所有者、连接后另一个透传线程，命令队列容量1。查询读取投影不等待远端网络。该上限是资源门禁，非已验持续性能数字。
+
+
+## M05 RTU主站（2026-10-19）
+
+保留`infrastructure/tcp_master`历史目录名，现为TCP／RTU主站共享所有者与调度；`bridge::Connection`按Transport选择TCP或`rtu_bridge`，不复制采集／写入状态机。core的MasterAction增加Diagnose，查询增加实际诊断响应，MasterFact区分RtuFrame、短帧及隔离数据。
+
+`libmodbus-rs::SerialPort`在所属透传线程打开真实串口，以设备身份／macOS tty-cu归一化做进程占用登记，并用TIOCEXCL阻止后续非特权打开；Drop先恢复串口参数、关闭原始fd，再释放dup独占和登记。TIOCEXCL不驱逐已打开的第三方句柄，未知驱动别名不作全局排他承诺。
+
+私有RTU上下文只借用Rust Unix socket，基础功能由libmodbus处理；原始诊断发送由库补CRC，白名单长度／站号／功能／CRC／回送验证在安全封装内。串口参数变化经完整应用停止边界后清空缓存；临时驱动故障的自动重开不另建运行文件。

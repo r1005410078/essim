@@ -1,5 +1,6 @@
-//! TCP主站适配器：独立连接所有者、有限手动队列和按需查询。
+//! TCP／RTU主站共享适配器（保留既有模块路径）：独立连接所有者、有限手动队列和按需查询。
 mod bridge;
+mod rtu_bridge;
 mod journal;
 mod worker;
 use essim_core::{
@@ -85,6 +86,7 @@ pub(super) fn publish(shared: &Shared, fact: MasterFact) {
 fn empty(id: EndpointId) -> Projection {
     Projection {
         view: MasterView {
+            diagnostic:None,
             endpoint: id,
             state: "disconnected".into(),
             polling: false,
@@ -119,7 +121,7 @@ struct Owner {
     shutdown: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
 }
-/// 最多32个独立主站所有者，每个手动命令队列容量1；查询不等待网络。
+/// TCP／RTU合计最多32个独立主站所有者，每个手动命令队列容量1；查询不等待网络。
 pub struct TcpMasterRuntime {
     owners: Mutex<BTreeMap<EndpointId, Owner>>,
     root: std::path::PathBuf,

@@ -1,5 +1,6 @@
 //! libmodbus 3.2.0 TCP/RTU 主站及从站 API 子集，不包含设备或运行调度。
-//! TCP context 借用 Rust socket，RTU context 独占串口；禁止跨线程，无 C 回调。
+//! TCP context借用Rust socket；RTU直接上下文独占串口，私有通道上下文借用Unix socket。
+//! SerialPort独占实际串口，句柄禁止跨线程，无C回调。
 mod responder;
 /// 完整TCP帧响应生成器。
 pub use responder::TcpResponder;
@@ -466,3 +467,9 @@ mod tests {
         assert!(c.receive().is_err());
     }
 }
+
+mod serial_port;
+/// 独占Unix串口，仅供受控传输所有者使用。
+pub use serial_port::SerialPort;
+/// 计算RTU CRC16；对完整合法ADU返回0，仅用于观测及库未支持的受限诊断。
+pub fn rtu_crc(bytes:&[u8])->u16{let mut crc=0xffff;for b in bytes{crc^=u16::from(*b);for _ in 0..8{crc=if crc&1!=0{(crc>>1)^0xa001}else{crc>>1};}}crc}

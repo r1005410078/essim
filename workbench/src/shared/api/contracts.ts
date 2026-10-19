@@ -230,8 +230,8 @@ export interface SlaveView {
 }
 
 /** 主站命令与配置提交分离，操作接收不等于执行成功。 */
-export type MasterAction={kind:"setUnitPolling";unit:string;enabled:boolean}|{kind:"connect"|"disconnect"|"startPolling"|"stopPolling"}|{kind:"read";unit:string;points:string[]}|{kind:"write";unit:string;values:[string,RawValue][]};
+export type MasterAction={kind:"diagnose";unit:string;function:number;sub:number;data:number}|{kind:"setUnitPolling";unit:string;enabled:boolean}|{kind:"connect"|"disconnect"|"startPolling"|"stopPolling"}|{kind:"read";unit:string;points:string[]}|{kind:"write";unit:string;values:[string,RawValue][]};
 export interface MasterCommand {commandId:string;endpoint:string;action:MasterAction}
 export interface MasterQuery {endpoint:string;unit:string|null;points:string[]}
 export interface MasterPoint {value:RawValue|null;unixMs:string|null;quality:string;error:string|null;writeResult:string|null;writeOperation?:string|null}
-export interface MasterView {endpoint:string;state:string;polling:boolean;pausedUnits:string[];busy:boolean;operation:string|null;completed:number;total:number;requests:number;error:string|null;revision:string;points:Record<string,MasterPoint>;observations:SlaveObservation[];recordPath:string|null}
+export interface MasterView {diagnostic?:string|null;endpoint:string;state:string;polling:boolean;pausedUnits:string[];busy:boolean;operation:string|null;completed:number;total:number;requests:number;error:string|null;revision:string;points:Record<string,MasterPoint>;observations:SlaveObservation[];recordPath:string|null}

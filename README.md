@@ -37,7 +37,7 @@ cargo doc --workspace --no-deps --offline
 
 ## 通用 libmodbus 封装
 
-`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}`继续独立保留：官方固定源码构建、原始绑定和Rust安全封装。提供四区Mapping、TCP／RTU从站上下文、同步TCP／RTU主站四区读取及可写区单／多写。工作台 TCP 从站执行器已链接此库；TCP主站工作台本轮接入，RTU工作台运行仍待接入。
+`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}`继续独立保留：官方固定源码构建、原始绑定和Rust安全封装。提供四区Mapping、TCP／RTU从站上下文、同步TCP／RTU主站四区读取及可写区单／多写。工作台 TCP 从站执行器已链接此库；TCP主站工作台本轮接入，RTU主站软件已接入，RTU从站工作台运行仍待接入。
 
 默认 vendored 静态链接；非vendored必须显式指定自行编译的动态前缀，不探测Homebrew或其他宿主库。构建方式及安全／协议边界见 [三包说明](crates/libmodbus/README.md)。
 
@@ -79,10 +79,19 @@ python3 scripts/verify_tcp_slave_runtime.py --binary target/debug/examples/tcp_s
 通信报文字节现支持点击／Enter打开字段解析，覆盖基础8功能码的TCP请求、响应及异常；读响应仅在唯一匹配请求时补地址。“详细”进入Dockview中的[Modbus指南](workbench/src/resources/protocols/modbus/guide.md)，项目树“文档资源”与采集模型平级，按协议分类、离线Markdown渲染。见[本轮记录](docs/test-records/2026-10-18-modbus-reference.md)与[解析边界](docs/test-records/2026-10-18-message-hover.md)。
 
 
-M05 TCP主站：单目标共享连接、多Unit独立结果、四区手动／周期读取、遥控／遥调显式下发及回验、质量／更新时间、采集中自动重连和真实字节观测。默认连接／请求／重连为3000／1000／3000ms，过期倍数3；主站设置进入配置草稿，保存并应用后生效。应用会断开并保持断开；待写草稿需明确丢弃。首版最多32个主站所有者槽，单批手动写入最多1024点（先整批校验，再按功能码上限拆请求），非主站规模性能承诺。RTU主站另立提案；[实施与验收边界](docs/test-records/2026-10-19-m05-tcp-master.md)。
+M05 TCP主站：单目标共享连接、多Unit独立结果、四区手动／周期读取、遥控／遥调显式下发及回验、质量／更新时间、采集中自动重连和真实字节观测。默认连接／请求／重连为3000／1000／3000ms，过期倍数3；主站设置进入配置草稿，保存并应用后生效。应用会断开并保持断开；待写草稿需明确丢弃。首版最多32个主站所有者槽，单批手动写入最多1024点（先整批校验，再按功能码上限拆请求），非主站规模性能承诺。RTU主站按独立提案接入软件运行；[实施与验收边界](docs/test-records/2026-10-19-m05-tcp-master.md)。
 
 ```sh
 cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_master --offline
 # 需要PyModbus 3.11.3；只访问脚本自己启动的回环从站。
 python3 scripts/verify_tcp_master_runtime.py
+```
+
+
+M05 RTU主站软件已接入，复用主站调度和工作台，支持多目标共享独占串口、基础8功能码、手动受限串行诊断、CRC／短帧观测、有界迟到数据隔离和原路径自动重开。软件证据来自独立PyModbus PTY；原生与真实RS-485待验范围见[RTU主站记录](docs/test-records/2026-10-19-m05-rtu-master.md)。没有完成M04 RTU从站，也不将PTY当作硬件验收。
+
+```sh
+cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_master --offline
+# Python需pymodbus==3.11.3、pyserial==3.5；仅操作脚本创建的PTY。
+python3 scripts/verify_rtu_master_runtime.py
 ```

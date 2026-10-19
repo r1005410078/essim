@@ -19,7 +19,7 @@ export function resourceNavigation(){
  const targets=new Map<string,Target>();const paths=resources.map(resource=>{const path=["文档资源",...resource.folders,resource.title].join("/");targets.set(path,{kind:"resource",id:resource.id});return path;});
  return {paths,targets};
 }
-const sections:Record<number,string>={1:"FC01 读线圈",2:"FC02 读离散输入",3:"FC03 读保持寄存器",4:"FC04 读输入寄存器",5:"FC05 写单个线圈",6:"FC06 写单个寄存器",15:"FC15 写多个线圈",16:"FC16 写多个寄存器"};
+const sections:Record<number,string>={7:"串行诊断",8:"串行诊断",11:"串行诊断",12:"串行诊断",17:"串行诊断",1:"FC01 读线圈",2:"FC02 读离散输入",3:"FC03 读保持寄存器",4:"FC04 读输入寄存器",5:"FC05 写单个线圈",6:"FC06 写单个寄存器",15:"FC15 写多个线圈",16:"FC16 写多个寄存器"};
 export function resourceSectionForMessage(functionCode:number|undefined,direction:"RX"|"TX"){
  return headingId(functionCode!==undefined&&direction==="TX"&&(functionCode&0x80)!==0?"异常响应":sections[functionCode??-1]??"其他功能码与扩展");
 }

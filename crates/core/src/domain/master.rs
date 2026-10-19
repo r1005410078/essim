@@ -132,3 +132,20 @@ pub fn plan(
     }
     Ok(blocks)
 }
+
+/// 校验只读串行诊断白名单；不允许广播或改变设备通信状态。
+/// # Errors
+/// 功能码／子功能不受支持、非回送操作携带非零数据时拒绝。
+pub fn validate_diagnostic(function: u8, sub: u16, data: u16) -> Result<(), Error> {
+    if !matches!(function, 7 | 8 | 11 | 12 | 17)
+        || function == 8 && !(sub == 0 || sub == 2 || (11..=18).contains(&sub))
+        || function != 8 && (sub != 0 || data != 0)
+        || function == 8 && sub != 0 && data != 0
+    {
+        return Err(Error::new(
+            "DIAGNOSTIC_DENIED",
+            "仅支持07／08只读与回送／0B／0C／11诊断，非回送数据须为0",
+        ));
+    }
+    Ok(())
+}

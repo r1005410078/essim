@@ -459,7 +459,7 @@ function Welcome() {
           新建模拟器
         </button>
       </div>
-      <p>TCP 主从站可在端点运行栏连接／采集或启动／置数，并查看真实通信；RTU工作台及回放待接入。</p>
+      <p>TCP 从站及 TCP／RTU 主站可在端点运行栏运行并查看真实通信；RTU从站及回放待接入。</p>
     </Empty>
   );
 }
@@ -659,8 +659,8 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
         <Button size="sm" variant="outline" disabled={store.busy||!saved||store.drafts.has(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/>应用配置</Button>
         <span className={`configuration-badge ${store.drafts.has(endpoint.id)?"pending":""}`}>{store.drafts.has(endpoint.id)?"未保存":isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)?"已应用":applied?"待应用":"未应用"}</span>
         <span className="spacer"/>
-        {endpoint.transport.kind!=="tcp"&&<span className="run-status">{applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}</span>}
-        {endpoint.transport.kind!=="tcp"&&<ActionMenu label="运行值" disabled={!unit||!store.view?.catalog.values[unit.id]||store.busy} items={[{label:"恢复当前 Unit 初值…",action:()=>setResetting(true)}]}/>}
+        {endpoint.transport.kind!=="tcp"&&endpoint.role!=="master"&&<span className="run-status">{applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}</span>}
+        {endpoint.transport.kind!=="tcp"&&endpoint.role!=="master"&&<ActionMenu label="运行值" disabled={!unit||!store.view?.catalog.values[unit.id]||store.busy} items={[{label:"恢复当前 Unit 初值…",action:()=>setResetting(true)}]}/>}
       </div>
       <SlaveRuntimeControls visible={visible} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model} category={category}
