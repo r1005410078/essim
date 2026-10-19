@@ -6,11 +6,20 @@ use super::{
 use tauri::State;
 /// 用户确认放弃本次会话后退出，不能把窗口销毁误当成配置已经落盘。
 #[tauri::command]
-pub(crate) fn exit_workbench(app: tauri::AppHandle, permission: State<'_, crate::ExitPermission>) {
+pub(crate) async fn exit_workbench(
+    app: tauri::AppHandle,
+    permission: State<'_, crate::ExitPermission>,
+    engine: State<'_, Engine>,
+) -> Result<(), ErrorDto> {
+    let engine = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || engine.shutdown_slave())
+        .await
+        .map_err(|_| ErrorDto::new("SHUTDOWN_FAILED", "运行资源回收任务失败"))?;
     permission
         .confirmed
         .store(true, std::sync::atomic::Ordering::Release);
     app.exit(0);
+    Ok(())
 }
 /// 窗口保护处理器安装完成后启用；加载失败时仍可正常关闭窗口。
 #[tauri::command]

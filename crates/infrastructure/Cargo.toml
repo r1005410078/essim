@@ -2,7 +2,13 @@
 name = "essim-infrastructure"
 version.workspace = true
 edition.workspace = true
+[features]
+default = []
+tcp-runtime = ["dep:libmodbus-rs", "dep:mio"]
+vendored = ["libmodbus-rs?/vendored"]
 [dependencies]
+libmodbus-rs = { workspace = true, optional = true }
+mio = { version = "=1.2.4", features = ["net", "os-poll"], optional = true }
 calamine = "=0.36.1"
 csv = "=1.4.0"
 essim-core.workspace = true

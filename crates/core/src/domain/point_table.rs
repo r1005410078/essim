@@ -455,3 +455,40 @@ pub fn validate_addresses(points: &[PointDefinition]) -> Result<(), Error> {
     }
     Ok(())
 }
+
+/// 将协议寄存器按点类型、字节序及字序解码为精确原始值。
+/// # Errors
+/// 长度与类型不符、Bool不为0／1或浮点为NaN／无穷时拒绝。
+pub fn decode(
+    kind: ValueType,
+    registers: &[u16],
+    bytes: Order,
+    words: Order,
+) -> Result<RawValue, Error> {
+    if registers.len() != kind.width() as usize {
+        return Err(Error::new("INVALID_WIRE_VALUE", "寄存器数量与点类型不符"));
+    }
+    let mut input = registers.to_vec();
+    if kind != ValueType::Bool {
+        if words == Order::Little {
+            input.reverse();
+        }
+        if bytes == Order::Little {
+            input.iter_mut().for_each(|v| *v = v.swap_bytes());
+        }
+    }
+    let bits = input
+        .into_iter()
+        .fold(0u64, |value, word| (value << 16) | u64::from(word));
+    let raw = match kind {
+        ValueType::Bool if bits <= 1 => RawValue::Bool(bits != 0),
+        ValueType::Bool => return Err(Error::new("INVALID_WIRE_VALUE", "Bool只能为0或1")),
+        ValueType::I16 => RawValue::Signed(bits as i16 as i64),
+        ValueType::I32 => RawValue::Signed(bits as i32 as i64),
+        ValueType::I64 => RawValue::Signed(bits as i64),
+        ValueType::F32 => RawValue::Float(f32::from_bits(bits as u32) as f64),
+        ValueType::F64 => RawValue::Float(f64::from_bits(bits)),
+        _ => RawValue::Unsigned(bits),
+    };
+    validate_raw(kind, &raw)
+}

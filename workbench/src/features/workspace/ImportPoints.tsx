@@ -1,3 +1,4 @@
+import {EnumSelect} from "./EnumSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   Category,
@@ -96,6 +97,9 @@ export function ImportPoints({
           if (column >= 0) row[field] = cells[column] ?? "";
         }
         if (!row.category) row.category = category || "measurement";
+        // 未提供权限列时，可写区默认允许；只读区遵循Modbus约束。
+        if (Number(mapping.slaveWritable ?? -1) < 0)
+          row.slaveWritable = row.area === "holding" || row.area === "coil" ? "true" : "false";
         return row;
       });
       const id = target?.id ?? crypto.randomUUID();
@@ -149,28 +153,8 @@ export function ImportPoints({
       <button type="button" onClick={() => void openFile()} disabled={busy}>
         选择 JSON / CSV / XLSX 文件
       </button>
-      <select
-        aria-label="下载点表模板"
-        disabled={busy}
-        defaultValue=""
-        onChange={(e) => {
-          const format = e.target.value;
-          e.target.value = "";
-          if (format) {
-            setError("");
-            void store.client
-              .exportPointTemplate?.(format)
-              .catch((e) => setError(errorMessage(e)));
-          }
-        }}
-      >
-        <option value="">下载空模板…</option>
-        {["csv", "xlsx", "json"].map((format) => (
-          <option key={format} value={format}>
-            {format.toUpperCase()}
-          </option>
-        ))}
-      </select>
+      <EnumSelect label="下载点表模板" disabled={busy} value="" options={[["","下载空模板…"],["csv","CSV"],["xlsx","XLSX"],["json","JSON"]]} onChange={format=>{if(format){setError("");void store.client.exportPointTemplate?.(format).catch(e=>setError(errorMessage(e)));}}}/>
+
       {busy && <p role="status">正在读取或校验…</p>}
       {file && (
         <>
@@ -187,34 +171,13 @@ export function ImportPoints({
           )}
           <label>
             工作表
-            <select
-              aria-label="导入工作表"
-              value={sheetIndex}
-              disabled={busy}
-              onChange={(e) => setSheetIndex(Number(e.target.value))}
-            >
-              {file.sheets.map((s, i) => (
-                <option key={i} value={i}>
-                  {s.name} · {s.rows.length} 行
-                </option>
-              ))}
-            </select>
+            <EnumSelect label="导入工作表" value={String(sheetIndex)} disabled={busy} onChange={value=>setSheetIndex(Number(value))} options={file.sheets.map((sheet,index)=>[String(index),`${sheet.name} · ${sheet.rows.length} 行`] as const)}/>
+
           </label>
           <label>
             缺省四遥分类
-            <select
-              aria-label="缺省四遥分类"
-              value={category}
-              disabled={busy}
-              onChange={(e) => setCategory(e.target.value as Category)}
-            >
-              <option value="">请选择（缺失时必选）</option>
-              {categories.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
+            <EnumSelect label="缺省四遥分类" value={category} disabled={busy} onChange={value=>setCategory(value as Category)} options={[["","请选择（缺失时必选）"],...categories]}/>
+
           </label>
           <details open>
             <summary>列映射</summary>
@@ -222,21 +185,8 @@ export function ImportPoints({
               {fields.map((field) => (
                 <label key={field}>
                   {labels[field]}
-                  <select
-                    aria-label={`${labels[field]}列映射`}
-                    disabled={busy || file.name.toLowerCase().endsWith(".json")}
-                    value={mapping[field] ?? "-1"}
-                    onChange={(e) =>
-                      setMapping({ ...mapping, [field]: e.target.value })
-                    }
-                  >
-                    <option value="-1">未映射，使用缺省值</option>
-                    {sheet?.headers.map((header, i) => (
-                      <option key={i} value={i}>
-                        {header || `第${i + 1}列`}
-                      </option>
-                    ))}
-                  </select>
+                  <EnumSelect label={`${labels[field]}列映射`} disabled={busy||file.name.toLowerCase().endsWith(".json")} value={mapping[field]??"-1"} onChange={value=>setMapping({...mapping,[field]:value})} options={[["-1","未映射，使用缺省值"],...(sheet?.headers.map((header,index)=>[String(index),header||`第${index+1}列`] as const)??[])]}/>
+
                 </label>
               ))}
             </div>

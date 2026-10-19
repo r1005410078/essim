@@ -21,3 +21,5 @@ pub mod point_table;
 pub mod serialization;
 /// 已应用快照与值迁移。
 pub mod values;
+/// 从站模型索引与纯点值规划。
+pub mod slave;

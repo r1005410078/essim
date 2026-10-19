@@ -1,8 +1,7 @@
-import { SnapshotDataSource } from "./SnapshotDataSource";
+import { RuntimeDataSource } from "./RuntimeDataSource";
 /** 复用已有NovaSheet数据源；草稿按稳定单元身份和四遥分类隔离。 */
 import {
   denseGridTheme,
-  type InMemoryDataSource,
 } from "@zhiguang/novasheet-core";
 import type {
   Catalog,
@@ -69,8 +68,28 @@ export function resolveUnitSheet(catalog: Catalog | undefined, endpoint: Endpoin
   return { model, values: matches ? values : undefined };
 }
 
+export interface PendingRuntimeEdit {point:CollectionModel["points"][number];text:string;source:RuntimeDataSource;row:number;}
+function viewKey(identity:string,category:Category,model:CollectionModel|undefined,role:Role){
+ return JSON.stringify([identity,category,model?.id,model?.points.map(p=>[p.id,p.category]),role]);
+}
 export class SheetViews {
-  private views = new Map<string, InMemoryDataSource>();
+  private views = new Map<string, RuntimeDataSource>();
+  private listeners=new Set<()=>void>();
+  private revision=0;
+  subscribe=(listener:()=>void)=>{this.listeners.add(listener);return()=>{this.listeners.delete(listener);};};
+  snapshot=()=>this.revision;
+  private changed=()=>{this.revision++;for(const listener of [...this.listeners])listener();};
+  pending(identity:string,model:CollectionModel):PendingRuntimeEdit[]{
+   return categories.flatMap(([category])=>{
+    if(category!=="measurement"&&category!=="indication")return [];
+    const source=this.views.get(viewKey(identity,category,model,"slave"));
+    if(!source)return [];
+    const points=model.points.filter(point=>point.category===category);
+    return source.pendingRows().flatMap(row=>points[row]?[{point:points[row]!,text:String(source.getCell(row,"draft")??""),source,row}]:[]);
+   });
+  }
+  acknowledge(edits:PendingRuntimeEdit[]){for(const edit of edits)edit.source.acknowledge(edit.row,edit.text);}
+
   get(
     identity: string,
     category: Category,
@@ -79,18 +98,12 @@ export class SheetViews {
     role: Role = "slave",
   ) {
     // 已应用模型快照变化时新建视图，普通查询／分类切换不覆盖草稿。
-    const key = JSON.stringify([
-      identity,
-      category,
-      model?.id,
-      model?.points.map(p=>[p.id,p.category]),
-      role,
-    ]);
+    const key = viewKey(identity,category,model,role);
     const acquisition = category === "measurement" || category === "indication";
     const editable = role === "slave" ? acquisition : !acquisition;
     let data = this.views.get(key);
     if (!data) {
-      data = new SnapshotDataSource({
+      data = new RuntimeDataSource({
         schema: {
           fields: [
             { id: "name", name: "点名", type: "readonly", width: 140 },
@@ -141,7 +154,7 @@ export class SheetViews {
               ? String(values.raw[point.id].value)
               : null,
           })),
-      });
+      },this.changed);
       this.views.set(key, data);
     }
     // 真实应用确认只更新只读列，不覆盖用户尚未提交的运行值草稿。
@@ -156,8 +169,9 @@ export class SheetViews {
         : null;
       if (data.getRows(index, index)[0]?.confirmed !== confirmed)
         data.updateCell(index, "confirmed", confirmed);
+      if (editable && role === "slave" && confirmed !== null) data.syncActual(index,confirmed);
       if (!editable && data.getCell(index, "draft") !== confirmed)
-        data.updateCell(index, "draft", confirmed);
+        data.syncActual(index,confirmed??"");
     }
     return data;
   }

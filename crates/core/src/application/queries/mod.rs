@@ -16,3 +16,6 @@ pub(crate) use inspection::application_matches;
 pub use inspection::{inspect_endpoint, protocol_model_matches};
 pub use projection::Projection;
 pub use workspace_view::WorkspaceView;
+
+/// 独立从站运行查询。
+pub mod slave;

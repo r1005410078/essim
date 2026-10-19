@@ -1,3 +1,4 @@
+import {Button} from "@essim/ui/components/button";
 import { useEffect, useRef, useState } from "react";
 import type { ApplyPreview, EndpointConfig } from "../../shared/api/contracts";
 import { WorkspaceStore, errorMessage } from "./model";
@@ -41,65 +42,33 @@ export function ApplyModelDialog({
     };
   }, [store, endpoint, reset]);
   return (
-    <dialog ref={dialog} className="resource-dialog" onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}>
+    <dialog ref={dialog} className="resource-dialog apply-dialog" onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}>
       <h2>应用端点配置</h2>
-      <p>
-        范围：{endpoint.name} 的完整{" "}
-        {endpoint.transport.kind === "tcp" ? "TCP 监听端点" : "RTU 串口通道"}
-        ，共 {endpoint.units.length} 个 Unit。应用后保持停止，等待手动启动。
-      </p>
-      <p className="muted">
-        当前没有生产执行器，本次只应用会话内配置和值，不产生实际通信。
-      </p>
-      <label>
-        <input
-          type="checkbox"
-          checked={reset}
-          disabled={busy}
-          onChange={(e) => setReset(e.target.checked)}
-        />{" "}
-        明确允许不兼容点恢复模型初值
-      </label>
-      {preview &&
-        preview.endpoint.units.map((unit) => {
-          const migration = preview.units[unit.id];
-          return (
-            <div className="panel-note" key={unit.id}>
-              <strong>
-                Unit {unit.station} · {unit.name}
-              </strong>{" "}
-              → {store.view?.catalog.models.find(model => model.id === unit.model.id)?.name}
-              <br />
-              {endpoint.role === "master" ? "新增／失效" : "新增／恢复"}{" "}
-              {migration?.initialized.length ?? 0} 点，移除{" "}
-              {migration?.removed.length ?? 0} 点，倍率变化{" "}
-              {migration?.scaleChanged.length ?? 0} 点；
-              {endpoint.role === "master"
-                ? "映射变化的结果失效，等待重新采集；不向远端写入初值。"
-                : "其余保留原始数值。"}
-              {migration?.engineeringChanged.map((change) => (
-                <div key={change.point}>
-                  {change.point}：{change.previous} → {change.next}（
-                  {endpoint.role === "master"
-                    ? "新倍率示意，采集结果将失效"
-                    : "原始值不变"}
-                  ）
-                </div>
-              ))}
-            </div>
-          );
-        })}
+      <div className="apply-identity"><strong>{endpoint.name}</strong><code>{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</code><span className="configuration-badge">{endpoint.units.length} 个 Unit</span></div>
+      <p>应用范围为完整端点。现有连接会断开，应用完成后保持停止，需手动启动。</p>
+      <table className="migration-table"><thead><tr><th>Unit／模型</th><th>保留</th><th>新增／恢复</th><th>移除</th><th>倍率变化</th></tr></thead><tbody>{preview?.endpoint.units.map(unit=>{
+        const migration=preview.units[unit.id];const total=Object.keys(migration?.values.raw??{}).length;
+        return <tr key={unit.id}><td>Unit {unit.station} · {unit.name}<div className="muted">{store.view?.catalog.models.find(model=>model.id===unit.model.id)?.name}</div></td><td>{Math.max(0,total-(migration?.initialized.length??0))}</td><td>{migration?.initialized.length??0}</td><td>{migration?.removed.length??0}</td><td>{migration?.scaleChanged.length??0}</td></tr>;
+      })}</tbody></table>
+      {!preview&&!error&&<p className="muted">正在校验并计算迁移…</p>}
+      {preview&&<details className="migration-details"><summary>查看受影响点与工程值变化</summary>{preview.endpoint.units.map(unit=>{
+        const migration=preview.units[unit.id];const model=store.view?.catalog.models.find(model=>model.id===unit.model.id);
+        const previous=store.view?.catalog.values[unit.id]?.model;
+        const label=(id:string)=>{const point=model?.points.find(p=>p.id===id)??previous?.points.find(p=>p.id===id);return point?`${point.name} · ${point.area}[${point.address}]`:id;};
+        return <div key={unit.id}><strong>Unit {unit.station}</strong><ul>{migration?.initialized.map(id=><li key={`new:${id}`}>{label(id)}：使用模型初始值</li>)}{migration?.removed.map(id=><li key={`removed:${id}`}>{label(id)}：移除</li>)}{migration?.engineeringChanged.map(change=><li key={change.point}>{label(change.point)}：{change.previous} → {change.next}（原始值不变）</li>)}</ul></div>;
+      })}</details>}
+      <label><input type="checkbox" checked={reset} disabled={busy} onChange={e=>setReset(e.target.checked)}/> 允许不兼容点恢复模型初始值</label>
+      {endpoint.role==="master"&&<p className="muted">主站映射变化的采集结果失效，等待重新采集；不会向远端写入初值。</p>}
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       <div className="dialog-actions">
-        <button disabled={busy} onClick={close}>
+        <Button variant="ghost" disabled={busy} onClick={close}>
           取消
-        </button>
-        <button
-          className="primary"
+        </Button>
+        <Button
           disabled={!preview || busy}
           onClick={async () => {
             setBusy(true);
@@ -118,8 +87,8 @@ export function ApplyModelDialog({
             }
           }}
         >
-          确认应用
-        </button>
+          {busy?"正在应用…":"停止并应用配置"}
+        </Button>
       </div>
     </dialog>
   );

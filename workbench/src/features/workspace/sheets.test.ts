@@ -49,3 +49,27 @@ it("展示改名保持视图草稿和选中数据源，仅更新展示列",()=>{
  const renamed=structuredClone(model);renamed.name="改名";renamed.points[0]!.name="新点名";renamed.points[0]!.unit="千伏";
  const after=views.get("u","measurement",renamed);expect(after).toBe(before);expect(after.getCell(0,"draft")).toBe("999");expect(after.getCell(0,"name")).toBe("新点名");
 });
+
+it("未编辑不待提交，实际值刷新跟随；修改后保留草稿，成功仅清除提交时的版本",()=>{
+ const views=new SheetViews();const values={model,raw:{p:{kind:"unsigned" as const,value:"220"}},stale:false};
+ const data=views.get("u","measurement",model,values);
+ expect(views.pending("u",model)).toHaveLength(0);
+ values.raw.p.value="221";views.get("u","measurement",model,values);
+ expect(data.getCell(0,"draft")).toBe("221");
+ data.updateCell(0,"draft","999");const sent=views.pending("u",model);
+ expect(sent).toHaveLength(1);
+ values.raw.p.value="222";views.get("u","measurement",model,values);
+ expect(data.getCell(0,"draft")).toBe("999");
+ data.updateCell(0,"draft","1000");views.acknowledge(sent);
+ expect(views.pending("u",model)[0]?.text).toBe("1000");
+ views.acknowledge(views.pending("u",model));expect(views.pending("u",model)).toHaveLength(0);
+});
+it("待修改按当前Unit和模型归集，不取决于分类或选区；撤销回原值清除待修改",()=>{
+ const views=new SheetViews();const mixed=structuredClone(model);
+ mixed.points.push({...mixed.points[0]!,id:"b",category:"indication",area:"coil",valueType:"bool",initial:{kind:"bool",value:false}});
+ const a=views.get("u","measurement",mixed);const b=views.get("u","indication",mixed);
+ a.updateCell(0,"draft","123");b.updateCell(0,"draft","true");
+ expect(views.pending("u",mixed).map(item=>item.point.id)).toEqual(["p","b"]);
+ expect(views.pending("other",mixed)).toEqual([]);
+ a.updateCell(0,"draft","220");expect(views.pending("u",mixed).map(item=>item.point.id)).toEqual(["b"]);
+});

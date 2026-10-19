@@ -1,3 +1,4 @@
+import {resourceNavigation} from "../resources/catalog";
 import type {
   Action,
   ApiError,
@@ -9,9 +10,10 @@ import type {
 import { newerView } from "../../shared/api/contracts";
 import { ModelDraft, modelRows } from "./pointDraft";
 export type Target = {
-  kind: "endpoint" | "model" | "device" | "folder";
+  kind: "endpoint" | "model" | "device" | "folder" | "resource";
   id: string;
   unit?: string;
+  anchor?:string;
 };
 /** 路径属于树视图，业务身份通过显式映射取得。相同实例可有多个路径。 */
 export function navigation(
@@ -63,13 +65,9 @@ export function navigation(
     };
     for(const folder of catalog.navigation?.folders ?? []) folderPath(folder.id);
     for (const endpoint of catalog.endpoints) {
-      const address =
-        endpoint.transport.kind === "tcp"
-          ? `${endpoint.transport.address}:${endpoint.transport.port}`
-          : endpoint.transport.path;
       const parent = leaf(
         folderPaths.get(catalog.navigation?.members[endpoint.id] ?? "") ?? "",
-        `${endpoint.name} · ${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"} · ${address}`,
+        endpoint.name,
         endpoint.id,
         { kind: "endpoint", id: endpoint.id },
       );
@@ -77,7 +75,7 @@ export function navigation(
       targets.set(`${parent}/`, { kind: "endpoint", id: endpoint.id });
       for (const unit of endpoint.units)
         paths.push(
-          leaf(parent, `Unit ${unit.station} · ${unit.name}`, unit.id, {
+          leaf(parent, unit.name===`Unit ${unit.station}`?unit.name:`Unit ${unit.station} · ${unit.name}`, unit.id, {
             kind: "endpoint",
             id: endpoint.id,
             unit: unit.id,
@@ -86,6 +84,11 @@ export function navigation(
     }
   }
   return { paths, targets };
+}
+/** 合并项目树根目录；只改显示路径，设备、文件夹和Unit身份继续来自显式映射。 */
+export function projectNavigation(catalog:Catalog|undefined){
+ const resources=catalog?navigation(catalog,"resources"):{paths:[],targets:new Map<string,Target>()};const simulators=catalog?navigation(catalog,"simulators"):{paths:[],targets:new Map<string,Target>()};const documents=resourceNavigation();
+ return {paths:["模拟器/",...simulators.paths.map(path=>`模拟器/${path}`),"采集模型/","设备/",...resources.paths,...documents.paths],targets:new Map([...documents.targets,...resources.targets,...[...simulators.targets].map(([path,target])=>[`模拟器/${path}`,target] as const)])};
 }
 export function errorMessage(error: unknown): string {
   const value = error as Partial<ApiError>;
@@ -99,6 +102,8 @@ export class WorkspaceStore {
   busy = false;
   private listeners = new Set<() => void>();
   private changeCount = 0;
+  readonly focusModelIssue=new Map<string,(issue:ApiError)=>void>();
+  readonly runtimePoint=new Map<string,string>();
   readonly draftMatches=new Map<string,Record<string,boolean>>();
   readonly drafts = new Map<string, EndpointConfig>();
   readonly modelDrafts = new Map<string, ModelDraft>();
@@ -240,7 +245,7 @@ export class WorkspaceStore {
 export function documentPosition(panelIds: string[]) {
   const document = panelIds.find(
     (id) =>
-      id === "welcome" || id.startsWith("endpoint:") || id.startsWith("model:"),
+      id === "welcome" || id.startsWith("endpoint:") || id.startsWith("model:") || id.startsWith("resource:"),
   );
   if (document)
     return { referencePanel: document, direction: "within" as const };

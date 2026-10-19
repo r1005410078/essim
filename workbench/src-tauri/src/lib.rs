@@ -1,4 +1,4 @@
-//! 桌面应用组装。核心模型不依赖Tauri，当前只接入会话内配置目录。
+//! 桌面组装：会话配置及真实TCP从站；核心模型不依赖Tauri。
 mod commands;
 mod native_menu;
 use essim_infrastructure::workspace::WorkspaceEngine;
@@ -16,11 +16,17 @@ pub fn run() {
         .menu(native_menu::build)
         .on_menu_event(native_menu::dispatch)
         .manage(ExitPermission::default())
-        .manage(Arc::new(WorkspaceEngine::default()))
+        .setup(|app| {
+            let record_root = app.path().app_data_dir()?.join("runs");
+            app.manage(Arc::new(WorkspaceEngine::with_tcp_runtime(record_root)?));
+            Ok(())
+        })
         .manage(commands::subscriptions::Subscriptions::default())
         .manage(commands::point_table::PointFileJobs::default())
         .invoke_handler(tauri::generate_handler![
             commands::simulator::query_workspace,
+            commands::slave::execute_slave,
+            commands::slave::query_slave,
             commands::simulator::exit_workbench,
             commands::simulator::set_exit_guard_ready,
             commands::simulator::preview_apply,
@@ -29,6 +35,7 @@ pub fn run() {
             commands::point_table::preview_point_table,
             commands::point_table::open_point_file,
             commands::point_table::cancel_point_file,
+            commands::slave::export_observations,
             commands::point_table::export_point_file,
             commands::point_table::export_point_template,
             commands::subscriptions::subscribe_workspace,
@@ -37,6 +44,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("无法启动ESSim工作台")
         .run(|app, event| {
+            if matches!(&event, tauri::RunEvent::Exit) {
+                app.state::<Arc<WorkspaceEngine>>().shutdown_slave();
+            }
             // macOS Cmd+Q不经过Window::CloseRequested，必须单独送至前端确认。
             if let tauri::RunEvent::ExitRequested { api, .. } = event {
                 let permission = app.state::<ExitPermission>();

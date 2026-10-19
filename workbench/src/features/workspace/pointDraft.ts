@@ -76,7 +76,7 @@ export function defaultRow(
     scale: "1",
     unit: "",
     initialEngineering: "0",
-    slaveWritable: "false",
+    slaveWritable: "true",
     masterPeriodMs: "1000",
     note: "",
   };

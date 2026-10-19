@@ -3,3 +3,7 @@
 pub mod workspace;
 /// 点表输入预览与文件格式交换。
 pub mod point_exchange;
+
+/// 正式TCP从站运行适配器。
+#[cfg(feature="tcp-runtime")]
+pub mod tcp_slave;

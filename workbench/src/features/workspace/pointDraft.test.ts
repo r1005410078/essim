@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { ModelDraft, defaultRow } from "./pointDraft";
 
 describe("模型唯一草稿事务", () => {
+  it("新建点默认允许外部写入", () => {
+    expect(defaultRow("control", "new").slaveWritable).toBe("true");
+  });
   it("重复视图选中通知不会触发重复刷新或修改草稿", () => {
     let notifications = 0;
     const draft = new ModelDraft(

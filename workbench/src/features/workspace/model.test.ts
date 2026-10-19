@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { WorkspaceStore, navigation, documentPosition, isEndpointApplied } from "./model";
+import { WorkspaceStore, projectNavigation, navigation, documentPosition, isEndpointApplied } from "./model";
 import { SheetViews } from "./sheets";
 import type {
   CollectionModel,
@@ -315,4 +315,14 @@ it("核心草稿比较的迟到结果不能覆盖新的映射或展示编辑",as
  const store=new WorkspaceStore(adapter);await store.refresh();
  store.edit({...endpoint,name:"展示名"});store.edit({...endpoint,units:endpoint.units.map(u=>({...u,station:10}))});
  finishSecond({"unit-a":false});await Promise.resolve();finishFirst({"unit-a":true});await Promise.resolve();expect(store.draftMatches.get(endpoint.id)).toEqual({"unit-a":false});
+});
+
+it("合并项目树保留文件夹与设备引用的稳定身份，缩短端点标签",()=>{
+ const catalog=view().catalog;
+ catalog.navigation={folders:[{id:"folder",name:"现场",parent:null}],members:{[endpoint.id]:"folder"}};
+ const tree=projectNavigation(catalog);
+ expect(tree.targets.get("模拟器/现场/端点A/")).toEqual({kind:"endpoint",id:endpoint.id});
+ expect(tree.targets.get("模拟器/现场/端点A/Unit 1 · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
+ expect(tree.targets.get("设备/PCS/端点A · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
+ expect(tree.targets.get("采集模型/模型A")).toEqual({kind:"model",id:model.id});
 });

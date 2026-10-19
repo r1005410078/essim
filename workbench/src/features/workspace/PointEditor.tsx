@@ -1,3 +1,5 @@
+import {EnumSelect} from "./EnumSelect";
+import {ActionMenu} from "./ActionMenu";
 import {
   Component,
   useEffect,
@@ -17,7 +19,6 @@ import {
   Undo2,
   Redo2,
   FileInput,
-  FileOutput,
 } from "lucide-react";
 import type {
   ApiError,
@@ -207,6 +208,8 @@ function EditorBody({
       );
     });
   };
+  const focusIssue=useRef(focusError);focusIssue.current=focusError;
+  useEffect(()=>{store.focusModelIssue.set(draft.id,issue=>focusIssue.current(issue));return()=>{store.focusModelIssue.delete(draft.id);};},[store,draft.id]);
   return (
     <div
       className="panel column point-editor"
@@ -223,7 +226,7 @@ function EditorBody({
 
       }}
     >
-      <div className="toolbar">
+      <div className="toolbar document-actions model-actions">
         <button
           data-save-document={`model:${draft.id}`}
           title="保存模型（⌘S / Ctrl+S，本次会话）"
@@ -231,10 +234,10 @@ function EditorBody({
           disabled={busy}
           onClick={() => void save()}
         >
-          <Save size={17} />
+          <Save size={17} />保存模型
         </button>
         <button title="新增点" aria-label="新增点" onClick={add}>
-          <Plus size={17} />
+          <Plus size={17} />新增点
         </button>
         <button
           title="删除选中点"
@@ -278,73 +281,17 @@ function EditorBody({
           aria-label="导入追加"
           onClick={() => setImporting(true)}
         >
-          <FileInput size={17} />
+          <FileInput size={17} />导入
         </button>
-        <select
-          aria-label="导出格式"
-          defaultValue=""
-          disabled={!draft.persisted}
-          onChange={(event) => {
-            const format = event.target.value;
-            if (format)
-              void task(async () => {
-                const done = await store.client.exportPointFile?.(
-                  draft.id,
-                  format,
-                );
-                if (done === undefined) throw Error("文件服务未接入");
-              });
-            event.target.value = "";
-          }}
-        >
-          <option value="">导出模型</option>
-          {["json", "csv", "xlsx"].map((v) => (
-            <option key={v} value={v}>
-              {v.toUpperCase()}
-            </option>
-          ))}
-        </select>
-        <FileOutput size={14} />
+        <ActionMenu label="导出模型" disabled={!draft.persisted} items={["json","csv","xlsx"].map(format=>({label:format.toUpperCase(),action:()=>void task(async()=>{const done=await store.client.exportPointFile?.(draft.id,format);if(done===undefined)throw Error("文件服务未接入");})}))}/>
       </div>
-      <div className="point-help-strip" aria-label="点表字段说明">
-        {fields.map((field) => (
-          <span key={field}>
-            {labels[field]}
-            <FieldHelp field={field} />
-          </span>
-        ))}
-      </div>
+      <details className="field-help-disclosure"><summary>字段说明</summary><div className="point-help-strip" aria-label="点表字段说明">{fields.map(field=><span key={field}>{labels[field]}<FieldHelp field={field}/></span>)}</div></details>
       {error && (
         <div role="alert" className="error panel-note">
           {error}
         </div>
       )}
-      {!!preview?.errors.length && (
-        <div className="point-errors" role="alert">
-          <span>
-            共 {preview.errors.length} 处错误 · 第 {errorPage + 1} 页
-          </span>
-          <button
-            disabled={errorPage === 0}
-            onClick={() => setErrorPage(errorPage - 1)}
-          >
-            上一页
-          </button>
-          <button
-            disabled={(errorPage + 1) * 50 >= preview.errors.length}
-            onClick={() => setErrorPage(errorPage + 1)}
-          >
-            下一页
-          </button>
-          {preview.errors
-            .slice(errorPage * 50, errorPage * 50 + 50)
-            .map((issue, index) => (
-              <button key={index} onClick={() => focusError(issue)}>
-                {issue.message}
-              </button>
-            ))}
-        </div>
-      )}
+      {!!preview?.errors.length&&<div className="configuration-notice error" role="alert">{preview.errors.length} 处模型问题 · 底部“问题”面板可查看全部；<button onClick={()=>focusError(preview.errors[0]!)}>定位首项</button></div>}
       <div className="sheet-area">
         <PointGrid
           key={category}
@@ -454,26 +401,8 @@ export function ModelDetails({
               </span>
               <div>
                 {choices[field] ? (
-                  <select
-                    aria-label={labels[field]}
-                    value={selected[field]}
-                    disabled={
-                      (selected.valueType === "bool" &&
-                        (field === "byteOrder" || field === "wordOrder")) ||
-                      ((widths[selected.valueType!] ?? 1) === 1 &&
-                        field === "wordOrder")
-                    }
-                    onChange={(e) =>
-                      draft.change((s) => {
-                        s.rows.find((r) => r.id === selected.id)![field] =
-                          e.target.value;
-                      })
-                    }
-                  >
-                    {choices[field]!.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
+                  <EnumSelect label={labels[field]} value={selected[field]??""} options={choices[field]!.map(value=>[value,value] as const)} disabled={(selected.valueType==="bool"&&(field==="byteOrder"||field==="wordOrder"))||((widths[selected.valueType!]??1)===1&&field==="wordOrder")} onChange={value=>draft.change(state=>{state.rows.find(row=>row.id===selected.id)![field]=value;})}/>
+
                 ) : field === "initialEngineering" &&
                   selected.valueType === "bool" ? (
                   <input

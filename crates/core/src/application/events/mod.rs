@@ -7,3 +7,6 @@ pub use config_event::ConfigEvent;
 pub use configuration::ConfigurationFact;
 /// 运行事实与历史事件契约。
 pub mod history;
+
+/// 真实TCP从站运行事实。
+pub mod slave;

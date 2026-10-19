@@ -10,11 +10,12 @@
 crates/core/src/
 ├── application/
 │   ├── service.rs                       # 应用服务：事务与用例编排
-│   ├── commands/                        # 命令定义和用例处理器
+│   ├── commands/                        # 配置处理器及slave.rs运行命令
 │   ├── events/
 │   │   ├── configuration.rs             # 成功配置业务事实
 │   │   ├── config_event.rs              # 配置事件信封
-│   │   └── history.rs                   # 运行历史事件契约
+│   │   ├── history.rs                   # 运行历史事件契约
+│   │   └── slave.rs                     # 实际TCP从站运行事实
 │   ├── event_handlers/
 │   │   └── workspace_projection.rs      # 同步查询投影监听器
 │   ├── queries/
@@ -22,7 +23,8 @@ crates/core/src/
 │   │   ├── capabilities.rs              # 实际能力
 │   │   ├── projection.rs                # 投影状态与快照构造
 │   │   ├── apply_preview.rs             # 只读应用预览
-│   │   └── inspection.rs                # 保存／应用差异查询
+│   │   ├── inspection.rs                # 保存／应用差异查询
+│   │   └── slave.rs                     # 独立运行摘要和点值查询
 │   ├── ports.rs                         # 外部能力接口
 │   └── catalog.rs                       # 跨聚合目录及引用检查
 └── domain/
@@ -39,7 +41,8 @@ crates/core/src/
     │   └── navigation.rs                # 独立导航及其规则
     ├── identity.rs                      # 稳定身份
     ├── values.rs                        # 运行值与迁移
-    └── point_table.rs                   # 点表编码、地址校验
+    ├── point_table.rs                   # 点表编码、地址校验
+    └── slave.rs                         # 共享运行模型索引与纯置数规划
 ```
 
 各目录的`mod.rs`负责声明及重导出。原`domain::endpoint`、`domain::model`等导入路径继续有效，具体实现统一在`aggregates/`，没有两套模型。事件监听器是现有同步投影消费者，不是通用事件总线或动态订阅框架。
@@ -71,7 +74,7 @@ core依赖serde及num-bigint／num-rational／num-traits精确数值库，不依
 
 一次显式启动对应RunId，覆盖端点全部单元；重连／暂停单元不创建新运行。状态与录制状态分别表示，停止请求返回后保持Stopping，资源释放确认后才能Stopped。录制创建成功前不打开通道；外部效果遵循可靠意图→执行一次→可靠结果，结果记录失败保留未确认范围并停止，不重发。
 
-RunCoordinator通过测试适配器验证上述规则，生产工作台尚未装配执行器／可靠Recorder，启动、远端读写和回放命令返回CAPABILITY_UNAVAILABLE。回放类型不接收执行器，只重建独立值，固定模型快照，拒绝历史缺口／未知版本。不能将此契约测试宣称为可靠落盘或可用播放引擎。
+RunCoordinator通过测试适配器验证通用契约；2026-10-18正式TCP从站使用独立SlaveCommand、TcpSlaveRuntime和Journal实现运行与文件记录，没有将该泛型协调器宣称为已装配。旧配置Action::Start保留能力门禁，工作台通过独立execute_slave进入真实TCP路径；主站远端读写、RTU及回放仍不可用。回放类型不接收执行器，只重建独立值，固定模型快照，拒绝历史缺口／未知版本。不能将此契约测试宣称为可靠落盘或可用播放引擎。
 
 ## 界面组件边界
 
@@ -89,7 +92,7 @@ Tauri配置订阅上限8个，每个订阅仅在序号改变时发送最新完�
 
 `crates/libmodbus/`三包、官方源码／许可、通用示例和测试保留。src负责源码构建，sys是原生链接所有者，rs提供RAII安全API及TCP／RTU主从子集；句柄不Send／Sync，Rust拥有TCP socket、C借用；RTU资源按close→free释放。
 
-M01删除固定SOC worker、旧Native、旧IPC和教学示例，不为维持旧链接断言保留无用协议依赖。当前桌面应用不链接libmodbus，静态／显式动态能力由保留库与独立client_demo验证。打包工具按实际链接依赖处理。真实多实例执行器、调度及可靠记录均是后续提案，不将历史SOC互操作当作新产品验收。
+M01删除固定SOC worker、旧Native、旧IPC和教学示例，不为维持旧链接断言保留无用协议依赖。M01阶段桌面应用曾不链接libmodbus；2026-10-18 TCP从站重新通过infrastructure的tcp-runtime feature接入，桌面默认vendored静态构建；关闭桌面默认feature并提供LIBMODBUS_DIR保留显式动态构建路径。打包工具按实际链接依赖处理。TCP从站的固定线程执行器及文件记录见下节和独立实施记录，不将历史SOC互操作当作新产品验收。
 
 [实施与迁移记录](../test-records/2026-10-15-m01-foundation.md) · [通用库说明](../../crates/libmodbus/README.md)。
 
@@ -136,3 +139,26 @@ ModelDraft按ModelId持有单一文本草稿，PointEditor及Details共享状态
 ConfigurationFact包含具体的创建、保存、复制、删除、应用、移动和复位事实。ConfigEvent的fact表达成功业务动作，catalog提供查询恢复快照；前端订阅仍发送WorkspaceView。核心execute及基础设施execute_with_event明确返回成功提交后的事件；生产Tauri路径使用execute，只保留Receipt，没有继续发布ConfigurationFact。服务同步调用WorkspaceProjectionListener::handle并复制catalog快照；Projection::accept保留为兼容委托入口，没有按fact注册或分派业务监听器。前端还会在命令成功后主动refresh，并通过独立快照Channel接收后台更新。没有事件总线或可靠投递。此机制不是持久化事件溯源；运行HistoryEvent及可靠录制是另一条后续链路。
 
 [重构提案](../../openspec/changes/refactor-workspace-cqrs-boundaries/proposal.md) · [设计与目标目录](../../openspec/changes/refactor-workspace-cqrs-boundaries/design.md) · [实施与71项测试记录](../test-records/2026-10-17-cqrs-boundaries.md)。M02／M03未完成验收不因此关闭。
+
+## M04 TCP从站实际接入（2026-10-18）
+
+```text
+core/src/application/{commands,events,queries}/slave.rs  # 运行意图、实际事实、只读结果
+core/src/domain/slave.rs                              # 共享模型索引及纯校验
+infrastructure/src/tcp_slave/
+  mod.rs            # 有界命令入口、单端点操作门、线程回收
+  worker.rs         # 所属端点／Unit／连接的唯一所有者，mio轮询
+  mapping.rs        # C四区映射、完整地址及权限校验
+  journal.rs        # 类型化事实的可靠同步文件消费者
+libmodbus-rs/src/responder.rs                         # 安全完整帧、私有响应socket
+workbench/src-tauri/src/commands/slave.rs              # 窗口无阻塞运行IPC
+workbench/src/features/workspace/SlaveRuntimeControls.tsx # 可见行查询、当前Unit待修改提交、地址范围恢复
+workbench/src/features/workspace/RuntimeGrid.tsx          # NovaSheet公开Grid／可见行适配
+workbench/src/features/workspace/RuntimeDataSource.ts     # 草稿基线及待修改身份
+```
+
+实际线程数为最多4个运行工作线程；每端点默认10连接，运行启动参数可改为1～100，全局连接上限10000，控制队列每工作线程256条，单次运行命令最大8MiB。单连接收发缓冲各16KiB，半帧／发送停滞5秒超时，接口等待确认10秒；接口超时不能当作写入未发生。模型按内容在工作线程内共享，Unit映射独立；配置Catalog仍会深复制模型和值，亿点规模尚未证明。
+
+运行事实按自包含JSONL文件可靠确认，默认目录为Tauri应用数据目录下runs。高频值不写配置数据库；配置仍仅本次会话保存。请求事实先落盘，再执行C映射并记录准备响应，随后实际写出并记录发送事实；文件失败停止该端点且保留最后可靠位置。当前同步落盘会影响同工作线程尾延迟，实测如实记录，尚未提供历史浏览及可用回放。
+
+工作台仅为可见端点面板每500ms查询当前Unit当前分类的真实可见行，单次最多1024点；通过NovaSheet公开后端工厂读取视口区域和组合数据源稳定ID，不读取选区。运行修订号独立于配置sequence。未修改的草稿跟随实际值；已修改草稿保留并计数，提交覆盖当前Unit各分类待修改点，成功只清除本次提交版本。恢复初值明确填写数据区及地址闭区间，整Unit复位单独确认。原生滚动、跨分类提交及独立PyModbus联合验证见[M04记录](../test-records/2026-10-18-m04-tcp-slave.md)。

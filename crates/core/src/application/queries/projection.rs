@@ -18,6 +18,9 @@ impl Projection {
             catalog,
         }
     }
+    pub(crate) fn query_catalog(&self) -> &Catalog {
+        &self.catalog
+    }
     pub(crate) fn replace_catalog(&mut self, catalog: Catalog) {
         self.catalog = catalog;
     }

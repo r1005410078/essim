@@ -143,3 +143,6 @@ pub(crate) mod lifecycle;
 pub(crate) mod model;
 pub(crate) mod navigation;
 pub(crate) mod operations;
+
+/// 独立从站运行命令。
+pub mod slave;

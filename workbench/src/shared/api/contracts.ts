@@ -180,6 +180,9 @@ export interface PointFile {
   sheets: { name: string; headers: string[]; rows: string[][] }[];
 }
 export interface WorkspaceClient {
+  exportObservations?(content:string):Promise<boolean>;
+  executeSlave?(command:SlaveCommand):Promise<SlaveView>;
+  querySlave?(query:SlaveQuery):Promise<SlaveView>;
   query(): Promise<WorkspaceView>;
   execute(command: Command): Promise<Receipt>;
   inspectEndpoint?(endpoint: EndpointConfig): Promise<Record<string,boolean>>;
@@ -204,4 +207,20 @@ export function newerView(
   next: WorkspaceView,
 ): boolean {
   return current === null || BigInt(next.sequence) > BigInt(current.sequence);
+}
+
+/** TCP从站实际运行，与配置提交独立。 */
+export type SlaveAction =
+ | {kind:"start";maxClients:number}
+ | {kind:"stop"}
+ | {kind:"setValues";unit:string;values:[string,RawValue][]}
+ | {kind:"resetValues";unit:string;points:string[]};
+export interface SlaveCommand {commandId:string;endpoint:string;action:SlaveAction}
+export interface SlaveQuery {endpoint:string;unit:string|null;points:string[]}
+export interface SlaveObservation {sequence:string;unixMs:string;event:string}
+export interface SlaveView {
+ endpoint:string;state:"idle"|"starting"|"running"|"stopping"|"stopped"|"failed";
+ revision:string;clients:number;maxClients:number;requests:string;exceptions:string;
+ lastRequestMicros:string;error:string|null;recordPath:string|null;lastReliable:string;uncertain:boolean;
+ observations?:SlaveObservation[];events:string[];values:Record<string,RawValue>;
 }

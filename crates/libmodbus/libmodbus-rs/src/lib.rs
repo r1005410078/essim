@@ -1,5 +1,8 @@
 //! libmodbus 3.2.0 TCP/RTU 主站及从站 API 子集，不包含设备或运行调度。
 //! TCP context 借用 Rust socket，RTU context 独占串口；禁止跨线程，无 C 回调。
+mod responder;
+/// 完整TCP帧响应生成器。
+pub use responder::TcpResponder;
 mod client;
 pub use client::{exception_code, ModbusClient};
 mod rtu;
@@ -295,6 +298,8 @@ pub enum Exception {
     IllegalAddress = 2,
     IllegalValue = 3,
     ServerFailure = 4,
+    /// 配置端点下的目标Unit不可用。
+    GatewayTargetUnavailable = 11,
 }
 
 /// 持有 socket owner，或 BorrowedFd guard。先销毁 C context 再释放 Rust owner。

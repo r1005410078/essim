@@ -1,10 +1,10 @@
 # Modbus 模拟器事件风暴与运行流程
 
-更新日期：2026-10-18。原图始于2026-10-15；本次将当前代码流程与目标业务流程分开标明。第0节对应现有实现，第1–3节是业务设计视角，不能整体当作已接入能力。
+更新日期：2026-10-18。原图始于2026-10-15；本次将当前代码流程与目标业务流程分开标明。第0节与0B节对应现有实现，第1–3节是业务设计视角，不能整体当作已接入能力。
 
 关联：[M01 基础模型与架构边界](../plans/modbus-simulator.md#m01-基础模型与架构边界)。
 
-第0节逐步对应服务、命令、提交事件、查询和前端订阅的实际调用。后续三张业务图保留配置与启动、执行与可靠录制、离线回放三个设计视角；事件后的连线表达业务先后或目标协作，不表示已存在事件总线、自动策略监听器或数据库。可靠落盘、事件分发及生产线程方案仍需对应提案实施。
+第0节逐步对应服务、命令、提交事件、查询和前端订阅的实际调用。后续三张业务图保留配置与启动、执行与可靠录制、离线回放三个设计视角；事件后的连线表达业务先后或目标协作，不表示已存在事件总线、自动策略监听器或数据库。TCP从站已增加独立运行命令、固定线程执行器和可靠文件记录，见0B节；RTU、通用业务事件分发及可用回放仍由后续提案实施。
 
 图例：蓝色为命令，黄色为聚合，橙色为事件，紫色为自动策略，绿色为查询／展示，灰色为应用或技术组件，红色为故障。
 
@@ -98,9 +98,64 @@ sequenceDiagram
 
 后续如果要求事件监听驱动投影或其他服务，需要先明确哪些处理必须同步完成、哪些允许失败后补做、如何避免重复处理，以及查询何时能看到提交结果，再形成实施任务。本次目录细分已将现有同步消费者独立为event_handlers模块，图同步反映该调用；按具体fact注册及分发的缺口仍保留，不引入消息平台。
 
+## 0B. 当前代码：TCP从站运行（2026-10-18）
+
+本路径使用独立SlaveCommand／SlaveView及SlaveFact，不把运行操作发布成ConfigEvent。既有RunCoordinator仍是通用契约测试；正式TCP路径没有假装装配该泛型协调器，也没有通用事件总线。Journal是SlaveFact的显式同步消费者，文件记录可靠确认后才继续。
+
+```mermaid
+sequenceDiagram
+    participant UI as 工作台运行栏
+    participant API as commands/slave.rs
+    participant E as WorkspaceEngine
+    participant M as TcpSlaveRuntime
+    participant W as 固定工作线程Owner
+    participant J as Journal文件记录
+    participant C as libmodbus响应器及Unit映射
+    participant EMS as 外部主站
+    UI->>API: execute_slave(SlaveCommand/start)
+    API->>E: 后台执行
+    E->>E: 单端点操作门、读取已应用快照
+    E->>M: execute(command, snapshot)
+    M->>W: 有界命令队列 + Waker
+    W->>W: 共享ModelLayout、独立Unit Mapping
+    W->>J: 建立自包含快照 + sync_data及目录同步
+    W->>W: 绑定监听、注册mio
+    W->>J: Listening事实可靠确认
+    W-->>UI: SlaveView实际运行状态
+    EMS->>W: TCP请求（可能分段或连续）
+    W->>W: 有界MBAP缓冲、完整帧校验
+    W->>J: Request事实可靠确认
+    W->>C: 检查完整范围及写权限，调用libmodbus
+    C-->>W: 已准备响应、实际映射值
+    W->>J: ResponsePrepared事实可靠确认
+    W->>EMS: 非阻塞发送队列写出
+    W->>J: ResponseSent事实可靠确认
+    Note over W,J: 记录失败停止该端点、保留不确定范围<br/>本地发送成功不等于EMS业务确认
+    loop 可见端点面板，每500ms串行查询
+        UI->>API: query_slave(当前Unit可见行，最多1024点)
+        API->>M: query，不复制整个配置目录
+        M->>W: 查询命令
+        W-->>UI: 实际状态、选定点值、最近100条事件／帧
+    end
+```
+
+本地置数先经ModelLayout.plan_values整批校验，然后记录ValuesIntent、修改映射、记录ValuesCommitted；同一所有者也处理外部写入。恢复指定数据区地址范围／全部点使用已应用初值。前端刷新与提交均不依赖选区：刷新由RuntimeGrid公开视口解析稳定身份；提交由RuntimeDataSource待修改集合归集当前Unit各分类草稿，成功后只清除提交时版本，期间的新编辑继续保留。停止命令在所有者完成当前同步处理后关闭该端点全部客户端及监听；尚未写出的响应明确保留不确定标记。apply／delete先停止并接回实际值，再沿配置分段释放流程执行；成功后清理旧静止映射。
+
+| 职责 | 实际文件 |
+| --- | --- |
+| 运行命令／查询／事件定义 | [commands/slave.rs](../../crates/core/src/application/commands/slave.rs)、[queries/slave.rs](../../crates/core/src/application/queries/slave.rs)、[events/slave.rs](../../crates/core/src/application/events/slave.rs) |
+| 模型地址、权限及批量规划 | [domain/slave.rs](../../crates/core/src/domain/slave.rs) |
+| 应用边界及配置协调 | [WorkspaceEngine](../../crates/infrastructure/src/workspace.rs) |
+| 运行服务／所有者 | [tcp_slave/mod.rs](../../crates/infrastructure/src/tcp_slave/mod.rs)、[worker.rs](../../crates/infrastructure/src/tcp_slave/worker.rs) |
+| Unit映射／可靠事实消费者 | [mapping.rs](../../crates/infrastructure/src/tcp_slave/mapping.rs)、[journal.rs](../../crates/infrastructure/src/tcp_slave/journal.rs) |
+| 安全完整帧响应入口 | [responder.rs](../../crates/libmodbus/libmodbus-rs/src/responder.rs) |
+| IPC／前端运行入口 | [commands/slave.rs](../../workbench/src-tauri/src/commands/slave.rs)、[SlaveRuntimeControls.tsx](../../workbench/src/features/workspace/SlaveRuntimeControls.tsx) |
+
+规模探测与原生待验边界见[M04记录](../test-records/2026-10-18-m04-tcp-slave.md)。文件记录不等于SQLite配置持久化或已交付历史查看／回放。
+
 ## 1. 配置与启动的业务过程（目标视角）
 
-保存、应用、启动均由用户分别触发，不自动串联。采集模型是一张点表，主从角色使用对应字段；设备关联可选。当前配置保存／应用已接入，实际启动与可靠运行记录尚未接入；本节事件连线是业务关系，实际调用以第0节为准。配置版本管理已于2026-10-16取消，以下改用当前保存内容和独立已应用快照。
+保存、应用、启动均由用户分别触发，不自动串联。采集模型是一张点表，主从角色使用对应字段；设备关联可选。当前配置保存／应用已接入，TCP从站实际启动和文件录制已接入0B节，RTU及其他运行路径仍待实施；本节事件连线是业务关系，实际调用以第0节为准。配置版本管理已于2026-10-16取消，以下改用当前保存内容和独立已应用快照。
 
 ```mermaid
 flowchart TD

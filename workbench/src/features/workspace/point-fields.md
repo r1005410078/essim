@@ -68,7 +68,7 @@ Bool 不适用，使用 big。
 这是模型初值，不是实例当前采集值，保存不自动影响模拟器。
 
 ## slaveWritable
-**允许外部写入**是从站接收 holding／coil 写请求的权限，默认 `false`。
+**允许外部写入**是从站接收 holding／coil 写请求的权限，新建点默认 `true`；input／discrete 为只读区，不允许外部写入。
 
 input／discrete 必须为 false。从站本地采集置数与外部写权限分开；这个字段不代表主站已取得远端写入权限。
 

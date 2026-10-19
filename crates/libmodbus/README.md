@@ -54,7 +54,7 @@ cargo run -p libmodbus-rs --no-default-features --example register_demo --offlin
 cargo run -p libmodbus-sys --no-default-features --example version --offline
 ```
 
-切回静态前移除当前终端设置的 LIBMODBUS_DIR：`unset LIBMODBUS_DIR`。M01已退役固定SOC教学入口，当前基础设施和Tauri不链接libmodbus；通用库通过上述独立命令验证。恢复正式执行器后再明确转发feature，避免动态模式被下游默认feature重新开启。
+切回静态前移除当前终端设置的 LIBMODBUS_DIR：`unset LIBMODBUS_DIR`。M01已退役固定SOC教学入口；2026-10-18正式TCP从站通过基础设施tcp-runtime feature重新接入。基础设施vendored单独转发，Tauri默认vendored；显式动态构建关闭桌面默认feature并设置LIBMODBUS_DIR，避免下游无条件启用静态依赖。通用库继续通过上述独立命令验证。
 
 ## 安全 API 的范围
 

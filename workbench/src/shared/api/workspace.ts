@@ -10,6 +10,9 @@ export function createWorkspaceClient(): WorkspaceClient {
       };
     };
     return {
+      exportObservations:unavailable,
+      executeSlave:unavailable,
+      querySlave:unavailable,
       query: unavailable,
       execute: unavailable,
       subscribe: unavailable,
@@ -21,6 +24,9 @@ export function createWorkspaceClient(): WorkspaceClient {
     };
   }
   return {
+    exportObservations:content=>invoke("export_observations",{content}),
+    executeSlave:command=>invoke("execute_slave",{command}),
+    querySlave:query=>invoke("query_slave",{query}),
     query: () => invoke("query_workspace"),
     execute: (command) => invoke("execute_workspace", { command }),
     inspectEndpoint: endpoint => invoke("inspect_endpoint",{endpoint}),

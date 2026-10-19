@@ -1,0 +1,21 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "endpoints": 1,
+  "unitsPerEndpoint": 10,
+  "pointsPerUnit": 10000,
+  "totalPoints": 100000,
+  "clientsPerEndpoint": 10,
+  "connections": 10,
+  "startupSeconds": 2.454,
+  "scanDurationSeconds": 67.65,
+  "requests": 8000,
+  "requestsPerSecond": 118.26,
+  "latencyP50Ms": 8.109,
+  "latencyP95Ms": 12.214,
+  "rssAfterStartupKiB": 26240,
+  "rssAfterScanKiB": 4608,
+  "processThreads": 5,
+  "cpuPercentSnapshot": 21.3,
+  "recording": "sync_data per event",
+  "load": "single sequential full scan per connected client; not sustained concurrent EMS load"
+}

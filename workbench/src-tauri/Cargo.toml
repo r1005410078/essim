@@ -5,11 +5,15 @@ edition.workspace = true
 [lib]
 name = "essim_workbench_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+[features]
+default = ["vendored"]
+vendored = ["essim-infrastructure/vendored"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 [dependencies]
+serde_json = "1"
 tauri = { version = "2", features = [] }
 serde.workspace = true
 essim-core.workspace = true
-essim-infrastructure.workspace = true
+essim-infrastructure = { workspace = true, features = ["tcp-runtime"] }
 rfd = "=0.15.4"

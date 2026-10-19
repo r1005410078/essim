@@ -1,4 +1,4 @@
-//! M01 会话内配置适配器；没有持久化、协议执行或可靠录制承诺。
+//! 会话配置适配器；可选装配真实TCP从站，配置目录仍不持久化。
 use essim_core::{
     application::{
         catalog::Catalog,
@@ -34,12 +34,16 @@ impl ConfigRepository for MemoryRepository {
 pub struct WorkspaceEngine {
     workspace: Mutex<Workspace<MemoryRepository>>,
     boundary: Mutex<Box<dyn ApplyBoundary + Send>>,
+    #[cfg(feature = "tcp-runtime")]
+    runtime: Option<std::sync::Arc<crate::tcp_slave::TcpSlaveRuntime>>,
 }
 impl Default for WorkspaceEngine {
     fn default() -> Self {
         Self {
             workspace: Mutex::new(Workspace::new(MemoryRepository::default())),
             boundary: Mutex::new(Box::new(StoppedBoundary)),
+            #[cfg(feature = "tcp-runtime")]
+            runtime: None,
         }
     }
 }
@@ -65,11 +69,20 @@ impl WorkspaceEngine {
     /// # Errors
     /// 内部状态锁中毒时返回明确故障。
     pub fn query(&self) -> Result<WorkspaceView, Error> {
-        Ok(self
+        #[allow(unused_mut)]
+        let mut view = self
             .workspace
             .lock()
             .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
-            .query())
+            .query();
+        #[cfg(feature = "tcp-runtime")]
+        if self.runtime.is_some() {
+            view.capabilities.execution = true;
+            view.capabilities.recording = true;
+            view.capabilities.reason =
+                "当前支持TCP从站运行及文件录制；RTU、主站运行和历史回放尚未接入".into();
+        }
+        Ok(view)
     }
     /// 比较草稿是否仍对应已应用映射，不提交目录或运行值。
     /// # Errors
@@ -103,15 +116,77 @@ impl WorkspaceEngine {
     /// # Errors
     /// 校验、释放或提交失败时只返回错误，不返回成功事件。
     pub fn execute_with_event(&self, command: Command) -> Result<(Receipt, ConfigEvent), Error> {
+        #[cfg(feature = "tcp-runtime")]
+        if let (Some(runtime), Action::ResetUnit { id, .. }) = (&self.runtime, &command.action) {
+            let id = id.clone();
+            let gate = runtime.gate(&id)?;
+            let _guard = gate
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "端点操作锁不可用"))?;
+            if let Some(values) = runtime.stopped_values(&id)? {
+                self.workspace
+                    .lock()
+                    .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                    .retain_stopped_values(&id, values)?;
+            }
+            let result = self
+                .workspace
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                .execute(command);
+            if result.is_ok() {
+                runtime.forget(&id)?;
+            }
+            return result;
+        }
         if matches!(
             &command.action,
             Action::Apply { .. } | Action::DeleteEndpoint { .. }
         ) {
+            #[cfg(feature = "tcp-runtime")]
+            let gate = if let Some(runtime) = &self.runtime {
+                let id = match &command.action {
+                    Action::Apply { id, .. } | Action::DeleteEndpoint { id } => id,
+                    _ => unreachable!(),
+                };
+                Some(runtime.gate(id)?)
+            } else {
+                None
+            };
+            #[cfg(feature = "tcp-runtime")]
+            let _guard = gate
+                .as_ref()
+                .map(|gate| {
+                    gate.lock()
+                        .map_err(|_| Error::new("STATE_POISONED", "端点操作锁不可用"))
+                })
+                .transpose()?;
             let plan = self
                 .workspace
                 .lock()
                 .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
-                .prepare_release(command)?;
+                .prepare_release(command.clone())?;
+            #[allow(unused_mut)]
+            let mut stopped_values = None;
+            #[cfg(feature = "tcp-runtime")]
+            if let Some(runtime) = &self.runtime {
+                let id = plan.endpoint().id.clone();
+                if let Err(error) = runtime.execute(
+                    essim_core::application::commands::slave::SlaveCommand {
+                        command_id: command.command_id.clone(),
+                        endpoint: id.clone(),
+                        action: essim_core::application::commands::slave::SlaveAction::Stop,
+                    },
+                    None,
+                ) {
+                    self.workspace
+                        .lock()
+                        .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                        .observe_release(id, essim_core::application::ports::ApplyState::Failed);
+                    return Err(error);
+                }
+                stopped_values = runtime.stopped_values(&id)?;
+            }
             let id = plan.endpoint().id.clone();
             // 等待只持有边界锁；目录查询和其他端点保存可以继续。
             let mut boundary = self
@@ -126,14 +201,107 @@ impl WorkspaceEngine {
                 .lock()
                 .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?;
             if let Err(error) = result {
-                workspace.observe_release(id, state);
+                workspace.observe_release(id.clone(), state);
                 return Err(error);
             }
-            return workspace.finish_release(plan);
+            let result = if let Some(values) = stopped_values {
+                workspace.finish_release_with_values(plan, values)
+            } else {
+                workspace.finish_release(plan)
+            };
+            drop(workspace);
+            #[cfg(feature = "tcp-runtime")]
+            if result.is_ok() {
+                if let Some(runtime) = &self.runtime {
+                    runtime.forget(&id)?;
+                }
+            }
+            return result;
         }
         self.workspace
             .lock()
             .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
             .execute(command)
+    }
+}
+
+#[cfg(feature = "tcp-runtime")]
+impl WorkspaceEngine {
+    /// 装配真实TCP从站服务；配置仍仅保留于会话内，运行记录写入指定目录。
+    /// # Errors
+    /// 工作线程或I/O轮询器创建失败。
+    pub fn with_tcp_runtime(record_root: std::path::PathBuf) -> Result<Self, Error> {
+        Ok(Self {
+            runtime: Some(std::sync::Arc::new(crate::tcp_slave::TcpSlaveRuntime::new(
+                record_root,
+            )?)),
+            ..Self::default()
+        })
+    }
+    /// 独立运行命令入口，与配置提交事件和序号分开。
+    /// # Errors
+    /// 未应用、非TCP从站、端点操作冲突、监听或记录失败。
+    pub fn execute_slave(
+        &self,
+        command: essim_core::application::commands::slave::SlaveCommand,
+    ) -> Result<essim_core::application::queries::slave::SlaveView, Error> {
+        use essim_core::application::commands::slave::SlaveAction;
+        let runtime = self
+            .runtime
+            .as_ref()
+            .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP从站运行服务"))?;
+        let gate = runtime.gate(&command.endpoint)?;
+        let _guard = gate
+            .lock()
+            .map_err(|_| Error::new("STATE_POISONED", "端点操作锁不可用"))?;
+        let snapshot = if matches!(&command.action, SlaveAction::Start { .. }) {
+            let (endpoint, values) = self
+                .workspace
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                .applied_values(&command.endpoint)?;
+            Some(crate::tcp_slave::Snapshot { endpoint, values })
+        } else {
+            None
+        };
+        let id = command.endpoint.clone();
+        let result = runtime.execute(command, snapshot);
+        let state = runtime.query(essim_core::application::queries::slave::SlaveQuery {
+            endpoint: id.clone(),
+            unit: None,
+            points: vec![],
+        });
+        if let Ok(state) = state {
+            use essim_core::application::{ports::ApplyState, queries::slave::SlaveState};
+            let state = match state.state {
+                SlaveState::Running | SlaveState::Starting => ApplyState::Running,
+                SlaveState::Stopping => ApplyState::Releasing,
+                SlaveState::Failed => ApplyState::Failed,
+                _ => ApplyState::Stopped,
+            };
+            self.workspace
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?
+                .observe_release(id, state);
+        }
+        result
+    }
+    /// 应用退出时停止TCP所有者并等待连接及记录句柄回收。
+    pub fn shutdown_slave(&self) {
+        if let Some(runtime) = &self.runtime {
+            runtime.shutdown();
+        }
+    }
+    /// 查询独立运行摘要及最多1024个指定点的实际值，不复制配置目录。
+    /// # Errors
+    /// 未装配运行服务、查询非法或执行器不可用。
+    pub fn query_slave(
+        &self,
+        query: essim_core::application::queries::slave::SlaveQuery,
+    ) -> Result<essim_core::application::queries::slave::SlaveView, Error> {
+        self.runtime
+            .as_ref()
+            .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP从站运行服务"))?
+            .query(query)
     }
 }

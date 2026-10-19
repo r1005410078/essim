@@ -22,7 +22,7 @@ pub struct Catalog {
     pub devices: Vec<Device>,
     /// 已应用的配置副本，保存新配置不覆盖。
     pub applied: Vec<EndpointConfig>,
-    /// 会话内静止实例值；真实运行尚未接入。
+    /// 已应用的静止值快照；真实运行值由独立执行器所有者管理。
     pub values: BTreeMap<UnitId, UnitValues>,
     /// 会话导航，与协议配置独立。
     #[serde(default)]

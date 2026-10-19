@@ -107,6 +107,36 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             endpoint,
         })
     }
+    /// 释放后接回实际值并完成原规划，仍拒绝目标配置或依赖在等待期间改变。
+    /// # Errors
+    /// Unit／模型与原快照不符、目标变化、迁移或存储失败时拒绝；停止事实保留。
+    pub fn finish_release_with_values(
+        &mut self,
+        mut plan: ReleasePlan,
+        values: BTreeMap<crate::domain::identity::UnitId, crate::domain::values::UnitValues>,
+    ) -> Result<(Receipt, ConfigEvent), Error> {
+        self.observe_release(plan.endpoint.id.clone(), ApplyState::Stopped);
+        for (id, value) in &values {
+            if !plan
+                .authority
+                .applied
+                .iter()
+                .find(|endpoint| endpoint.id == plan.endpoint.id)
+                .is_some_and(|endpoint| endpoint.units.iter().any(|unit| &unit.id == id))
+                || plan
+                    .authority
+                    .values
+                    .get(id)
+                    .and_then(|old| old.model.as_ref())
+                    != value.model.as_ref()
+            {
+                return Err(Error::new("CONFIG_CHANGED", "释放后的值与原已应用快照不符"));
+            }
+        }
+        plan.authority.values.extend(values.clone());
+        self.retain_stopped_values(&plan.endpoint.id, values)?;
+        self.finish_release(plan)
+    }
     /// 更新执行器返回的真实资源状态，独立于目录提交结果。
     pub fn observe_release(&mut self, id: EndpointId, state: ApplyState) {
         self.application_states.insert(id, state);
@@ -209,6 +239,72 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             },
             event,
         ))
+    }
+    /// 仅复制目标端点的已应用配置与值，避免启动时读取整个工作区。
+    /// # Errors
+    /// 端点未应用或缺少Unit快照时失败。
+    pub fn applied_values(
+        &self,
+        id: &EndpointId,
+    ) -> Result<
+        (
+            EndpointConfig,
+            BTreeMap<crate::domain::identity::UnitId, crate::domain::values::UnitValues>,
+        ),
+        Error,
+    > {
+        let catalog = self.projection.query_catalog();
+        let endpoint = catalog
+            .applied
+            .iter()
+            .find(|endpoint| &endpoint.id == id)
+            .cloned()
+            .ok_or_else(|| Error::new("NOT_APPLIED", "请先应用模拟器"))?;
+        let values = endpoint
+            .units
+            .iter()
+            .map(|unit| {
+                catalog
+                    .values
+                    .get(&unit.id)
+                    .cloned()
+                    .map(|value| (unit.id.clone(), value))
+                    .ok_or_else(|| Error::new("NOT_APPLIED", "缺少Unit已应用值"))
+            })
+            .collect::<Result<_, _>>()?;
+        Ok((endpoint, values))
+    }
+    /// 在执行器确认停止后接回实际运行值；不改变配置身份或发布配置事实。
+    /// # Errors
+    /// 目标未应用、Unit不属于目标、模型快照改变或存储失败时拒绝整组同步。
+    pub fn retain_stopped_values(
+        &mut self,
+        id: &EndpointId,
+        values: BTreeMap<crate::domain::identity::UnitId, crate::domain::values::UnitValues>,
+    ) -> Result<(), Error> {
+        let mut catalog = self.repository.load();
+        let endpoint = catalog
+            .applied
+            .iter()
+            .find(|endpoint| &endpoint.id == id)
+            .ok_or_else(|| Error::new("NOT_APPLIED", "端点没有已应用快照"))?;
+        for (unit, value) in &values {
+            if !endpoint.units.iter().any(|candidate| &candidate.id == unit)
+                || catalog
+                    .values
+                    .get(unit)
+                    .and_then(|current| current.model.as_ref())
+                    != value.model.as_ref()
+            {
+                return Err(Error::new("CONFIG_CHANGED", "运行值与已应用模型不一致"));
+            }
+        }
+        catalog.values.extend(values);
+        self.repository.commit(catalog.clone())?;
+        self.projection.replace_catalog(catalog);
+        self.application_states
+            .insert(id.clone(), ApplyState::Stopped);
+        Ok(())
     }
     /// 各端点独立应用并返回逐项结果，不承诺跨端点回滚。
     pub fn execute_batch(&mut self, commands: Vec<Command>) -> Vec<Result<Receipt, Error>> {
