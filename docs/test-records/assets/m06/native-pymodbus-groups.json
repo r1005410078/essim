@@ -1,0 +1,43 @@
+{
+  "client": "PyModbus 3.11.3",
+  "scope": "原生独立M06 Batch Check会话；两端点同本机IP不同端口，各自独立分组模型5000点",
+  "reads": [
+    {
+      "port": 18180,
+      "address": 0,
+      "value": 7
+    },
+    {
+      "port": 18180,
+      "address": 1000,
+      "value": 7
+    },
+    {
+      "port": 18180,
+      "address": 4999,
+      "value": 7
+    },
+    {
+      "port": 18181,
+      "address": 0,
+      "value": 7
+    },
+    {
+      "port": 18181,
+      "address": 1000,
+      "value": 7
+    },
+    {
+      "port": 18181,
+      "address": 4999,
+      "value": 7
+    }
+  ],
+  "externalWrite": {
+    "port": 18180,
+    "address": 1000,
+    "value": 123
+  },
+  "independentEndpointRetains": 7,
+  "result": "PASS"
+}

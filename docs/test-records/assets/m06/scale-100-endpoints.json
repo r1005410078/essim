@@ -1,0 +1,604 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.5",
+  "client": "PyModbus 3.11.3 asyncio",
+  "build": "debug",
+  "endpoints": 100,
+  "unitsPerEndpoint": 1,
+  "pointsPerUnit": 10,
+  "clientsPerEndpoint": 1,
+  "requestedConnections": 100,
+  "totalPoints": 1000,
+  "recording": "完整JSONL；4录制线程，64KiB／5ms上限；每文件独立sync_data因果屏障",
+  "sampleMethod": "ps RSS/%CPU/time 每秒采样；RSS峰值为采样最大值，非内核瞬时峰值；线程与fd每10秒；独立核心与驱动进程",
+  "phases": [
+    {
+      "targetPeriodSeconds": 1.0,
+      "durationSeconds": 3.0,
+      "requests": 300,
+      "exceptions": 0,
+      "timeouts": 0,
+      "unitScansCompleted": 300,
+      "unitScansFailed": 0,
+      "missedRounds": 0,
+      "endpoints": {
+        "0": {
+          "requests": 3,
+          "errors": 0
+        },
+        "1": {
+          "requests": 3,
+          "errors": 0
+        },
+        "2": {
+          "requests": 3,
+          "errors": 0
+        },
+        "3": {
+          "requests": 3,
+          "errors": 0
+        },
+        "4": {
+          "requests": 3,
+          "errors": 0
+        },
+        "5": {
+          "requests": 3,
+          "errors": 0
+        },
+        "6": {
+          "requests": 3,
+          "errors": 0
+        },
+        "7": {
+          "requests": 3,
+          "errors": 0
+        },
+        "8": {
+          "requests": 3,
+          "errors": 0
+        },
+        "9": {
+          "requests": 3,
+          "errors": 0
+        },
+        "10": {
+          "requests": 3,
+          "errors": 0
+        },
+        "11": {
+          "requests": 3,
+          "errors": 0
+        },
+        "12": {
+          "requests": 3,
+          "errors": 0
+        },
+        "13": {
+          "requests": 3,
+          "errors": 0
+        },
+        "14": {
+          "requests": 3,
+          "errors": 0
+        },
+        "15": {
+          "requests": 3,
+          "errors": 0
+        },
+        "16": {
+          "requests": 3,
+          "errors": 0
+        },
+        "17": {
+          "requests": 3,
+          "errors": 0
+        },
+        "18": {
+          "requests": 3,
+          "errors": 0
+        },
+        "19": {
+          "requests": 3,
+          "errors": 0
+        },
+        "20": {
+          "requests": 3,
+          "errors": 0
+        },
+        "21": {
+          "requests": 3,
+          "errors": 0
+        },
+        "22": {
+          "requests": 3,
+          "errors": 0
+        },
+        "23": {
+          "requests": 3,
+          "errors": 0
+        },
+        "24": {
+          "requests": 3,
+          "errors": 0
+        },
+        "25": {
+          "requests": 3,
+          "errors": 0
+        },
+        "26": {
+          "requests": 3,
+          "errors": 0
+        },
+        "27": {
+          "requests": 3,
+          "errors": 0
+        },
+        "28": {
+          "requests": 3,
+          "errors": 0
+        },
+        "29": {
+          "requests": 3,
+          "errors": 0
+        },
+        "30": {
+          "requests": 3,
+          "errors": 0
+        },
+        "31": {
+          "requests": 3,
+          "errors": 0
+        },
+        "32": {
+          "requests": 3,
+          "errors": 0
+        },
+        "33": {
+          "requests": 3,
+          "errors": 0
+        },
+        "34": {
+          "requests": 3,
+          "errors": 0
+        },
+        "35": {
+          "requests": 3,
+          "errors": 0
+        },
+        "36": {
+          "requests": 3,
+          "errors": 0
+        },
+        "37": {
+          "requests": 3,
+          "errors": 0
+        },
+        "38": {
+          "requests": 3,
+          "errors": 0
+        },
+        "39": {
+          "requests": 3,
+          "errors": 0
+        },
+        "40": {
+          "requests": 3,
+          "errors": 0
+        },
+        "41": {
+          "requests": 3,
+          "errors": 0
+        },
+        "42": {
+          "requests": 3,
+          "errors": 0
+        },
+        "43": {
+          "requests": 3,
+          "errors": 0
+        },
+        "44": {
+          "requests": 3,
+          "errors": 0
+        },
+        "45": {
+          "requests": 3,
+          "errors": 0
+        },
+        "46": {
+          "requests": 3,
+          "errors": 0
+        },
+        "47": {
+          "requests": 3,
+          "errors": 0
+        },
+        "48": {
+          "requests": 3,
+          "errors": 0
+        },
+        "49": {
+          "requests": 3,
+          "errors": 0
+        },
+        "50": {
+          "requests": 3,
+          "errors": 0
+        },
+        "51": {
+          "requests": 3,
+          "errors": 0
+        },
+        "52": {
+          "requests": 3,
+          "errors": 0
+        },
+        "53": {
+          "requests": 3,
+          "errors": 0
+        },
+        "54": {
+          "requests": 3,
+          "errors": 0
+        },
+        "55": {
+          "requests": 3,
+          "errors": 0
+        },
+        "56": {
+          "requests": 3,
+          "errors": 0
+        },
+        "57": {
+          "requests": 3,
+          "errors": 0
+        },
+        "58": {
+          "requests": 3,
+          "errors": 0
+        },
+        "59": {
+          "requests": 3,
+          "errors": 0
+        },
+        "60": {
+          "requests": 3,
+          "errors": 0
+        },
+        "61": {
+          "requests": 3,
+          "errors": 0
+        },
+        "62": {
+          "requests": 3,
+          "errors": 0
+        },
+        "63": {
+          "requests": 3,
+          "errors": 0
+        },
+        "64": {
+          "requests": 3,
+          "errors": 0
+        },
+        "65": {
+          "requests": 3,
+          "errors": 0
+        },
+        "66": {
+          "requests": 3,
+          "errors": 0
+        },
+        "67": {
+          "requests": 3,
+          "errors": 0
+        },
+        "68": {
+          "requests": 3,
+          "errors": 0
+        },
+        "69": {
+          "requests": 3,
+          "errors": 0
+        },
+        "70": {
+          "requests": 3,
+          "errors": 0
+        },
+        "71": {
+          "requests": 3,
+          "errors": 0
+        },
+        "72": {
+          "requests": 3,
+          "errors": 0
+        },
+        "73": {
+          "requests": 3,
+          "errors": 0
+        },
+        "74": {
+          "requests": 3,
+          "errors": 0
+        },
+        "75": {
+          "requests": 3,
+          "errors": 0
+        },
+        "76": {
+          "requests": 3,
+          "errors": 0
+        },
+        "77": {
+          "requests": 3,
+          "errors": 0
+        },
+        "78": {
+          "requests": 3,
+          "errors": 0
+        },
+        "79": {
+          "requests": 3,
+          "errors": 0
+        },
+        "80": {
+          "requests": 3,
+          "errors": 0
+        },
+        "81": {
+          "requests": 3,
+          "errors": 0
+        },
+        "82": {
+          "requests": 3,
+          "errors": 0
+        },
+        "83": {
+          "requests": 3,
+          "errors": 0
+        },
+        "84": {
+          "requests": 3,
+          "errors": 0
+        },
+        "85": {
+          "requests": 3,
+          "errors": 0
+        },
+        "86": {
+          "requests": 3,
+          "errors": 0
+        },
+        "87": {
+          "requests": 3,
+          "errors": 0
+        },
+        "88": {
+          "requests": 3,
+          "errors": 0
+        },
+        "89": {
+          "requests": 3,
+          "errors": 0
+        },
+        "90": {
+          "requests": 3,
+          "errors": 0
+        },
+        "91": {
+          "requests": 3,
+          "errors": 0
+        },
+        "92": {
+          "requests": 3,
+          "errors": 0
+        },
+        "93": {
+          "requests": 3,
+          "errors": 0
+        },
+        "94": {
+          "requests": 3,
+          "errors": 0
+        },
+        "95": {
+          "requests": 3,
+          "errors": 0
+        },
+        "96": {
+          "requests": 3,
+          "errors": 0
+        },
+        "97": {
+          "requests": 3,
+          "errors": 0
+        },
+        "98": {
+          "requests": 3,
+          "errors": 0
+        },
+        "99": {
+          "requests": 3,
+          "errors": 0
+        }
+      },
+      "actualSeconds": 3.007,
+      "requestsPerSecond": 99.781,
+      "requestLatencyP50Ms": 376.7,
+      "requestLatencyP95Ms": 495.9,
+      "requestLatencyP99Ms": 521.0,
+      "unitScanP50Ms": 376.7,
+      "unitScanP95Ms": 495.9,
+      "unitScanP99Ms": 521.0,
+      "histogramResolutionMs": 0.1,
+      "histogramOverflowMs": 10000
+    }
+  ],
+  "samples": [
+    {
+      "elapsedSeconds": 3.552,
+      "corePs": "35.6  23440   0:00.65",
+      "coreCpuPercent": 35.6,
+      "coreRssKiB": 23440,
+      "coreThreads": 9,
+      "coreFds": 512,
+      "driverPs": "0.9  30448   0:00.20",
+      "driverCpuPercent": 0.9,
+      "driverRssKiB": 30448,
+      "driverThreads": 3,
+      "driverFds": 11,
+      "diskBytes": 377055
+    },
+    {
+      "elapsedSeconds": 4.612,
+      "corePs": "27.0  23472   0:00.95",
+      "coreCpuPercent": 27.0,
+      "coreRssKiB": 23472,
+      "driverPs": "0.7  30512   0:00.22",
+      "driverCpuPercent": 0.7,
+      "driverRssKiB": 30512,
+      "diskBytes": 378485
+    },
+    {
+      "elapsedSeconds": 5.625,
+      "corePs": "35.7  23488   0:01.30",
+      "coreCpuPercent": 35.7,
+      "coreRssKiB": 23488,
+      "driverPs": "0.9  30544   0:00.23",
+      "driverCpuPercent": 0.9,
+      "driverRssKiB": 30544,
+      "diskBytes": 379915
+    },
+    {
+      "elapsedSeconds": 6.643,
+      "corePs": "36.0  23488   0:01.67",
+      "coreCpuPercent": 36.0,
+      "coreRssKiB": 23488,
+      "driverPs": "0.9  30672   0:00.25",
+      "driverCpuPercent": 0.9,
+      "driverRssKiB": 30672,
+      "diskBytes": 381345
+    },
+    {
+      "elapsedSeconds": 7.661,
+      "corePs": "27.7  23536   0:01.94",
+      "coreCpuPercent": 27.7,
+      "coreRssKiB": 23536,
+      "driverPs": "0.7  30752   0:00.26",
+      "driverCpuPercent": 0.7,
+      "driverRssKiB": 30752,
+      "diskBytes": 382775
+    },
+    {
+      "elapsedSeconds": 8.674,
+      "corePs": "31.5  23536   0:02.28",
+      "coreCpuPercent": 31.5,
+      "coreRssKiB": 23536,
+      "driverPs": "0.7  30800   0:00.28",
+      "driverCpuPercent": 0.7,
+      "driverRssKiB": 30800,
+      "diskBytes": 384205
+    },
+    {
+      "elapsedSeconds": 9.687,
+      "corePs": "29.5  23536   0:02.62",
+      "coreCpuPercent": 29.5,
+      "coreRssKiB": 23536,
+      "driverPs": "0.6  30848   0:00.29",
+      "driverCpuPercent": 0.6,
+      "driverRssKiB": 30848,
+      "diskBytes": 385635
+    },
+    {
+      "elapsedSeconds": 10.7,
+      "corePs": "34.6  23552   0:02.96",
+      "coreCpuPercent": 34.6,
+      "coreRssKiB": 23552,
+      "driverPs": "0.9  30928   0:00.31",
+      "driverCpuPercent": 0.9,
+      "driverRssKiB": 30928,
+      "diskBytes": 386922
+    },
+    {
+      "elapsedSeconds": 11.713,
+      "corePs": "34.4  23552   0:03.30",
+      "coreCpuPercent": 34.4,
+      "coreRssKiB": 23552,
+      "driverPs": "0.6  30992   0:00.32",
+      "driverCpuPercent": 0.6,
+      "driverRssKiB": 30992,
+      "diskBytes": 388352
+    },
+    {
+      "elapsedSeconds": 12.727,
+      "corePs": "31.9  21840   0:03.65",
+      "coreCpuPercent": 31.9,
+      "coreRssKiB": 21840,
+      "driverPs": "0.7  31040   0:00.34",
+      "driverCpuPercent": 0.7,
+      "driverRssKiB": 31040,
+      "diskBytes": 389782
+    },
+    {
+      "elapsedSeconds": 13.742,
+      "corePs": "34.3  14048   0:04.01",
+      "coreCpuPercent": 34.3,
+      "coreRssKiB": 14048,
+      "coreThreads": 9,
+      "coreFds": 611,
+      "driverPs": "0.7  25024   0:00.36",
+      "driverCpuPercent": 0.7,
+      "driverRssKiB": 25024,
+      "driverThreads": 3,
+      "driverFds": 110,
+      "diskBytes": 393190
+    },
+    {
+      "elapsedSeconds": 14.812,
+      "corePs": "35.1  14608   0:04.33",
+      "coreCpuPercent": 35.1,
+      "coreRssKiB": 14608,
+      "driverPs": "1.1  25216   0:00.39",
+      "driverCpuPercent": 1.1,
+      "driverRssKiB": 25216,
+      "diskBytes": 442462
+    },
+    {
+      "elapsedSeconds": 15.846,
+      "corePs": "28.8  15024   0:04.59",
+      "coreCpuPercent": 28.8,
+      "coreRssKiB": 15024,
+      "driverPs": "0.6  25264   0:00.41",
+      "driverCpuPercent": 0.6,
+      "driverRssKiB": 25264,
+      "diskBytes": 491134
+    }
+  ],
+  "faults": [
+    {
+      "kind": "TCP半帧",
+      "endpoint": 0,
+      "atSeconds": 14.520908457998303
+    }
+  ],
+  "estimatedInputBytes": 388400,
+  "loadGuardBytes": 268435456,
+  "runRoot": "/var/folders/vk/hj12b3d9529c3xwt399dlc480000gn/T/essim-m06-scale-_j0jkege",
+  "startupSeconds": 3.551,
+  "inputBytes": 388961,
+  "actualConnections": 100,
+  "serverExitCode": 0,
+  "recordingIntegrity": {
+    "files": 100,
+    "continuousFacts": 1402,
+    "invalidFiles": 0,
+    "filesEndingStopped": 100,
+    "errors": []
+  },
+  "diskBytes": 572009,
+  "coreSampledPeakRssKiB": 23552,
+  "driverSampledPeakRssKiB": 31040,
+  "result": "COMPLETED",
+  "serverStderr": ""
+}

@@ -1,0 +1,30 @@
+{
+  "portsRebound": [
+    18180,
+    18181
+  ],
+  "records": [
+    {
+      "file": "run-1792460915390242000-1.jsonl",
+      "endpoint": "M06 批量 B-分组001",
+      "facts": 19,
+      "lastFact": "stopped",
+      "schema": 1
+    },
+    {
+      "file": "run-1792460914698488000-0.jsonl",
+      "endpoint": "M06 批量 A-分组001",
+      "facts": 0,
+      "lastFact": null,
+      "schema": 1
+    },
+    {
+      "file": "run-1792461005757259000-2.jsonl",
+      "endpoint": "M06 批量 A-分组001",
+      "facts": 22,
+      "lastFact": "stopped",
+      "schema": 1
+    }
+  ],
+  "scope": "原生独立测试会话；端口冲突启动只生成快照，没有伪造启动／停止成功；其余运行均已实际停止"
+}

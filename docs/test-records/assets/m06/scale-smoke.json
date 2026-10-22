@@ -1,0 +1,150 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.5",
+  "client": "PyModbus 3.11.3 asyncio",
+  "build": "debug",
+  "endpoints": 10,
+  "unitsPerEndpoint": 1,
+  "pointsPerUnit": 100,
+  "clientsPerEndpoint": 1,
+  "requestedConnections": 10,
+  "totalPoints": 1000,
+  "recording": "完整JSONL；4录制线程，64KiB／5ms上限；每文件独立sync_data因果屏障",
+  "sampleMethod": "ps RSS/%CPU/time 每秒采样；RSS峰值为采样最大值，非内核瞬时峰值；线程与fd每10秒；独立核心与驱动进程",
+  "phases": [
+    {
+      "targetPeriodSeconds": 1.0,
+      "durationSeconds": 3.0,
+      "requests": 30,
+      "exceptions": 0,
+      "timeouts": 0,
+      "unitScansCompleted": 30,
+      "unitScansFailed": 0,
+      "missedRounds": 0,
+      "endpoints": {
+        "0": {
+          "requests": 3,
+          "errors": 0
+        },
+        "1": {
+          "requests": 3,
+          "errors": 0
+        },
+        "2": {
+          "requests": 3,
+          "errors": 0
+        },
+        "3": {
+          "requests": 3,
+          "errors": 0
+        },
+        "4": {
+          "requests": 3,
+          "errors": 0
+        },
+        "5": {
+          "requests": 3,
+          "errors": 0
+        },
+        "6": {
+          "requests": 3,
+          "errors": 0
+        },
+        "7": {
+          "requests": 3,
+          "errors": 0
+        },
+        "8": {
+          "requests": 3,
+          "errors": 0
+        },
+        "9": {
+          "requests": 3,
+          "errors": 0
+        }
+      },
+      "actualSeconds": 3.001,
+      "requestsPerSecond": 9.996,
+      "requestLatencyP50Ms": 45.4,
+      "requestLatencyP95Ms": 60.1,
+      "requestLatencyP99Ms": 60.4,
+      "unitScanP50Ms": 45.4,
+      "unitScanP95Ms": 60.1,
+      "unitScanP99Ms": 60.4,
+      "histogramResolutionMs": 0.1,
+      "histogramOverflowMs": 10000
+    }
+  ],
+  "samples": [
+    {
+      "elapsedSeconds": 0.959,
+      "corePs": "20.2  12096   0:00.11",
+      "coreCpuPercent": 20.2,
+      "coreRssKiB": 12096,
+      "coreThreads": 9,
+      "coreFds": 62,
+      "driverPs": "1.4  29536   0:00.18",
+      "driverCpuPercent": 1.4,
+      "driverRssKiB": 29536,
+      "driverThreads": 3,
+      "driverFds": 11,
+      "diskBytes": 323991
+    },
+    {
+      "elapsedSeconds": 2.015,
+      "corePs": "13.9  12240   0:00.22",
+      "coreCpuPercent": 13.9,
+      "coreRssKiB": 12240,
+      "driverPs": "2.0  31536   0:00.20",
+      "driverCpuPercent": 2.0,
+      "driverRssKiB": 31536,
+      "diskBytes": 332612
+    },
+    {
+      "elapsedSeconds": 3.044,
+      "corePs": "8.2  12384   0:00.30",
+      "coreCpuPercent": 8.2,
+      "coreRssKiB": 12384,
+      "driverPs": "0.4  31968   0:00.21",
+      "driverCpuPercent": 0.4,
+      "driverRssKiB": 31968,
+      "diskBytes": 343812
+    },
+    {
+      "elapsedSeconds": 4.057,
+      "corePs": "17.3  12448   0:00.46",
+      "coreCpuPercent": 17.3,
+      "coreRssKiB": 12448,
+      "driverPs": "0.4  31968   0:00.22",
+      "driverCpuPercent": 0.4,
+      "driverRssKiB": 31968,
+      "diskBytes": 353033
+    }
+  ],
+  "faults": [
+    {
+      "kind": "TCP半帧",
+      "endpoint": 0,
+      "atSeconds": 2.734802500002843
+    }
+  ],
+  "estimatedInputBytes": 359240,
+  "loadGuardBytes": 268435456,
+  "runRoot": "/var/folders/vk/hj12b3d9529c3xwt399dlc480000gn/T/essim-m06-scale-wmteyj6a",
+  "startupSeconds": 0.958,
+  "inputBytes": 359261,
+  "actualConnections": 10,
+  "serverExitCode": 0,
+  "recordingIntegrity": {
+    "files": 10,
+    "continuousFacts": 142,
+    "invalidFiles": 0,
+    "filesEndingStopped": 10,
+    "errors": []
+  },
+  "diskBytes": 357082,
+  "coreSampledPeakRssKiB": 12448,
+  "driverSampledPeakRssKiB": 31968,
+  "result": "COMPLETED",
+  "serverStderr": ""
+}

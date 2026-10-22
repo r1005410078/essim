@@ -1,0 +1,14 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.31s
+     Running tests/batch_targets.rs (target/debug/deps/batch_targets-283f84277f169dd5)
+
+running 6 tests
+test invalid_scope_empty_targets_and_cycles_fail_before_task_creation ... ok
+test apply_checks_saved_models_start_checks_applied_definitions_and_values_are_ignored ... ok
+test recursive_scope_deduplicates_and_freezes_membership ... ok
+test model_snapshots_are_shared_and_preview_contains_no_model_content ... ok
+test deleted_or_changed_target_does_not_invalidate_healthy_items ... ok
+test default_concurrency_limits_and_distinct_applied_contents_are_explicit ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

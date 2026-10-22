@@ -1,0 +1,23 @@
+{
+  "binary": "/Users/rongts/essim/target/debug/examples/tcp_slave",
+  "binarySha256": "17aace9d3f661468cd77f8bf5bca7b1cb4e46e036c49c71932c1e4a0900bf5bd",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.5",
+  "client": "PyModbus 3.11.3 asyncio",
+  "build": "debug",
+  "endpoints": 1000,
+  "unitsPerEndpoint": 10,
+  "pointsPerUnit": 10000,
+  "clientsPerEndpoint": 10,
+  "requestedConnections": 10000,
+  "totalPoints": 100000000,
+  "recording": "完整JSONL；4录制线程，64KiB／5ms上限；每文件独立sync_data因果屏障",
+  "sampleMethod": "ps RSS/%CPU/time 每秒采样；RSS峰值为采样最大值，非内核瞬时峰值；线程与fd每10秒；独立核心与驱动进程",
+  "phases": [],
+  "samples": [],
+  "faults": [],
+  "estimatedInputBytes": 36924912000,
+  "loadGuardBytes": 268435456,
+  "result": "NOT_RUN_RESOURCE_GUARD",
+  "reason": "输入文件暂存按序列化长度×8预检超出2GiB工程预算；未构造全量输入、未启动目标组合。不是容量通过。"
+}

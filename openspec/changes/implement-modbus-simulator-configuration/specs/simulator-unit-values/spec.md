@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+适用范围：以下“不提供单 Unit 初值覆盖”限定原 M03 批次。2026-10-22 后续采用[单层覆盖](../../../add-unit-model-overrides/specs/unit-model-overrides/spec.md)与[有效配置运行规格](../../../add-unit-model-overrides/specs/unit-effective-configuration-runtime/spec.md)，复位改用已应用有效初值；旧运行值独立、显式应用与主站无隐式写入边界继续成立。新范围尚未实施。
+
 ### Requirement: 单元值独立并使用模型默认初值
 
 多个Unit SHALL 共用稳定模型引用但独立持有值。M03 MUST 不提供单Unit初始值覆盖配置；从站首次应用使用模型初值，主站初始缓存为空且过期。模型初值及前端草稿 MUST 不被当作主站采集结果。

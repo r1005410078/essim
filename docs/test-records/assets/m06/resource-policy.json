@@ -1,0 +1,16 @@
+{
+  "status": "initial engineering limits; only partition temporary reservation currently connected",
+  "limit": {
+    "memoryBytes": 2147483648,
+    "endpoints": 1000,
+    "connections": 10000,
+    "queueBytes": 67108864
+  },
+  "batchTargets": 1024,
+  "previewBytes": 8388608,
+  "endpointRecordBytes": 1048576,
+  "recordBatchBytes": 65536,
+  "recordWaitMs": 5,
+  "partitionTemporarySerializedSourceMultiplier": 8,
+  "warning": "Recording queue/batching and full runtime admission are pending; these values are not achieved capacity."
+}

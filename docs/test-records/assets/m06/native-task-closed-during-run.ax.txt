@@ -1,0 +1,333 @@
+Window: "ESSim · 储能协议仿真工作台", App: ESSim M06 Final Check.
+0 standard window ESSim · 储能协议仿真工作台, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: ESSim, URL: tauri://localhost
+			3 container
+				4 text ESSim Modbus 协议仿真工作台
+				5 button 刷新真实配置目录
+				6 text 本次会话
+			7 container
+				8 container
+					9 container 导航
+						10 container 导航
+							11 container 资源导航面板
+								12 text 项目
+								13 pop up button 新建
+								14 button 批量任务
+								15 button 运行资源
+								16 container
+									17 pop up button 文档资源
+									18 pop up button 协议
+									19 pop up button Modbus
+									20 pop up button Modbus 详细指南
+									21 pop up button 模拟器
+									22 pop up button M06 后台 A
+									23 pop up button Unit 1
+									24 pop up button M06 后台 B
+									25 pop up button Unit 1
+									26 pop up button 设备
+									27 pop up button 采集模型
+									28 pop up button M06 最终复查 5000
+								29 text 本次会话 · 退出后不保留配置和目录
+					30 container
+						31 container 批量任务
+							32 tab group (selectable)
+								33 tab (selected) 工作台
+								34 tab (selected) M06 最终复查 5000
+								35 tab (selected) M06 后台 A
+								36 tab (selected) M06 后台 B
+								37 tab (selected) 批量任务
+							38 button 新建文档
+							39 container 批量任务
+								40 container
+									41 text 批量任务 后台执行 · 占用 1 槽
+								42 container
+									43 text 操作
+									44 combo box (disabled, collapsed, settable) 批量操作, Secondary Actions: Expand, Value: 应用保存配置
+
+								45 container
+									46 text 范围
+									47 combo box (disabled, collapsed, settable) 批量范围, Secondary Actions: Expand, Value: 勾选端点
+
+								48 container
+									49 text 并发
+									50 number field (disabled, settable) 并发, Value: 1
+										51 stepper 0
+											52 unknown
+											53 unknown
+								54 button (disabled) 预览清单
+								55 button 取消后续项
+								56 text 范围按端点固定，与点表选区无关。应用会停止实例；启动不自动应用，主站仅连接。关闭此页不取消任务。取消只影响未开始项。
+								57 text 待调度
+								58 text 1
+								59 text 执行中
+								60 text 1
+								61 text 结果未确认
+								62 text 0
+								63 text 成功
+								64 text 0
+								65 text 失败
+								66 text 0
+								67 text 跳过
+								68 text 0
+								69 text 取消未执行
+								70 text 0
+								71 table
+									72 row (selectable) 端点
+状态
+排队 ms
+执行 ms
+原因
+									73 row (selectable)
+										74 cell (selectable) M06 后台 A
+										75 cell (selectable) 执行中
+										76 cell (selectable) 1
+										77 cell (selectable) 222
+										78 cell (selectable) —
+									79 row (selectable)
+										80 cell (selectable) M06 后台 B
+										81 cell (selectable) 待调度
+										82 cell (selectable) —
+										83 cell (selectable) —
+										84 cell (selectable) —
+						85 container 事件记录
+							86 tab group (selectable)
+								87 tab (selected) 事件记录
+								88 tab (selectable) 通信报文
+								89 tab (selectable) 问题
+							90 container 事件记录
+								91 combo box (collapsed, settable) 观测端点, Secondary Actions: Expand, Value: 跟随当前端点
+
+									92 text 跟随当前端点
+								93 button 暂停展示
+								94 text 0
+								95 text  条 · 最近窗口
+								96 button (disabled) 导出
+								97 table 真实运行事件
+									98 row (selectable) 时间
+序号
+连接
+内容
+结果
+								99 text 每次查询最近 100 条，界面最多保留 500 条；暂停或高频通信可能跳过记录，完整记录以运行文件为准。
+					100 container 属性
+						101 container 属性
+							102 text 详细信息
+							103 text TCP 从站 / Unit 1
+							104 text field (settable) 搜索属性
+							105 button 按属性名称搜索
+							106 tab group (selectable) 属性范围
+								107 tab (selectable) 点
+								108 tab (selected) Unit
+								109 tab (selectable) 端点
+							110 container (expanded) Secondary Actions: Collapse
+								111 summary 单元配置, Value: on
+									112 text 单元配置
+								113 container
+									114 text 当前单元
+									115 combo box (collapsed, settable) 选择单元, Secondary Actions: Expand, Value: Unit 1 · Unit 1
+
+										116 text Unit 1 · Unit 1
+									117 button 添加 Unit
+								118 container
+									119 text Unit ID
+									120 number field (settable) 线上站号, Value: 1
+										121 stepper 0
+											122 unknown
+											123 unknown
+								124 container
+									125 text 名称
+									126 text field (settable) 名称, Value: Unit 1
+								127 container
+									128 text Unit备注
+									129 text field (settable) Unit备注
+								130 container
+									131 text 删除单元
+									132 button 删除单元
+								133 container
+									134 text 启用
+									135 checkbox 启用, Value: 1
+								136 container
+									137 text 关联设备
+									138 combo box (collapsed, settable) 关联设备, Secondary Actions: Expand, Value: 独立模拟器
+
+										139 text 独立模拟器
+									140 button (disabled) 定位关联设备
+									141 button (disabled) 解除设备关联
+								142 container
+									143 text 采集模型
+									144 combo box (collapsed, settable) 采集模型, Secondary Actions: Expand, Value: M06 最终复查 5000
+
+										145 text M06 最终复查 5000
+									146 button 打开采集模型
+							147 text 切换单元仅切换视图，不影响运行与草稿。
+					148 text 批量任务 opened
+			149 container
+				150 text 配置工作台已连接 运行状态见端点运行栏 录制失败将停止对应运行 本次会话 · 配置退出即丢失
+	151 close button
+	152 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	153 minimize button
+	154 text ESSim · 储能协议仿真工作台
+155 menu bar
+	156 ESSim M06 Final Check
+	157 文件
+	158 编辑
+
+The focused UI element is 39 container 批量任务
+--- after close ---
+Window: "ESSim · 储能协议仿真工作台", App: ESSim M06 Final Check.
+0 standard window ESSim · 储能协议仿真工作台, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: ESSim, URL: tauri://localhost
+			3 container
+				4 text ESSim Modbus 协议仿真工作台
+				5 button 刷新真实配置目录
+				6 text 本次会话
+			7 container
+				8 container
+					9 container 导航
+						10 container 导航
+							11 container 资源导航面板
+								12 text 项目
+								13 pop up button 新建
+								14 button 批量任务
+								15 button 运行资源
+								16 container
+									17 pop up button 文档资源
+									18 pop up button 协议
+									19 pop up button Modbus
+									20 pop up button Modbus 详细指南
+									21 pop up button 模拟器
+									22 pop up button M06 后台 A
+									23 pop up button Unit 1
+									24 pop up button M06 后台 B
+									25 pop up button Unit 1
+									26 pop up button 设备
+									27 pop up button 采集模型
+									28 pop up button M06 最终复查 5000
+								29 text 本次会话 · 退出后不保留配置和目录
+					30 container
+						31 container M06 后台 B
+							32 tab group (selectable)
+								33 tab (selectable) 工作台
+								34 tab (selectable) M06 最终复查 5000
+								35 tab (selectable) M06 后台 A
+								36 tab (selected) M06 后台 B
+							37 button 新建文档
+							38 container M06 后台 B
+						39 container 事件记录
+							40 tab group (selectable)
+								41 tab (selected) 事件记录
+								42 tab (selectable) 通信报文
+								43 tab (selectable) 问题
+							44 container 事件记录
+								45 combo box (collapsed, settable) 观测端点, Secondary Actions: Expand, Value: 跟随当前端点
+
+									46 text 跟随当前端点
+								47 button 暂停展示
+								48 text 0
+								49 text  条 · 最近窗口
+								50 button (disabled) 导出
+								51 table 真实运行事件
+									52 row (selectable) 时间
+序号
+连接
+内容
+结果
+								53 text 每次查询最近 100 条，界面最多保留 500 条；暂停或高频通信可能跳过记录，完整记录以运行文件为准。
+					54 container 属性
+						55 container 属性
+							56 text 详细信息
+							57 text TCP 从站 / Unit 1
+							58 text field (settable) 搜索属性
+							59 button 按属性名称搜索
+							60 tab group (selectable) 属性范围
+								61 tab (selectable) 点
+								62 tab (selected) Unit
+								63 tab (selectable) 端点
+							64 container (expanded) Secondary Actions: Collapse
+								65 summary 单元配置, Value: on
+									66 text 单元配置
+								67 container
+									68 text 当前单元
+									69 combo box (collapsed, settable) 选择单元, Secondary Actions: Expand, Value: Unit 1 · Unit 1
+
+										70 text Unit 1 · Unit 1
+									71 button 添加 Unit
+								72 container
+									73 text Unit ID
+									74 number field (settable) 线上站号, Value: 1
+										75 stepper 0
+											76 unknown
+											77 unknown
+								78 container
+									79 text 名称
+									80 text field (settable) 名称, Value: Unit 1
+								81 container
+									82 text Unit备注
+									83 text field (settable) Unit备注
+								84 container
+									85 text 删除单元
+									86 button 删除单元
+								87 container
+									88 text 启用
+									89 checkbox 启用, Value: 1
+								90 container
+									91 text 关联设备
+									92 combo box (collapsed, settable) 关联设备, Secondary Actions: Expand, Value: 独立模拟器
+
+										93 text 独立模拟器
+									94 button (disabled) 定位关联设备
+									95 button (disabled) 解除设备关联
+								96 container
+									97 text 采集模型
+									98 combo box (collapsed, settable) 采集模型, Secondary Actions: Expand, Value: M06 最终复查 5000
+
+										99 text M06 最终复查 5000
+									100 button 打开采集模型
+							101 text 切换单元仅切换视图，不影响运行与草稿。
+					102 text 批量任务 closed
+				103 button (disabled) 保存配置
+				104 button (disabled) 应用配置
+				105 text 已应用
+				106 container TCP从站运行
+					107 text 未启动 连接  0 / 10 请求  0 异常  0 最近处理  0  μs
+					108 button 启动, Help: 使用已应用快照启动从站
+				109 button (disabled) 提交修改（0）, Help: 原子提交当前Unit所有待修改点，与选区无关
+				110 pop up button (disabled) 恢复初值
+				111 button 刷新可见行, Help: 刷新当前可见行的实际值
+				112 pop up button 运行设置
+				113 combo box (collapsed, settable) 运行单元, Secondary Actions: Expand, Value: Unit 1 · Unit 1
+
+					114 text Unit 1 · Unit 1
+				115 text 127.0.0.1:18281 M06 最终复查 5000
+				116 container
+					117 container
+						118 splitter 50
+						119 splitter 50
+						120 splitter 50
+						121 splitter 50
+						122 splitter 50
+						123 splitter 50
+						124 splitter 50
+						125 splitter 50
+				126 tab group (selectable) 四遥分类
+					127 button 上一分类
+					128 button 下一分类
+					129 tab (selected) 遥测
+					130 tab (selectable) 遥信
+					131 tab (selectable) 遥控
+					132 tab (selectable) 遥调
+					133 text NovaSheet · 草稿不触发通信
+			134 container
+				135 text 配置工作台已连接 运行状态见端点运行栏 录制失败将停止对应运行 本次会话 · 配置退出即丢失
+	136 close button
+	137 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	138 minimize button
+	139 text ESSim · 储能协议仿真工作台
+140 menu bar
+	141 ESSim M06 Final Check
+	142 文件
+	143 编辑
+
+The focused UI element is 2 HTML content Description: ESSim, URL: tauri://localhost

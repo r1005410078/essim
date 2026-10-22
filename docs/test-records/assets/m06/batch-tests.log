@@ -1,0 +1,19 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.44s
+     Running tests/batch_flow.rs (target/debug/deps/batch_flow-7c36a8e3324994ee)
+
+running 1 test
+test command_fact_listener_query_preserve_unconfirmed_occupancy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/batch_task.rs (target/debug/deps/batch_task-d4a16cbb867055c9)
+
+running 4 tests
+test cancellation_does_not_stop_started_or_rollback_success ... ok
+test limits_and_duplicate_identities_are_rejected ... ok
+test uncertain_result_keeps_slot_and_cannot_finish_task ... ok
+test invalid_transitions_and_clock_regressions_leave_state_intact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

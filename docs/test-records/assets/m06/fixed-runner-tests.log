@@ -1,0 +1,16 @@
+    Blocking waiting for file lock on build directory
+   Compiling essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.50s
+     Running tests/batch_runner.rs (target/debug/deps/batch_runner-5f556008b4ec6466)
+
+running 6 tests
+test manifest_count_and_bytes_refuse_before_execution ... ok
+test concurrent_submissions_cannot_create_two_active_tasks ... ok
+test adapter_panic_keeps_uncertain_slot_and_does_not_create_replacement_thread ... ok
+test unconfirmed_occupies_slots_rejects_second_task_and_cancel_preserves_started ... ok
+test eight_slots_are_a_hard_limit_and_shutdown_waits_for_real_completion ... ok
+test many_targets_use_fixed_workers_and_failure_does_not_stop_following_items ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

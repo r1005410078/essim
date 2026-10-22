@@ -1,0 +1,182 @@
+{
+  "binary": "/Users/rongts/essim/target/debug/examples/tcp_slave",
+  "binarySha256": "17aace9d3f661468cd77f8bf5bca7b1cb4e46e036c49c71932c1e4a0900bf5bd",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.5",
+  "client": "PyModbus 3.11.3 asyncio",
+  "build": "debug",
+  "endpoints": 1,
+  "unitsPerEndpoint": 1,
+  "pointsPerUnit": 10000,
+  "clientsPerEndpoint": 1,
+  "requestedConnections": 1,
+  "totalPoints": 10000,
+  "recording": "完整JSONL；4录制线程，64KiB／5ms上限；每文件独立sync_data因果屏障",
+  "sampleMethod": "ps RSS/%CPU/time 每秒采样；RSS峰值为采样最大值，非内核瞬时峰值；线程与fd每10秒；独立核心与驱动进程",
+  "phases": [
+    {
+      "targetPeriodSeconds": 10.0,
+      "durationSeconds": 3.0,
+      "requests": 80,
+      "exceptions": 0,
+      "timeouts": 0,
+      "unitScansCompleted": 1,
+      "unitScansFailed": 0,
+      "missedRounds": 0,
+      "inFlight": 0,
+      "maxInFlight": 1,
+      "healthyBefore": {
+        "requests": 0,
+        "errors": 0,
+        "latencyP95Ms": null
+      },
+      "healthyAfter": {
+        "requests": 0,
+        "errors": 0,
+        "latencyP95Ms": null
+      },
+      "endpoints": {
+        "0": {
+          "requests": 80,
+          "errors": 0
+        }
+      },
+      "actualSeconds": 10.001,
+      "requestsPerSecond": 7.999,
+      "requestLatencyP50Ms": 28.1,
+      "requestLatencyP95Ms": 30.4,
+      "requestLatencyP99Ms": 32.3,
+      "unitScanP50Ms": 2265.6,
+      "unitScanP95Ms": 2265.6,
+      "unitScanP99Ms": 2265.6,
+      "histogramResolutionMs": 0.1,
+      "histogramOverflowMs": 10000
+    }
+  ],
+  "samples": [
+    {
+      "elapsedSeconds": 1.317,
+      "corePs": "24.1  24640   0:00.82",
+      "coreCpuPercent": 24.1,
+      "coreRssKiB": 24640,
+      "coreThreads": 9,
+      "coreFds": 17,
+      "driverPs": "2.2  53984   0:00.29",
+      "driverCpuPercent": 2.2,
+      "driverRssKiB": 53984,
+      "driverThreads": 3,
+      "driverFds": 11,
+      "diskBytes": 3313028
+    },
+    {
+      "elapsedSeconds": 2.37,
+      "corePs": "6.8  25136   0:00.89",
+      "coreCpuPercent": 6.8,
+      "coreRssKiB": 25136,
+      "driverPs": "1.0  54240   0:00.31",
+      "driverCpuPercent": 1.0,
+      "driverRssKiB": 54240,
+      "diskBytes": 3352087
+    },
+    {
+      "elapsedSeconds": 3.382,
+      "corePs": "7.1  25200   0:00.97",
+      "coreCpuPercent": 7.1,
+      "coreRssKiB": 25200,
+      "driverPs": "1.0  54368   0:00.33",
+      "driverCpuPercent": 1.0,
+      "driverRssKiB": 54368,
+      "diskBytes": 3397509
+    },
+    {
+      "elapsedSeconds": 4.393,
+      "corePs": "1.9  25200   0:01.01",
+      "coreCpuPercent": 1.9,
+      "coreRssKiB": 25200,
+      "driverPs": "0.1  54480   0:00.34",
+      "driverCpuPercent": 0.1,
+      "driverRssKiB": 54480,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 5.405,
+      "corePs": "1.8  25200   0:01.03",
+      "coreCpuPercent": 1.8,
+      "coreRssKiB": 25200,
+      "driverPs": "0.0  54496   0:00.35",
+      "driverCpuPercent": 0.0,
+      "driverRssKiB": 54496,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 6.416,
+      "corePs": "2.7  25200   0:01.06",
+      "coreCpuPercent": 2.7,
+      "coreRssKiB": 25200,
+      "driverPs": "0.0  54496   0:00.35",
+      "driverCpuPercent": 0.0,
+      "driverRssKiB": 54496,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 7.428,
+      "corePs": "1.6  25200   0:01.07",
+      "coreCpuPercent": 1.6,
+      "coreRssKiB": 25200,
+      "driverPs": "0.0  54496   0:00.36",
+      "driverCpuPercent": 0.0,
+      "driverRssKiB": 54496,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 8.44,
+      "corePs": "2.5  25200   0:01.10",
+      "coreCpuPercent": 2.5,
+      "coreRssKiB": 25200,
+      "driverPs": "0.0  54512   0:00.37",
+      "driverCpuPercent": 0.0,
+      "driverRssKiB": 54512,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 9.451,
+      "corePs": "2.6  25200   0:01.12",
+      "coreCpuPercent": 2.6,
+      "coreRssKiB": 25200,
+      "driverPs": "0.9  54512   0:00.37",
+      "driverCpuPercent": 0.9,
+      "driverRssKiB": 54512,
+      "diskBytes": 3411246
+    },
+    {
+      "elapsedSeconds": 10.463,
+      "corePs": "3.8  25200   0:01.17",
+      "coreCpuPercent": 3.8,
+      "coreRssKiB": 25200,
+      "driverPs": "0.0  54512   0:00.38",
+      "driverCpuPercent": 0.0,
+      "driverRssKiB": 54512,
+      "diskBytes": 3411246
+    }
+  ],
+  "faults": [],
+  "estimatedInputBytes": 3692624,
+  "loadGuardBytes": 268435456,
+  "runRoot": "/var/folders/vk/hj12b3d9529c3xwt399dlc480000gn/T/essim-m06-scale-s1h9t95f",
+  "startupSeconds": 1.316,
+  "inputBytes": 3692627,
+  "actualConnections": 1,
+  "serverExitCode": 0,
+  "recordingIntegrity": {
+    "files": 1,
+    "continuousFacts": 245,
+    "invalidFiles": 0,
+    "filesEndingStopped": 1,
+    "errors": []
+  },
+  "diskBytes": 3411642,
+  "coreSampledPeakRssKiB": 25200,
+  "driverSampledPeakRssKiB": 54512,
+  "result": "COMPLETED",
+  "serverStderr": ""
+}

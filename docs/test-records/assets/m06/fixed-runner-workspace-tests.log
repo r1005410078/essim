@@ -1,0 +1,452 @@
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+   Compiling essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+   Compiling essim-workbench v0.1.0 (/Users/rongts/essim/workbench/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.12s
+     Running unittests src/lib.rs (target/debug/deps/essim_core-c41c9c307269bd03)
+
+running 1 test
+test domain::resources::tests::overflow_and_each_limit_refuse_without_changing_usage ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/architecture_boundaries.rs (target/debug/deps/architecture_boundaries-f6547a125e837154)
+
+running 2 tests
+test compatibility_facades_only_export_and_queries_have_no_write_ports ... ok
+test domain_sources_do_not_import_outer_layers ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/batch_flow.rs (target/debug/deps/batch_flow-7d2a555847633aa0)
+
+running 1 test
+test command_fact_listener_query_preserve_unconfirmed_occupancy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/batch_targets.rs (target/debug/deps/batch_targets-7c0ad263354e87ad)
+
+running 6 tests
+test invalid_scope_empty_targets_and_cycles_fail_before_task_creation ... ok
+test apply_checks_saved_models_start_checks_applied_definitions_and_values_are_ignored ... ok
+test deleted_or_changed_target_does_not_invalidate_healthy_items ... ok
+test model_snapshots_are_shared_and_preview_contains_no_model_content ... ok
+test recursive_scope_deduplicates_and_freezes_membership ... ok
+test default_concurrency_limits_and_distinct_applied_contents_are_explicit ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/batch_task.rs (target/debug/deps/batch_task-9de8188ceec3b26c)
+
+running 4 tests
+test invalid_transitions_and_clock_regressions_leave_state_intact ... ok
+test cancellation_does_not_stop_started_or_rollback_success ... ok
+test limits_and_duplicate_identities_are_rejected ... ok
+test uncertain_result_keeps_slot_and_cannot_finish_task ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/configuration_events.rs (target/debug/deps/configuration_events-418434f9c3d5f86f)
+
+running 4 tests
+test invalid_commands_and_failed_commit_have_no_success_event_or_sequence_advance ... ok
+test failed_release_has_no_success_fact_and_keeps_original_config_sequence ... ok
+test query_preview_and_inspection_do_not_commit_or_advance_sequence ... ok
+test committed_actions_have_specific_facts_and_matching_snapshots ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/domain_boundaries.rs (target/debug/deps/domain_boundaries-0f507ded8bbf348f)
+
+running 2 tests
+test navigation_rejects_cycles_and_nonempty_delete_without_partial_mutation ... ok
+test endpoint_type_invariant_is_available_without_a_handler ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/foundation.rs (target/debug/deps/foundation-e02b715a5200220f)
+
+running 8 tests
+test projection_dedupe_gap_and_staleness_do_not_control_authority ... ok
+test rtu_slave_is_single_station_but_master_can_have_multiple_targets ... ok
+test station_change_keeps_identity_and_rejects_duplicates_atomically ... ok
+test explicit_reset_uses_applied_initial_values_and_master_only_clears_cache ... ok
+test independent_models_optional_devices_and_transport_validation ... ok
+test save_is_not_apply_and_bad_references_never_mutate ... ok
+test migration_keeps_raw_across_scale_and_address_changes_and_is_atomic ... ok
+test apply_all_units_is_atomic_but_batch_reports_each_endpoint ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/master_plan.rs (target/debug/deps/master_plan-bd9b8f02a4f05477)
+
+running 4 tests
+test settings_have_bounded_defaults ... ok
+test diagnostics_reject_state_changing_subfunctions ... ok
+test groups_stop_at_limits_holes_and_periods ... ok
+test wide_points_never_split_and_slave_permission_is_not_master_permission ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/partition.rs (target/debug/deps/partition-ba77db21e726cd79)
+
+running 9 tests
+test wide_point_is_not_split_and_remainder_is_kept ... ok
+test highest_address_and_mixed_areas_are_ordered_without_reassigning_addresses ... ok
+test invalid_network_and_station_parameters_are_rejected_before_creation ... ok
+test empty_invalid_parameters_overflow_and_conflicts_are_rejected ... ok
+test invalid_middle_group_does_not_leave_partial_configuration ... ok
+test repository_failure_publishes_no_event_and_leaves_projection_unchanged ... ok
+test removed_folder_and_middle_identity_conflict_leave_no_generated_objects ... ok
+test invalid_source_and_removed_folder_leave_catalog_unchanged ... ok
+test five_thousand_points_preserve_sparse_addresses_and_create_independent_models ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/point_apply.rs (target/debug/deps/point_apply-598e155020add9ac)
+
+running 5 tests
+test unconfirmed_stop_never_changes_application ... ok
+test a_local_slave_value_never_becomes_a_master_remote_read_result ... ok
+test master_invalidates_only_changed_mapping_and_never_invents_remote_initials ... ok
+test conflict_after_stop_keeps_old_application_and_records_stopped_state ... ok
+test preview_is_pure_and_apply_stops_all_units_preserving_others ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/point_catalog.rs (target/debug/deps/point_catalog-2a1f3340497641db)
+
+running 4 tests
+test old_applied_reference_survives_new_saved_configuration ... ok
+test deletion_rechecks_references_created_after_a_read_only_preview ... ok
+test saves_replace_current_model_and_copies_remain_independent ... ok
+test overwrite_keeps_applied_snapshot_until_explicit_apply ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/point_codec.rs (target/debug/deps/point_codec-eb6a85f856f95800)
+
+running 7 tests
+test dto_preserves_64_bits_and_rejects_forged_initial_values ... ok
+test migration_requires_exact_range_and_deliberate_float_widening ... ok
+test float_precision_and_non_finite_values_are_explicit ... ok
+test known_register_vectors_cover_every_order ... ok
+test integer_boundaries_are_not_converted_through_float ... ok
+test full_table_validation_crosses_categories_and_reports_stable_identity ... ok
+test decimal_conversion_is_exact_and_never_truncates ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/projection_listener.rs (target/debug/deps/projection_listener-2db447a29e4e3727)
+
+running 1 test
+test listener_updates_snapshot_and_rejects_invalid_notifications_without_changes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resource_contracts.rs (target/debug/deps/resource_contracts-07b73424c898e07c)
+
+running 3 tests
+test one_rtu_channel_shares_units_but_another_endpoint_is_exclusive ... ok
+test partial_open_failure_cleans_only_its_handles_and_external_owner_is_not_invented ... ok
+test tcp_listener_reports_actual_holder_but_masters_share_remote ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resource_release.rs (target/debug/deps/resource_release-060cb8a5890704bc)
+
+running 2 tests
+test returning_success_without_stopped_state_is_rejected ... ok
+test release_is_idempotent_and_timeout_does_not_claim_stopped_or_touch_others ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/runtime_contracts.rs (target/debug/deps/runtime_contracts-6ae221bfe7287dff)
+
+running 8 tests
+test replay_has_no_executor_and_rejects_gaps_or_schema_changes ... ok
+test failed_record_creation_does_not_reserve_a_channel_for_the_next_run ... ok
+test rtu_resource_claim_remains_exclusive_until_stop_confirmation ... ok
+test shared_storage_fault_stops_every_affected_run_and_isolates_others ... ok
+test replay_uses_fixed_snapshots_isolated_values_and_keeps_partial_intent ... ok
+test stop_requires_confirmation_reconnect_and_pause_keep_run_and_restart_needs_new_id ... ok
+test create_failure_never_opens_executor ... ok
+test intent_failure_prevents_write_and_result_failure_never_resends ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/simulator_configuration.rs (target/debug/deps/simulator_configuration-47f055abd8879121)
+
+running 13 tests
+test inspection_uses_core_protocol_rules_for_drafts_without_changing_authority ... ok
+test create_missing_reference_is_located_and_copy_failure_leaves_no_partial_object ... ok
+test master_reapply_keeps_cache_but_marks_it_stale_after_stop ... ok
+test folders_reject_cycles_nonempty_delete_and_missing_targets ... ok
+test create_is_atomic_and_save_cannot_resurrect_or_change_type ... ok
+test duplicate_station_locates_both_units_and_keeps_authority ... ok
+test copy_has_fresh_units_same_references_and_no_application ... ok
+test copying_invalid_source_reference_and_reset_master_cache_are_atomic ... ok
+test commit_failure_after_release_preserves_application_and_real_stop ... ok
+test metadata_is_not_pending_but_protocol_change_is ... ok
+test transport_kind_is_immutable_and_same_stopped_resource_is_allowed ... ok
+test station_allocation_bounds_exhaustion_and_duplicate_identity ... ok
+test disabled_values_and_removal_follow_explicit_application_and_reset_snapshot ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/slave_layout.rs (target/debug/deps/slave_layout-40c959395f84cc5b)
+
+running 3 tests
+test wire_decode_round_trips_orders_and_rejects_nonfinite ... ok
+test indexed_span_rejects_holes_and_read_only_points ... ok
+test batch_is_planned_fully_before_any_write ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/essim_infrastructure-01a4fe7158c86abc)
+
+running 8 tests
+test tcp_master::rtu_bridge::tests::lengths_cover_diagnostics_and_basic_fragments ... ok
+test serial_discovery::tests::unavailable_name_is_explicit ... ok
+test tcp_master::bridge::tests::split_join_and_invalid_frames ... ok
+test serial_discovery::tests::usb_name_retains_path_and_identifying_information ... ok
+test resources::tests::concurrent_claims_do_not_overbook_and_drop_releases_once ... ok
+test partition::tests::exhausted_budget_leaves_no_objects_or_extra_reservations ... ok
+test partition::tests::stale_close_cannot_release_a_new_preview_and_error_releases_lease ... ok
+test tcp_slave::worker::tests::recording_failure_after_write_preserves_uncertainty_and_releases_resources ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/batch_runner.rs (target/debug/deps/batch_runner-7af05b619aa6af1f)
+
+running 6 tests
+test manifest_count_and_bytes_refuse_before_execution ... ok
+test adapter_panic_keeps_uncertain_slot_and_does_not_create_replacement_thread ... ok
+test concurrent_submissions_cannot_create_two_active_tasks ... ok
+test unconfirmed_occupies_slots_rejects_second_task_and_cancel_preserves_started ... ok
+test many_targets_use_fixed_workers_and_failure_does_not_stop_following_items ... ok
+test eight_slots_are_a_hard_limit_and_shutdown_waits_for_real_completion ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/configuration_events.rs (target/debug/deps/configuration_events-7af96552aae0a4af)
+
+running 1 test
+test event_entry_exposes_committed_fact_and_receipt_entry_commits_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/partition.rs (target/debug/deps/partition-79f73d75e9e8b99b)
+
+running 4 tests
+test unconfigured_ip_rejected_without_partial_creation ... ok
+test preview_does_not_create_and_commit_consumes_token_once ... ok
+test discarded_preview_cannot_create_and_can_be_replaced ... ok
+test invalid_ips_keep_all_five_groups_visible_but_cannot_commit ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/point_exchange.rs (target/debug/deps/point_exchange-515cec9616423b15)
+
+running 10 tests
+test cancellation_discards_the_complete_result ... ok
+test invalid_draft_is_kept_outside_the_authoritative_model ... ok
+test independent_csv_fixture_supports_bom_and_quotes ... ok
+test independently_authored_openxml_fixture_preserves_text_integer ... ok
+test worksheet_formulas_are_rejected_without_using_cached_values ... ok
+test formula_like_csv_text_is_escaped_reversibly_and_xlsx_is_literal ... ok
+test three_formats_keep_every_field_and_exact_u64_text ... ok
+test export_failure_does_not_remove_target_or_leave_partial_files ... ok
+test numeric_excel_precision_errors_keep_absolute_source_coordinates ... ok
+test sparse_far_cells_and_row_overflow_are_rejected_before_dense_allocation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/rtu_slave.rs (target/debug/deps/rtu_slave-afff41038425e9d2)
+
+running 2 tests
+test missing_path_and_driver_loss_report_failure ... ok
+test exclusive_alias_failure_retry_apply_and_delete_release_real_port ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/simulator_release.rs (target/debug/deps/simulator_release-7cbcd05eb93ab6df)
+
+running 2 tests
+test waiting_release_does_not_lock_catalog_and_merges_unrelated_save ... ok
+test delete_timeout_keeps_config_and_target_change_requires_reconfirmation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tcp_master.rs (target/debug/deps/tcp_master-f9626c5643edd63d)
+
+running 7 tests
+test recording_creation_failure_prevents_connect ... ok
+test read_failure_keeps_last_value_and_prevalidation_writes_nothing ... ok
+test reapply_preserves_only_compatible_cached_points_and_stays_disconnected ... ok
+test failed_read_of_same_point_preserves_success_value_and_time ... ok
+test cancellation_after_sent_write_keeps_confirmation_and_does_not_send_rest ... ok
+test read_write_readback_trace_and_quality ... ok
+test write_timeout_never_retries_and_skips_remaining ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running tests/tcp_slave.rs (target/debug/deps/tcp_slave-ee59fad3a2dec67e)
+
+running 10 tests
+test recording_create_failure_never_opens_listener ... ok
+test observations_match_reliable_records_and_socket_bytes ... ok
+test invalid_apply_is_rejected_before_stopping_the_live_endpoint ... ok
+test deleting_saved_configuration_also_releases_units_still_in_the_applied_snapshot ... ok
+test failed_bind_and_apply_release_preserve_actual_values ... ok
+test stopping_one_endpoint_does_not_stop_another_and_drop_releases_all ... ok
+test empty_applied_model_can_stop_and_restart_without_invented_values ... ok
+test fragmented_combined_invalid_frames_and_slow_peer_are_isolated ... ok
+test four_areas_permissions_unit_isolation_and_restart_preserve_values ... ok
+test client_limit_and_partial_frame_timeout_preserve_other_clients ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.20s
+
+     Running unittests src/lib.rs (target/debug/deps/essim_workbench_lib-10cdf97133c7a425)
+
+running 1 test
+test commands::subscriptions::tests::dropping_manager_cancels_and_joins_every_subscription ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/essim_workbench-abf2efeb1014f416)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_rs-cdd5466a224a79e6)
+
+running 10 tests
+test rtu::tests::allocation_failure_keeps_original_error ... ok
+test responder::tests::complete_frame_validation_and_library_response ... ok
+test client::rtu_diagnostic_tests::forbidden_diagnostic_never_sends_and_known_crc_matches ... ok
+test responder::rtu_tests::rtu_response_crc_broadcast_and_diagnostic ... ok
+test client::diagnostic_integrity_tests::bad_crc_wrong_echo_and_exception_are_not_success ... ok
+test client::rtu_diagnostic_tests::raw_diagnostics_validate_actual_crc_and_echo ... ok
+test serial_port::tests::aliases_conflict_and_drop_allows_reopen ... ok
+test tests::failed_initialization_never_closes_a_borrowed_socket ... ok
+test rtu::tests::opened_failure_and_normal_drop_restore_the_serial_and_do_not_close_reused_fds ... ok
+test tests::truncated_request_returns_timeout ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/client.rs (target/debug/deps/client-bc9a50ce7af71ada)
+
+running 6 tests
+test rejects_invalid_ranges_without_sending_and_preserves_exception_session ... ok
+test corrupt_rtu_reply_closes_the_channel ... ok
+test wrong_transaction_function_and_truncated_reply_are_rejected ... ok
+test rtu_reads_four_areas_writes_and_switches_station ... ok
+test timeout_closes_session_and_does_not_retry_a_write ... ok
+test invalid_timeouts_fail_before_open_and_rtu_timeout_releases_serial ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/registers.rs (target/debug/deps/registers-8097f90b4a5fb9da)
+
+running 4 tests
+test four_areas_are_independent_and_bounded ... ok
+test mapping_is_generic_and_checks_bounds ... ok
+test normal_writes_are_allowed_by_the_generic_library ... ok
+test four_area_protocol_reads_and_single_multiple_writes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/rtu.rs (target/debug/deps/rtu-a16ca1e7056cdf1d)
+
+running 5 tests
+test invalid_config_and_missing_device_fail_before_a_live_context ... ok
+test nonreading_serial_peer_fails_nonblocking_write_and_drop_returns ... ok
+test fragmented_valid_frame_is_received ... ok
+test actual_rtu_four_areas_writes_broadcast_and_exception_silence ... ok
+test crc_partial_foreign_and_back_to_back_frames_recover ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_src-dbb4f6e9b0c8ee9f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/build_rules.rs (target/debug/deps/build_rules-10f282314fe353ab)
+
+running 2 tests
+test rejects_cross_target_before_building ... ok
+test missing_compiler_reports_tool_instead_of_using_system_library ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/libmodbus_sys-4649738d2601d3d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mapping.rs (target/debug/deps/mapping-3a4d09d271411299)
+
+running 1 test
+test local_helper_rejects_invalid_area_address_and_bit_value ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/selection.rs (target/debug/deps/selection-754ccba45a83d36a)
+
+running 2 tests
+test explicit_selection_never_falls_back_to_host ... ok
+test rejects_invalid_provenance_and_corrupted_artifacts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests essim_core
+
+running 1 test
+test crates/core/src/domain/mod.rs - domain::point_table (line 22) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+
+   Doc-tests essim_infrastructure
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests essim_workbench_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_rs
+
+running 9 tests
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 315) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/client.rs - client::ModbusClient (line 37) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 132) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext (line 308) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 119) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuContext (line 125) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - TcpContext<S>::reply (line 394) - compile fail ... ok
+test crates/libmodbus/libmodbus-rs/src/rtu.rs - rtu::RtuConfig (line 13) ... ok
+test crates/libmodbus/libmodbus-rs/src/lib.rs - Mapping (line 142) ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
+
+   Doc-tests libmodbus_src
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests libmodbus_sys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

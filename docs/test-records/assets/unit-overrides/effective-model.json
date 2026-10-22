@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "model": {
+    "id": "339d47bb-8217-43a8-b117-6e9ddea4d16d",
+    "name": "电池簇基础模型",
+    "points": [
+      {
+        "address": 110,
+        "area": "holding",
+        "byteOrder": "big",
+        "category": "measurement",
+        "id": "8e6959e0-9ccf-4ec4-a4e9-05772e5ed836",
+        "initial": {
+          "kind": "unsigned",
+          "value": "7000"
+        },
+        "initialEngineering": "700",
+        "masterPeriodMs": 1000,
+        "name": "总电压",
+        "note": "软件验证",
+        "scale": "0.1",
+        "slaveWritable": true,
+        "unit": "V",
+        "valueType": "u16",
+        "wordOrder": "big"
+      },
+      {
+        "address": 101,
+        "area": "holding",
+        "byteOrder": "big",
+        "category": "measurement",
+        "id": "671b8db2-a56f-4c08-8623-9b3fd8d19156",
+        "initial": {
+          "kind": "signed",
+          "value": "0"
+        },
+        "initialEngineering": "0",
+        "masterPeriodMs": 1000,
+        "name": "总电流",
+        "note": "软件验证",
+        "scale": "0.1",
+        "slaveWritable": true,
+        "unit": "A",
+        "valueType": "i16",
+        "wordOrder": "big"
+      },
+      {
+        "address": 102,
+        "area": "holding",
+        "byteOrder": "big",
+        "category": "measurement",
+        "id": "9f291726-94d4-4428-8b99-c4efa00cb27d",
+        "initial": {
+          "kind": "unsigned",
+          "value": "500"
+        },
+        "initialEngineering": "50",
+        "masterPeriodMs": 1000,
+        "name": "荷电状态",
+        "note": "软件验证",
+        "scale": "0.1",
+        "slaveWritable": true,
+        "unit": "%",
+        "valueType": "u16",
+        "wordOrder": "big"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+{"result": "PASS", "client": "PyModbus", "version": "3.11.3", "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O", "endpoints": 1, "units": 2, "clients": 2, "functions": ["01", "02", "03", "04", "05", "06", "0F", "10"], "checks": ["unit isolation", "shared writes", "address exception", "unknown unit", "reliable finalized record", "headless shutdown"]}

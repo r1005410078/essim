@@ -1,0 +1,52 @@
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.64s
+     Running unittests src/lib.rs (target/debug/deps/essim_infrastructure-03d1c68c44c57129)
+
+running 2 tests
+test partition::tests::exhausted_budget_leaves_no_objects_or_extra_reservations ... ok
+test partition::tests::stale_close_cannot_release_a_new_preview_and_error_releases_lease ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/configuration_events.rs (target/debug/deps/configuration_events-aa7f539156828dbb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/partition.rs (target/debug/deps/partition-e66ab8950ffd1421)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/point_exchange.rs (target/debug/deps/point_exchange-ef8ad28cd8d5c0d3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/rtu_slave.rs (target/debug/deps/rtu_slave-c34e723dc33096ff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/simulator_release.rs (target/debug/deps/simulator_release-229ac9f71423a15f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/tcp_master.rs (target/debug/deps/tcp_master-e84b7ea6045f8e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tcp_slave.rs (target/debug/deps/tcp_slave-2db3bd993c247447)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

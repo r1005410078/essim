@@ -1,0 +1,28 @@
+$ vitest run
+
+ RUN  v3.2.7 /Users/rongts/essim/workbench
+
+ ✓ src/features/workspace/pointDraft.test.ts (6 tests) 6ms
+ ✓ src/features/workspace/modbusMessage.test.ts (15 tests) 14ms
+ ✓ src/shared/api/workspace.test.ts (8 tests) 12ms
+ ✓ src/features/resources/catalog.test.ts (5 tests) 14ms
+ ✓ src/features/workspace/runtimeObservations.test.ts (8 tests) 55ms
+ ✓ src/features/workspace/DraftSource.test.ts (4 tests) 13ms
+ ✓ src/features/workspace/pointClipboard.test.ts (2 tests) 19ms
+ ✓ src/features/workspace/sheets.test.ts (8 tests) 21ms
+ ✓ src/features/workspace/model.test.ts (16 tests) 63ms
+ ✓ src/features/workspace/saveShortcut.test.ts (2 tests) 5ms
+ ✓ src/features/workspace/modbusRtuMessage.test.ts (3 tests) 7ms
+ ✓ src/features/workspace/pointImport.test.ts (2 tests) 12ms
+ ✓ src/features/workspace/slaveResponses.test.ts (1 test) 4ms
+ ✓ src/features/workspace/slaveValues.test.ts (3 tests) 5ms
+ ✓ src/features/workspace/slaveQueryPoints.test.ts (3 tests) 8ms
+ ✓ src/shared/api/window.test.ts (2 tests) 5ms
+ ✓ src/features/workspace/selectEditor.test.ts (4 tests) 8ms
+ ✓ src/features/resources/ResourceDocument.test.tsx (2 tests) 102ms
+
+ Test Files  18 passed (18)
+      Tests  94 passed (94)
+   Start at  07:53:44
+   Duration  1.30s (transform 980ms, setup 0ms, collect 3.43s, tests 374ms, environment 3ms, prepare 2.51s)
+

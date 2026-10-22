@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-20",
+  "bundle": "target/artifacts/m06-preview-check/ESSim M06 Preview Check.app",
+  "bundleIdentifier": "dev.essim.m06previewcheck",
+  "sourceCsvSha256": "a0e5316e322ac7d8e876eee32d797506dfe0f548d13b0559eb6e27a05d6dfd3c",
+  "points": 5000,
+  "sourceName": "M06 Preview Source",
+  "area": "holding",
+  "type": "u16",
+  "addresses": "0,2,...,9998 (holes intentional)",
+  "initial": 7,
+  "fiveGroupPreview": {
+    "groupSize": 1000,
+    "groups": 5,
+    "startIp": "127.0.0.1",
+    "port": 1080,
+    "station": 1,
+    "unconfiguredIps": [
+      "127.0.0.2",
+      "127.0.0.3",
+      "127.0.0.4",
+      "127.0.0.5"
+    ],
+    "createDisabled": true
+  },
+  "successfulCreation": {
+    "groupSize": 5000,
+    "groups": 1,
+    "folder": "M06 分组验证",
+    "prefix": "M06 本机验证",
+    "applied": false,
+    "started": false
+  },
+  "conflictProbe": "127.0.0.1:1080 saved listener configuration; rejected before creation",
+  "scope": "native UI creation only; no five-IP listening, no communication or sustained scale claim",
+  "originalSession": "kept running; exit cancelled after automatic approval rejected discard",
+  "bundleExecutableSha256": "ad0b1b1c12d5b3951a72c55194f8aaa090c766de4c0f9de5f9720be301a8f4c4"
+}

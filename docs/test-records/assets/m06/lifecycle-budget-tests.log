@@ -1,0 +1,40 @@
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.46s
+     Running tests/batch_lifecycle.rs (target/debug/deps/batch_lifecycle-ca325a74c8672763)
+
+running 7 tests
+test unsaved_and_retained_write_drafts_skip_and_changed_plan_does_not_apply ... ok
+test exhausted_runtime_budget_refuses_new_start_keeps_running_and_stop_available ... ok
+test rtu_batch_stop_releases_exclusive_serial_path ... ok
+test real_apply_start_partial_failure_retry_and_stop_release_ports ... ok
+test slow_record_file_does_not_block_same_protocol_worker_or_cached_queries ... ok
+test master_batch_start_connects_without_polling_and_stop_closes_connection ... ok
+test navigation_and_task_summaries_do_not_grow_with_model_points ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/batch_runner.rs (target/debug/deps/batch_runner-9b3dc3ff7c4c3441)
+
+running 8 tests
+test manifest_count_and_bytes_refuse_before_execution ... ok
+test concurrent_submissions_cannot_create_two_active_tasks ... ok
+test lost_completion_cannot_release_gate_or_be_retried_as_failure ... ok
+test adapter_panic_keeps_uncertain_slot_and_does_not_create_replacement_thread ... ok
+test cancellation_racing_completion_preserves_success_and_never_claims_after_cancel_returns ... ok
+test unconfirmed_occupies_slots_rejects_second_task_and_cancel_preserves_started ... ok
+test eight_slots_are_a_hard_limit_and_shutdown_waits_for_real_completion ... ok
+test many_targets_use_fixed_workers_and_failure_does_not_stop_following_items ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/recording.rs (target/debug/deps/recording-67c99dfbef72d542)
+
+running 5 tests
+test queue_limits_include_inflight_bytes_and_do_not_block_stop_or_query ... ok
+test common_disk_failure_is_reported_per_file_without_advancing_any_prefix ... ok
+test same_file_batches_keep_order_and_sync_failure_never_advances_prefix ... ok
+test cannot_report_later_causal_stage_before_its_own_sync ... ok
+test sync_barrier_keeps_prefix_and_query_free_while_other_file_progresses ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

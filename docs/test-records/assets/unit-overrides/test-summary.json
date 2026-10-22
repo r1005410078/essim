@@ -1,0 +1,23 @@
+{
+  "core-baseline": {
+    "passed": 89,
+    "failed": 0
+  },
+  "core": {
+    "passed": 104,
+    "failed": 0
+  },
+  "infra-tests": {
+    "passed": 78,
+    "failed": 0
+  },
+  "infra-unit": {
+    "passed": 3,
+    "failed": 0
+  },
+  "frontend": {
+    "baseline": 98,
+    "passed": 110,
+    "files": 20
+  }
+}

@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+适用范围：以下为原 M03 基线。2026-10-22 后续的创建时新建并绑定改由[创建规格](../../../add-unit-model-overrides/specs/simulator-inline-model-creation/spec.md)约束，覆盖复制／切换由[覆盖规格](../../../add-unit-model-overrides/specs/unit-model-overrides/spec.md)补充；新范围未实施，原任务与证据保留。
+
 ### Requirement: 新建模拟器和默认Unit原子完成
 
 系统 SHALL 在新建时选择TCP／RTU及主从角色，默认建立名称Unit 1、站号1的单元，并选择当前已保存模型。仅一个模型时自动选中，多个时要求明确选择；无模型时 MUST 提供创建模型入口并阻止完成新建。核心 MUST 原子创建完整端点与首个Unit，拒绝重复身份和失效模型引用。

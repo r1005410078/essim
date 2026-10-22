@@ -1,0 +1,134 @@
+Window: "ESSim · 储能协议仿真工作台", App: ESSim M06 Preview Check.
+0 standard window ESSim · 储能协议仿真工作台, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: ESSim, URL: tauri://localhost
+			3 container
+				4 text ESSim Modbus 协议仿真工作台
+				5 button 刷新真实配置目录
+				6 text 本次会话
+			7 container
+				8 container
+					9 container 导航
+						10 container 导航
+							11 container 资源导航面板
+								12 text 项目
+								13 pop up button 新建
+								14 container
+									15 pop up button 文档资源
+									16 pop up button 协议
+									17 pop up button Modbus
+									18 pop up button Modbus 详细指南
+									19 pop up button 模拟器
+									20 pop up button M06 分组验证
+									21 pop up button M06 本机验证-分组001
+									22 pop up button Unit 1
+									23 pop up button 设备
+									24 pop up button 采集模型
+									25 pop up button M06 分组验证
+									26 pop up button (selected) M06 本机验证-分组001
+									27 pop up button M06 Preview Source
+									28 pop up button Options
+								29 text 本次会话 · 退出后不保留配置和目录
+					30 container
+						31 container M06 本机验证-分组001
+							32 tab group (selectable)
+								33 tab (selectable) 工作台
+								34 tab (selectable) M06 Preview Source
+								35 tab (selectable) M06 本机验证-分组001
+								36 tab (selected) M06 本机验证-分组001
+							37 button 新建文档
+							38 container M06 本机验证-分组001
+						39 container 事件记录
+							40 tab group (selectable)
+								41 tab (selected) 事件记录
+								42 tab (selectable) 通信报文
+								43 tab (selectable) 问题
+							44 container 事件记录
+								45 combo box (collapsed, settable) 观测端点, Secondary Actions: Expand, Value: 跟随当前端点
+
+									46 text 跟随当前端点
+								47 button 暂停展示
+								48 text 0
+								49 text  条 · 最近窗口
+								50 button (disabled) 导出
+								51 table 真实运行事件
+									52 row (selectable) 时间
+序号
+连接
+内容
+结果
+								53 text 每次查询最近 100 条，界面最多保留 500 条；暂停或高频通信可能跳过记录，完整记录以运行文件为准。
+					54 container 属性
+						55 container 属性
+							56 text 详细信息
+							57 text M06 本机验证-分组001
+							58 container (expanded) Secondary Actions: Collapse
+								59 summary 模型, Value: on
+									60 text 模型
+								61 container
+									62 text 名称
+									63 text field (settable) 模型名称, Value: M06 本机验证-分组001
+								64 text 保存仅限本次会话，不自动应用。
+							65 container (expanded) Secondary Actions: Collapse
+								66 summary 选中点, Value: on
+									67 text 选中点
+								68 text 选择点表行以编辑属性。
+							69 container (expanded) Secondary Actions: Collapse
+								70 summary 模型引用, Value: on
+									71 text 模型引用
+								72 text 1  处引用
+								73 button M06 本机验证-分组001 → Unit 1 · 配置
+					74 text M06 本机验证-分组001 opened
+				75 button 保存模型, Help: 保存模型（⌘S / Ctrl+S，本次会话）
+				76 button 新增点
+				77 button (disabled) 删除选中点
+				78 button (disabled) 撤销
+				79 button (disabled) 重做
+				80 text M06 本机验证-分组001  · 已保存
+				81 button 导入追加
+				82 pop up button 导出模型
+				83 summary 字段说明, Value: off
+					84 text 字段说明
+				85 container
+					86 container
+						87 splitter 50
+						88 splitter 50
+						89 splitter 50
+						90 splitter 50
+						91 splitter 50
+						92 splitter 50
+						93 splitter 50
+						94 splitter 50
+						95 splitter 50
+						96 splitter 50
+						97 splitter 50
+						98 splitter 50
+						99 splitter 50
+						100 splitter 50
+						101 splitter 50
+						102 splitter 50
+						103 splitter 50
+						104 splitter 50
+						105 splitter 50
+						106 splitter 50
+						107 splitter 50
+						108 splitter 50
+				109 tab group (selectable) 模型四遥分类
+					110 tab (selected) 遥测
+					111 tab (selectable) 遥信
+					112 tab (selectable) 遥控
+					113 tab (selectable) 遥调
+					114 text 5000
+					115 text  点 · 本次会话
+			116 container
+				117 text 配置工作台已连接 运行状态见端点运行栏 录制失败将停止对应运行 本次会话 · 配置退出即丢失
+	118 close button
+	119 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	120 minimize button
+	121 text ESSim · 储能协议仿真工作台
+122 menu bar
+	123 ESSim M06 Preview Check
+	124 文件
+	125 编辑
+
+The focused UI element is 26 pop up button (selected) M06 本机验证-分组001

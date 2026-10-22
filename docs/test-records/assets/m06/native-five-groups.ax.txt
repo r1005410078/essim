@@ -1,0 +1,71 @@
+Window: "ESSim · 储能协议仿真工作台", App: ESSim M06 Preview Check.
+0 standard window ESSim · 储能协议仿真工作台, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: ESSim, URL: tauri://localhost
+			3 container 按采集点分组创建
+				4 heading 按采集点分组创建, Value: 2
+					5 text 按采集点分组创建
+				6 text 使用已保存模型，保留原数据区与地址。每组生成独立模型和单 Unit TCP 从站，创建后不自动应用或启动。
+				7 container
+					8 text 已保存源模型
+					9 combo box (collapsed, settable) 分组源模型, Secondary Actions: Expand, Value: M06 Preview Source
+
+						10 text M06 Preview Source
+					11 text 名称前缀
+					12 text field (settable) 分组名称前缀, Value: 分组模拟器
+					13 text 每组采集点数
+					14 number field (settable) 每组采集点数, Value: 1000
+						15 stepper 0
+							16 unknown
+							17 unknown
+					18 text 起始本机 IPv4
+					19 text field (settable) 分组起始IP, Value: 127.0.0.1
+					20 text 统一端口
+					21 number field (settable) 分组端口, Value: 1080
+						22 stepper 0
+							23 unknown
+							24 unknown
+					25 text 统一 Unit ID
+					26 number field (settable) 分组站号, Value: 1
+						27 stepper 0
+							28 unknown
+							29 unknown
+					30 text 目标文件夹
+					31 combo box (collapsed, settable) 分组目标文件夹, Secondary Actions: Expand, Value: 根目录
+
+						32 text 根目录
+				33 text IP逐组递增、端口相同。所有目标IP须已配置在本机；预检不占端口，启动时仍可能发生占用冲突。
+				34 container 分组结果预览
+					35 text 5000  点 →  5  组
+					36 container
+						37 text 预计暂存： 12.2  MiB（估计） · 本机IP： 127.0.0.1、192.168.2.8、198.18.0.1
+					38 container
+						39 text 4  组IP未配置，无法创建；请修改分组参数或使用已配置的本机IP。
+					40 container
+						41 container 分组模拟器-分组001 · 127.0.0.1:1080 / Unit 1 · 1000点
+holding[0～0]、holding[2～2]、holding[4～4]、holding[6～6]、holding[8～8]、holding[10～10]、holding[12～12]、holding[14～14] 等1000个范围
+						42 container 分组模拟器-分组002 · 127.0.0.2:1080 / Unit 1 · 1000点
+holding[2000～2000]、holding[2002～2002]、holding[2004～2004]、holding[2006～2006]、holding[2008～2008]、holding[2010～2010]、holding[2012～2012]、holding[2014～2014] 等1000个范围 分组模拟器-分组002：IP 127.0.0.2未配置在本机
+							43 text 分组模拟器-分组002：IP 127.0.0.2未配置在本机
+						44 container 分组模拟器-分组003 · 127.0.0.3:1080 / Unit 1 · 1000点
+holding[4000～4000]、holding[4002～4002]、holding[4004～4004]、holding[4006～4006]、holding[4008～4008]、holding[4010～4010]、holding[4012～4012]、holding[4014～4014] 等1000个范围 分组模拟器-分组003：IP 127.0.0.3未配置在本机
+							45 text 分组模拟器-分组003：IP 127.0.0.3未配置在本机
+						46 container 分组模拟器-分组004 · 127.0.0.4:1080 / Unit 1 · 1000点
+holding[6000～6000]、holding[6002～6002]、holding[6004～6004]、holding[6006～6006]、holding[6008～6008]、holding[6010～6010]、holding[6012～6012]、holding[6014～6014] 等1000个范围 分组模拟器-分组004：IP 127.0.0.4未配置在本机
+							47 text 分组模拟器-分组004：IP 127.0.0.4未配置在本机
+						48 container 分组模拟器-分组005 · 127.0.0.5:1080 / Unit 1 · 1000点
+holding[8000～8000]、holding[8002～8002]、holding[8004～8004]、holding[8006～8006]、holding[8008～8008]、holding[8010～8010]、holding[8012～8012]、holding[8014～8014] 等1000个范围 分组模拟器-分组005：IP 127.0.0.5未配置在本机
+							49 text 分组模拟器-分组005：IP 127.0.0.5未配置在本机
+				50 button 取消
+				51 button 预览分组
+				52 button (disabled) 确认创建
+	53 close button
+	54 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	55 minimize button
+	56 text ESSim · 储能协议仿真工作台
+57 menu bar
+	58 ESSim M06 Preview Check
+	59 文件
+	60 编辑
+
+The focused UI element is 3 container 按采集点分组创建

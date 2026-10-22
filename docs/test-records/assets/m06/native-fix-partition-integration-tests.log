@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests/partition.rs (target/debug/deps/partition-7e5c2c6617e309ac)
+
+running 4 tests
+test unconfigured_ip_rejected_without_partial_creation ... ok
+test preview_does_not_create_and_commit_consumes_token_once ... ok
+test discarded_preview_cannot_create_and_can_be_replaced ... ok
+test invalid_ips_keep_all_five_groups_visible_but_cannot_commit ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+

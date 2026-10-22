@@ -1,0 +1,20 @@
+{
+  "build": "debug",
+  "catalogCloneMeanMs": 32.8821708,
+  "catalogSerializeMs": 1312.5079170000001,
+  "catalogSerializedBytes": 32743085,
+  "cloneIterations": 10,
+  "endpoints": 10,
+  "mappingIterations": 100,
+  "mappingScope": "four contiguous area spans; allocation/drop only, excludes initial-value writes",
+  "pointsPerModel": 1000,
+  "scope": "Catalog with current duplicated applied UnitValues; isolated costs, not process peak or sustained throughput",
+  "singleCMappingAllocateDropMeanMs": 0.00028541,
+  "singleModelCloneMeanMs": 0.18981208,
+  "singleModelLayoutMs": 15.043709,
+  "singleUnitRawValuesCloneMeanMs": 0.13675708,
+  "singleUnitValuesCloneMeanMs": 0.32807749999999997,
+  "sync1024BytesMeanMs": 3.4373525,
+  "syncIterations": 100,
+  "units": 100
+}

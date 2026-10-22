@@ -106,7 +106,7 @@ M01删除固定SOC worker、旧Native、旧IPC和教学示例，不为维持旧�
 
 ModelDraft按ModelId持有单一文本草稿，PointEditor及Details共享状态。DraftSource只管理可见行和空白扩容，按稳定点ID合并一次粘贴／填充，草稿统一负责撤销。数据源订阅遍历快照，避免监听器同步重订阅造成循环。结构编辑使用同一NovaSheet公开Grid及canvas2d入口，提供isCellEditable和shadcn Select编辑器，不改vendor。WKWebView系统粘贴使用隐藏textarea承接可信剪贴板事件，再调用组件公开TSV工具；普通单元格编辑仍由组件处理。
 
-模型保存覆盖当前内容，不保留版本列表或期望版本字段。删除权威检查配置与已应用引用；未来历史记录使用自包含快照，不阻止当前模型删除。应用预览为纯规划，提交先停止完整端点，再重新核对权威配置并整体替换已应用副本。停机后失败保留原应用与值，报告已停止；当前只有StoppedBoundary，未接入真实I/O。主站映射变化使相应缓存失效，不把从站初值或本地值伪装成远端读取结果。
+模型保存覆盖当前内容，不保留版本列表或期望版本字段。删除权威检查配置与已应用引用；未来历史记录使用自包含快照，不阻止当前模型删除。应用预览为纯规划，提交先停止完整端点，再重新核对权威配置并整体替换已应用副本。停机后失败保留原应用与值，报告已停止；当前已通过真实TCP／RTU运行适配器等待资源释放；StoppedBoundary仅用于无I/O测试。主站映射变化使相应缓存失效，不把从站初值或本地值伪装成远端读取结果。
 
 配置序号未变化时订阅不克隆完整目录。配置全量快照仍不适用于未来高频值流。macOS自定义Quit菜单与窗口关闭共同保护会话；退出权限仅在处理器就绪后启用，用户明确确认后才允许退出。会话数据尚未落盘。
 
@@ -180,3 +180,93 @@ workbench/src/features/workspace/RuntimeDataSource.ts     # 草稿基线及待�
 `libmodbus-rs::SerialPort`在所属透传线程打开真实串口，以设备身份／macOS tty-cu归一化做进程占用登记，并用TIOCEXCL阻止后续非特权打开；Drop先恢复串口参数、关闭原始fd，再释放dup独占和登记。TIOCEXCL不驱逐已打开的第三方句柄，未知驱动别名不作全局排他承诺。
 
 私有RTU上下文只借用Rust Unix socket，基础功能由libmodbus处理；原始诊断发送由库补CRC，白名单长度／站号／功能／CRC／回送验证在安全封装内。串口参数变化经完整应用停止边界后清空缓存；临时驱动故障的自动重开不另建运行文件。
+
+
+### RTU从站首批运行
+
+沿用`tcp_slave`历史目录，`worker`是TCP与RTU从站共同的运行值所有者；`serial`持有独占SerialPort、接收缓冲和有界待发响应，C上下文不跨线程。共享UnitMapping的PDU权限／完整点校验，RtuResponder直接使用RTU上下文生成响应，C补CRC；不通过TCP ADU伪装RTU。串口非阻塞读写、短帧隔离、准备／驱动写出事实与独立查询均在同一所有者串行处理。UI仅通过统一运行接口访问。停止、应用、删除先释放串口，再复用已有运行值迁移。20ms软件短帧清理边界不是物理字符时序证明，方向控制与RS485电气仍待验。
+
+## M06 首阶段的文件与调用对应（2026-10-19）
+
+```text
+core/src/application/
+├── service.rs                         # 分组准备、一次目录事务与PartitionCreated
+├── commands/partition.rs              # 分组输入、不可变计划、原子创建处理器
+├── queries/partition.rs               # 分组数量／地址范围摘要
+├── batch_service.rs                   # 批量任务命令协调，不执行协议IO
+├── commands/batch.rs                  # 建立、领取、取消、未确认、真实完成
+├── events/batch.rs                    # Started／ItemStarted／ItemUncertain等事实
+├── event_handlers/batch_projection.rs # 同步事件监听与旧通知拒绝
+└── queries/batch.rs                   # 有界计数、逐项结果与耗时
+core/src/domain/
+├── partition.rs                      # 完整业务点排序规则
+├── aggregates/batch.rs               # 状态机、固定目标及未确认占位
+└── resources.rs                      # 额度维度和溢出／上限校验
+infrastructure/src/
+├── partition.rs                      # 本机IP复查、会话预览、暂存预留
+├── local_interfaces.rs               # getifaddrs RAII只读枚举
+└── resources.rs                      # 原子预留账本及唯一释放令牌
+```
+
+分组调用：统一客户端→Tauri适配→`WorkspaceEngine::preview_partition`，先流式估算源模型字节并预留，再准备分组和校验本机地址；确认后`create_partition`→`Workspace::commit_partition`→单次仓储提交→`PartitionCreated`→已有`WorkspaceProjectionListener`。失败不发布成功事实，前端刷新读取已提交目录；配置仍为会话内当前内容，没有历史选版。
+
+任务状态调用：`BatchService::execute(BatchCommand)`→`BatchTask`合法状态转换→`BatchEvent`具体事实→`BatchProjectionListener::handle`→有界任务查询。早期只做纯状态闭环；当前生产装配与查询边界见下节。
+
+### M06 固定范围及线程组件（2026-10-20）
+
+- `application/commands/batch_targets.rs`解析范围并建立不可变`BatchPlan`，内部按模型实际内容共享比较副本；`queries/batch_plan.rs`只发送固定目标摘要。
+- `Workspace::prepare_batch`和`revalidate_batch`直接借用投影。目标移动／新增不改变清单；相关定义变化在每项执行前复核，不使用expectedRevision。
+- `infrastructure/batch_runner.rs`是会话所有者持有的固定8线程组件，`submit`→原有BatchService／聚合／事件／监听投影→线程领取→BatchExecutor端口→实际返回后Complete。查询不等待执行端口，超时不释放槽，取消不打断已开始项。
+- 已通过`batch_lifecycle.rs::BatchCoordinator`装配真实WorkspaceEngine、共享端点门、逐项应用／启停与安全重试。Tauri只适配预览／开始／取消／查询；Dockview页面销毁不销毁后台执行器。早期组件证据见[调度记录](../test-records/2026-10-20-m06-batch-runner.md)，当前交付见[报告](../test-records/2026-10-20-m06-delivery.md)。
+
+端点操作门使用不可序列化的能力凭证，固定批量线程与手动生命周期入口共享同一会话的门。调用等待超时不释放实际所有者持有的子凭证；从站完成接收器可继续等待同一次提交，主站释放和配置迁移由原有所有者归还子凭证。查询不申请操作门，普通保存继续允许，配置应用提交仍校验目标变化。详见[操作完成验证](../test-records/2026-10-20-m06-operation-completion.md)。
+
+### M06 实际分层与持久化等待（2026-10-20）
+
+```text
+core/application/
+  commands/batch_targets.rs        固定范围、内容复核与按项观察阈值
+  commands/batch.rs                Start／Claim／Cancel／MarkUncertain／Complete
+  batch_service.rs                聚合协调与具体事件派发
+  events/batch.rs                  具体任务事实
+  event_handlers/batch_projection.rs 事件监听与有界投影
+  queries/batch.rs                 计数／条目／排队及执行耗时
+core/domain/
+  aggregates/batch.rs              状态、占位、取消和数量守恒
+  resources.rs                    多维额度校验
+  values.rs                       Arc已应用定义与独立Unit原始值
+infrastructure/
+  batch_lifecycle.rs               会话预览、真实执行器、安全重试
+  batch_runner.rs                  固定8线程、单活动任务、真实完成回收
+  operation_gates.rs               可验证能力凭证与回调占位
+  resources.rs                    唯一RAII令牌、配置暂存与运行准入
+  recording.rs                    固定4线程、每文件FIFO、字节上限、完成句柄
+  tcp_slave/worker.rs              固定协议线程内本地协作任务、最近可靠查询缓存
+  tcp_slave/journal.rs             自包含快照与逻辑可靠序号
+  tcp_master/mod.rs                每端点录制串行门，查询不持有磁盘等待锁
+workbench/src-tauri/commands/
+  batch.rs                        批量／资源IPC适配，不提供伪造Complete入口
+workbench/src/features/workspace/
+  BatchPanel.tsx                  范围、预览、结果、取消与重试
+  ResourcePanel.tsx               估计／预留／上限／RSS／录制积压
+```
+
+应用在同一目录锁内复核固定计划并准备释放；等待不占目录锁，提交时仍复核目标变化。普通保存可继续。配置仓储在复制暂存前预留，提交新目录时旧新占用并存计费。运行启动先预留，真实失败／停止后归还相应活动额度；停止保留值映射内存。任务比较暂存在真实全部结束或全未开始取消后归还，未确认项不提前归还。
+
+从站的每端点本地Future留在所属固定协议线程，不具有Send迁移能力；C句柄不会因await换线程。等待录制时同一线程继续其他端点；查询读取独立的最近可靠缓存，不访问借用中的C映射。对应文件可靠确认后才更新已确认值和序号，ResponsePrepared确认前不发响应。停机路径可以释放资源，不依赖往已满数据录制队列追加成功事实。
+
+主站所有者与wire观测使用每端点publish门序列化；实际磁盘等待时释放查询投影锁，避免并发事实跳号或无记录成功。连接与采集仍分开，控制不自动重发。只读导航接口不含点表和Unit值，完整模型／应用内容另行按需获取；这不是配置版本查询。
+
+## 模型到 Unit 单层覆盖（2026-10-22）
+
+`UnitConfig.overrides` 由 `pointOverrides`（稳定 PointId→字段补丁）、`addedPoints` 和 `removedPointIds` 组成。缺省覆盖等价空覆盖；字段缺省／null 继承，空字符串与 false 是显式值。默认初值只覆盖 `initialEngineering`，合成时复用精确编码计算 `initial`，不接受独立原始值补丁。没有模型父链、配置版本或 expectedRevision。
+
+`effective_model` 是核心有效定义入口。基础模型保存校验所有保存引用，包括禁用 Unit；删除被隐藏点同步清理隐藏标记，仍被字段补丁引用则拒绝。创建模型＋端点、回写模型＋清理源差异、提取独立模型＋重绑都通过工作区暂存与仓储提交，不允许半提交。`PromotionPlan` 保存一次操作所需的基础内容、源和引用配置基线，提交重新比较和计算，失效需重新预览；这不是可选历史版本。
+
+应用预览对每个 Unit 合成，再按完整有效内容相等性共享 `Arc<CollectionModel>`；相同 ModelId 不能作为映射共享条件。值始终按 Unit 独立。已应用 `UnitValues.model` 及运行 Snapshot 自包含，后续基础保存不修改既有快照。TCP／RTU 主从执行器沿用已应用定义；空有效点表可保存但不能运行。
+
+配置暂存计入命令内容，应用暂存按每个 Unit 的基础定义＋覆盖计数，保存目录按实际共享定义指针去重、独立值计费；预算与 RSS 分开报告。批量应用进入相同准入及端点停止门禁，固定计划保存覆盖内容用于复核。新增查询 `resolve_unit`、`preview_unit_promotion`、`capture_initials` 经统一适配层调用。捕获确认值限制选区、质量、映射一致性及取样期间配置竞态，主站不发送远端请求。
+
+前端 `UnitPointDraft` 复用 NovaSheet 和既有点表校验，按 Unit 保存历史与恢复标记；异步保存只确认提交时内容，新输入保持脏状态。基础变化需要显式重继承；回写前保护源和目标草稿。配置／运行分离，后者只读取已应用定义。有效表导出复用原模型编解码，不改变交换格式；M08 未来项目文件须保存引用和差异，旧读者不得静默忽略覆盖。
+
+操作说明与验证边界见[使用说明](../unit-model-overrides.md)、[实施记录](../test-records/2026-10-22-unit-model-overrides.md)。

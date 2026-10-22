@@ -316,3 +316,46 @@ sequenceDiagram
 ### RTU实际路径（2026-10-19）
 
 沿用上文MasterCommand → WorkspaceEngine → 所有者 → 传输适配 → 实际从站 → MasterFact／查询。RTU适配为`rtu_bridge::RtuConnection`，独占串口由透传线程RAII持有；TX生成的实际帧先可靠记录再准备写出，RX记录实际接收、CRC及短帧，迟到窗口数据明确discarded，不进入下一次成功结果。单Unit协议错误经有界排空继续其他目标，驱动故障才关闭通道并在采集意图存在时重开。诊断走Diagnose手动命令及相同有界队列，拒绝改变通信状态的子功能。
+
+
+RTU从站的实际执行链：SlaveCommand → 统一从站所有者 → 独占SerialPort → 接收与CRC／站号过滤 → 共享PDU业务校验 → libmodbus RtuResponder → RtuFrame(prepared) → 非阻塞驱动写出 → RtuFrame(driverWritten)。运行查询返回所有者真实点值，UI不直接修改映射；本地置数继续走ValuesIntent／ValuesCommitted。静默广播写也须经过权限与完整点校验；无效帧不进入映射。命令、应用／删除与串口释放使用既有端点操作门。
+
+### M06 已接入编排与实际完成（2026-10-20）
+
+```mermaid
+sequenceDiagram
+    participant UI as Dockview任务页
+    participant API as 统一客户端／Tauri
+    participant C as BatchCoordinator
+    participant R as 固定BatchRunner
+    participant S as BatchService／Task聚合
+    participant P as BatchProjectionListener
+    participant W as WorkspaceEngine／端点门
+    participant O as 固定协议所有者
+    participant D as 固定录制池
+    UI->>API: 固定范围预览／明确草稿处置
+    API->>C: prepare_batch
+    UI->>API: 确认开始
+    API->>C: start
+    C->>R: submit_reserved
+    R->>S: Start／Claim
+    S-->>P: Started／ItemStarted
+    R->>W: 申请凭证／复核本项
+    W->>O: 应用释放／启动／停止
+    O->>D: 提交本阶段事实
+    Note over O,D: 等待期间可查询；从站继续其他端点
+    D-->>O: 对应文件sync_data完成
+    O->>O: 依次执行动作、结果与响应屏障
+    O-->>R: 真实完成
+    R->>S: Complete
+    S-->>P: ItemCompleted
+    UI->>API: query_batch
+    API->>R: 有界只读结果
+    R-->>UI: 计数／原因／耗时
+    UI->>API: cancel_batch
+    API->>R: 只取消未领取项
+    R->>S: Cancel
+    S-->>P: Cancelled
+```
+
+查询推进观察超时会生成ItemUncertain，但完成句柄、执行槽和端点凭证仍保留；不能由页面直接提交Complete。真实动作完成才结算，成功项不因别项失败／取消回滚。关闭任务Tab只停止其轮询；主站待写草稿保留则跳过，明确丢弃才处理，配置草稿不自动保存。准确状态与容量边界见[交付报告](../test-records/2026-10-20-m06-delivery.md)。

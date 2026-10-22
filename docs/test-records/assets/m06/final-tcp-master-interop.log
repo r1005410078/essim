@@ -1,0 +1,1 @@
+{"pymodbus": "3.11.3", "units": 2, "pointsPerUnit": 16, "functionCodes": [1, 2, 3, 4, 5, 6, 15, 16], "wireFrames": 98, "requests": 50, "stopPollingNoBacklog": true, "reconnected": true, "recorded": true, "unitPauseIsolated": true}

@@ -1,0 +1,19 @@
+{
+  "build": "debug",
+  "bytesPerRecord": 512,
+  "independentMilliseconds": 9.617709,
+  "independentSyncs": 1,
+  "policy": {
+    "batchBytes": 65536,
+    "waitMs": 5,
+    "workers": 4
+  },
+  "records": 100,
+  "reliablePrefix": 100,
+  "scope": "isolated file microbenchmark; independent synthetic bytes, not protocol success; runtime causal stages cannot be batched ahead of actions",
+  "sequentialMilliseconds": 943.405291,
+  "sequentialP50Ms": 8.824166,
+  "sequentialP95Ms": 12.343708999999999,
+  "sequentialP99Ms": 29.021417,
+  "sequentialSyncs": 100
+}

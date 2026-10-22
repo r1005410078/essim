@@ -1,0 +1,16 @@
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.33s
+     Running tests/tcp_master.rs (target/debug/deps/tcp_master-4859ba3f39070a25)
+
+running 8 tests
+test workspace_master_checks_shared_batch_gate_and_keeps_query_available ... ok
+test recording_creation_failure_prevents_connect ... ok
+test reapply_preserves_only_compatible_cached_points_and_stays_disconnected ... ok
+test failed_read_of_same_point_preserves_success_value_and_time ... ok
+test read_failure_keeps_last_value_and_prevalidation_writes_nothing ... ok
+test cancellation_after_sent_write_keeps_confirmation_and_does_not_send_rest ... ok
+test read_write_readback_trace_and_quality ... ok
+test write_timeout_never_retries_and_skips_remaining ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+

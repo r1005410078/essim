@@ -1,0 +1,47 @@
+$ tauri build --debug --bundles app --config '{"productName":"ESSim M06 Final Check","identifier":"dev.essim.m06finalcheck","bundle":{"active":true}}'
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `pnpm build`
+$ tsc --noEmit && vite build
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2217 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.35 kB │ gzip:   0.26 kB
+dist/assets/index-_uv8u8pf.css     55.77 kB │ gzip:  12.09 kB
+dist/assets/App-CiAeS3mQ.css      140.96 kB │ gzip:  10.75 kB
+dist/assets/index-DVLEMD1z.js     224.85 kB │ gzip:  70.42 kB
+dist/assets/App-BaAK6A8M.js     1,600.65 kB │ gzip: 445.70 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.73s
+   Compiling objc2-exception-helper v0.1.1
+   Compiling objc2 v0.6.5
+   Compiling libmodbus-sys v0.1.0 (/Users/rongts/essim/crates/libmodbus/libmodbus-sys)
+   Compiling essim-workbench v0.1.0 (/Users/rongts/essim/workbench/src-tauri)
+   Compiling objc2-foundation v0.3.2
+   Compiling wry v0.57.0
+   Compiling block2 v0.6.2
+   Compiling objc2-core-foundation v0.3.2
+   Compiling dispatch2 v0.3.1
+   Compiling objc2-quartz-core v0.3.2
+   Compiling objc2-app-kit v0.3.2
+   Compiling objc2-web-kit v0.3.2
+   Compiling tao v0.37.1
+   Compiling window-vibrancy v0.8.1
+   Compiling muda v0.20.0
+   Compiling rfd v0.15.4
+   Compiling tauri-runtime v2.12.1
+   Compiling tauri-runtime-wry v2.12.1
+   Compiling tauri v2.12.3
+   Compiling libmodbus-rs v0.1.0 (/Users/rongts/essim/crates/libmodbus/libmodbus-rs)
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 38.95s
+       Built application at: /Users/rongts/essim/target/debug/essim-workbench
+    Bundling ESSim M06 Final Check.app (/Users/rongts/essim/target/debug/bundle/macos/ESSim M06 Final Check.app)
+    Finished 1 bundle at:
+        /Users/rongts/essim/target/debug/bundle/macos/ESSim M06 Final Check.app (53.11 MiB)
+

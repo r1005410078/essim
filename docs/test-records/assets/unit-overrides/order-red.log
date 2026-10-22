@@ -1,0 +1,24 @@
+   Compiling essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.21s
+     Running tests/unit_overrides.rs (target/debug/deps/unit_overrides-73686e5ace1d4d76)
+
+running 1 test
+test promoted_local_points_keep_saved_order_not_identity_sort_order ... FAILED
+
+failures:
+
+---- promoted_local_points_keep_saved_order_not_identity_sort_order stdout ----
+
+thread 'promoted_local_points_keep_saved_order_not_identity_sort_order' (1640631) panicked at crates/core/tests/unit_overrides.rs:464:160:
+assertion `left == right` failed
+  left: ["p", "a", "z"]
+ right: ["p", "z", "a"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    promoted_local_points_keep_saved_order_not_identity_sort_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p essim-core --test unit_overrides`

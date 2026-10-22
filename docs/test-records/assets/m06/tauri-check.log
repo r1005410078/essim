@@ -1,0 +1,4 @@
+    Checking essim-core v0.1.0 (/Users/rongts/essim/crates/core)
+    Checking essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Checking essim-workbench v0.1.0 (/Users/rongts/essim/workbench/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.39s
