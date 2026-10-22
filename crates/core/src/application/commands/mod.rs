@@ -22,6 +22,29 @@ pub struct Command {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Action {
+    /// 新模型与模拟器一次创建。
+    CreateEndpointWithModel {
+        /// 首个单元引用该模型的端点。
+        endpoint: EndpointConfig,
+        /// 新模型。
+        model: CollectionModel,
+    },
+    /// 将选定已保存差异回写模型。
+    PromoteOverrides {
+        /// 需重新核实的内容预览。
+        plan: overrides::PromotionPlan,
+    },
+    /// 展平有效配置为独立模型并重绑。
+    ExtractUnitModel {
+        /// 源端点。
+        endpoint: EndpointId,
+        /// 源单元。
+        unit: UnitId,
+        /// 新模型身份。
+        id: ModelId,
+        /// 新模型名称。
+        name: String,
+    },
     /// 复制当前已保存模型，生成独立模型与点身份。
     CopyModel {
         /// 源模型身份。
@@ -149,3 +172,15 @@ pub mod slave;
 
 /// TCP主站职责。
 pub mod master;
+
+/// 点位分组创建用例。
+pub mod partition;
+
+/// 批量生命周期任务契约。
+pub mod batch;
+
+/// 批量固定范围与内容复核。
+pub mod batch_targets;
+
+/// 模型到 Unit 覆盖事务与回写预览。
+pub mod overrides;

@@ -19,3 +19,6 @@ pub mod runtime;
 pub mod resource_release;
 /// 旧配置导入重导出门面。
 pub mod workspace;
+
+/// 批量任务用例协调。
+pub mod batch_service;

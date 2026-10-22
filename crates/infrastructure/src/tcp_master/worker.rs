@@ -11,8 +11,24 @@ use essim_core::{
     },
 };
 use std::sync::mpsc::Receiver;
-fn request_error(error:std::io::Error)->Error{
- if let Some(code)=libmodbus_rs::exception_code(&error){let label=match code{1=>"非法功能（远端不支持）",2=>"非法数据地址",3=>"非法数据值",4=>"设备故障",5=>"已接受但未完成",6=>"设备忙",8=>"存储奇偶校验错误",10=>"网关路径不可用",11=>"网关目标无响应",_=>"设备异常"};Error::new("MODBUS_EXCEPTION",format!("Modbus异常 {code}：{label}"))}else{failure(error)}
+fn request_error(error: std::io::Error) -> Error {
+    if let Some(code) = libmodbus_rs::exception_code(&error) {
+        let label = match code {
+            1 => "非法功能（远端不支持）",
+            2 => "非法数据地址",
+            3 => "非法数据值",
+            4 => "设备故障",
+            5 => "已接受但未完成",
+            6 => "设备忙",
+            8 => "存储奇偶校验错误",
+            10 => "网关路径不可用",
+            11 => "网关目标无响应",
+            _ => "设备异常",
+        };
+        Error::new("MODBUS_EXCEPTION", format!("Modbus异常 {code}：{label}"))
+    } else {
+        failure(error)
+    }
 }
 pub(super) fn validate(s: &MasterSnapshot) -> Result<(), Error> {
     s.endpoint.validate()?;
@@ -25,6 +41,7 @@ pub(super) fn validate(s: &MasterSnapshot) -> Result<(), Error> {
             .get(&u.id)
             .and_then(|v| v.model.as_ref())
             .ok_or_else(|| Error::new("NOT_APPLIED", "单元模型尚未应用"))?;
+        if model.points.is_empty(){return Err(Error::new("EMPTY_UNIT_MODEL","启用单元的有效点表为空，请补齐配置后应用"));}
         plan(model, &[], false)?;
     }
     Ok(())
@@ -45,6 +62,7 @@ struct Engine {
     disconnect: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
     root: std::path::PathBuf,
+    recording: crate::recording::RecordingPool,
 }
 impl Engine {
     fn state(&self, state: &str) {
@@ -149,7 +167,7 @@ impl Engine {
             .ok_or_else(|| Error::new("NOT_APPLIED", "请先应用主站"))?;
         if self.shared.lock().map_err(failure)?.journal.is_none() {
             let cache = self.shared.lock().map_err(failure)?.points.clone();
-            match super::journal::Journal::create(&self.root, s, &cache) {
+            match super::journal::Journal::create(&self.root, s, &cache, &self.recording) {
                 Ok(journal) => {
                     let mut p = self.shared.lock().map_err(failure)?;
                     p.view.record_path = Some(journal.path.clone());
@@ -186,7 +204,7 @@ impl Engine {
             }
         }
     }
-    fn unit_model(&self, id: &UnitId) -> Result<(u8, CollectionModel), Error> {
+    fn unit_model(&self, id: &UnitId) -> Result<(u8, Arc<CollectionModel>), Error> {
         let s = self
             .snapshot
             .as_ref()
@@ -560,6 +578,7 @@ pub(super) fn run(
     disconnect: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
     root: std::path::PathBuf,
+    recording: crate::recording::RecordingPool,
 ) {
     let mut e = Engine {
         shared,
@@ -572,6 +591,7 @@ pub(super) fn run(
         disconnect,
         shutdown,
         root,
+        recording,
     };
     while !e.shutdown.load(Ordering::Acquire) {
         let record_failed = e.shared.lock().map(|p| p.record_failed).unwrap_or(true);
@@ -580,6 +600,7 @@ pub(super) fn run(
             if let Ok(mut p) = e.shared.lock() {
                 p.view.polling = false;
                 p.view.state = "failed".into();
+                p.active_charge.take();
             }
         }
         let disconnecting = e.disconnect.swap(false, Ordering::AcqRel);
@@ -589,6 +610,7 @@ pub(super) fn run(
             if let Ok(mut p) = e.shared.lock() {
                 p.view.polling = false;
                 p.record_failed = false;
+                p.active_charge.take();
             }
             e.state("disconnected");
         }
@@ -597,6 +619,7 @@ pub(super) fn run(
                 p.view.polling = false;
             }
         }
+        super::release_completed(&e.shared);
         match rx.try_recv() {
             Ok(job) => {
                 if let Ok(mut p) = e.shared.lock() {
@@ -647,11 +670,32 @@ pub(super) fn run(
                 );
                 if let Ok(mut p) = e.shared.lock() {
                     p.view.busy = false;
+                    if disconnecting {
+                        p.disconnect_pending = false;
+                    }
+                    if let Some(charge) = job.memory_charge {
+                        charge.commit();
+                        p.memory_charge = Some(charge);
+                    }
+                    if let Some(charge) = job.active_charge {
+                        if e.connection.is_some() {
+                            charge.commit();
+                            p.active_charge = Some(charge);
+                        }
+                    }
                 }
+                drop(job.permit);
+                super::release_completed(&e.shared);
                 continue;
             }
             Err(mpsc::TryRecvError::Disconnected) => break,
             Err(_) => {}
+        }
+        if disconnecting {
+            if let Ok(mut p) = e.shared.lock() {
+                p.disconnect_pending = false;
+            }
+            super::release_completed(&e.shared);
         }
         e.quality();
         let polling = e.shared.lock().map(|p| p.view.polling).unwrap_or(false);
@@ -703,5 +747,8 @@ pub(super) fn run(
     if let Ok(mut p) = e.shared.lock() {
         p.view.polling = false;
         p.view.busy = false;
+        p.disconnect_pending = false;
+        p.active_charge.take();
     };
+    super::release_completed(&e.shared);
 }

@@ -5,6 +5,38 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ConfigurationFact {
+    /// 新模型和模拟器已原子创建。
+    EndpointModelCreated {
+        /// 端点身份。
+        endpoint:EndpointId,
+        /// 模型身份。
+        model:ModelId,
+    },
+    /// 单元选定覆盖已回写共享模型。
+    UnitOverridesPromoted {
+        /// 源端点。
+        endpoint:EndpointId,
+        /// 源单元。
+        unit:UnitId,
+        /// 目标模型。
+        model:ModelId,
+    },
+    /// 单元有效点表已另存并绑定独立模型。
+    UnitModelExtracted {
+        /// 源端点。
+        endpoint:EndpointId,
+        /// 源单元。
+        unit:UnitId,
+        /// 新模型。
+        model:ModelId,
+    },
+    /// 分组模型和端点已通过一次事务全部创建，尚未应用或启动。
+    PartitionCreated {
+        /// 本次创建身份。
+        batch: String,
+        /// 新端点身份。
+        endpoints: Vec<EndpointId>,
+    },
     /// 模型保存完成。
     ModelSaved {
         /// 模型身份。

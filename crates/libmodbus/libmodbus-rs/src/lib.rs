@@ -3,7 +3,7 @@
 //! SerialPort独占实际串口，句柄禁止跨线程，无C回调。
 mod responder;
 /// 完整TCP帧响应生成器。
-pub use responder::TcpResponder;
+pub use responder::{TcpResponder, RtuResponder};
 mod client;
 pub use client::{exception_code, ModbusClient};
 mod rtu;

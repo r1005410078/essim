@@ -76,8 +76,9 @@ pub(crate) fn find_model<'a>(
 pub(crate) fn validate_endpoint(catalog: &Catalog, endpoint: &EndpointConfig) -> Result<(), Error> {
     endpoint.validate()?;
     for unit in &endpoint.units {
-        find_model(catalog, &unit.model)
-            .map_err(|e| e.at_unit(&endpoint.id, Some(&unit.id), "model"))?;
+        effective_model(catalog, unit).map_err(|mut e| {
+            e.endpoint_id=Some(endpoint.id.0.clone()); e.unit_id=Some(unit.id.0.clone()); e
+        })?;
         if unit
             .device
             .as_ref()
@@ -106,4 +107,11 @@ pub(crate) fn validate_endpoint(catalog: &Catalog, endpoint: &EndpointConfig) ->
         }
     }
     Ok(())
+}
+
+/// 解析单元当前保存的有效配置，不读取运行快照。
+/// # Errors
+/// 模型缺失或覆盖合成非法。
+pub fn effective_model(catalog:&Catalog,unit:&crate::domain::endpoint::UnitConfig)->Result<CollectionModel,Error>{
+    unit.overrides.resolve(find_model(catalog,&unit.model)?)
 }

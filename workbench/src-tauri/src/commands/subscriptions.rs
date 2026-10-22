@@ -75,7 +75,7 @@ pub fn subscribe_workspace(
                 Err(_) => break,
             };
             if last != Some(sequence) {
-                let snapshot = match engine.query() {
+                let snapshot = match engine.query_navigation() {
                     Ok(snapshot) => snapshot,
                     Err(_) => break,
                 };

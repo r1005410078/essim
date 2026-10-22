@@ -50,6 +50,11 @@ pub(crate) fn save_endpoint(
             .find(|e| e.id == endpoint.id)
             .ok_or_else(|| Error::new("NOT_FOUND", "端点已不存在，不能保存旧草稿"))?;
         old.ensure_same_type(&endpoint)?;
+        for unit in &endpoint.units {
+            if old.units.iter().any(|u|u.id==unit.id && u.model!=unit.model) && !unit.overrides.is_empty(){
+                return Err(Error::new("OVERRIDES_REQUIRE_DISPOSITION","更换模型前请清除覆盖或另存独立模型").at_unit(&endpoint.id,Some(&unit.id),"model"));
+            }
+        }
         validate_endpoint(catalog, &endpoint)?;
         let id = endpoint.id.0.clone();
         let target = catalog.endpoints.iter_mut().find(|e| e.id.0 == id).unwrap();
@@ -96,6 +101,14 @@ pub(crate) fn copy_endpoint(
                 suffix = suffix
                     .checked_add(1)
                     .ok_or_else(|| Error::new("IDENTITY_EXHAUSTED", "身份耗尽"))?;
+            }
+        }
+        let mut used_points: std::collections::BTreeSet<_> = catalog.models.iter().flat_map(|m|m.points.iter().map(|p|p.id.clone()))
+            .chain(catalog.endpoints.iter().flat_map(|e|e.units.iter().flat_map(|u|u.overrides.added_points.iter().map(|p|p.id.clone())))).collect();
+        for unit in &mut copy.units {
+            for (index,point) in unit.overrides.added_points.iter_mut().enumerate(){
+                let mut suffix=0u64;
+                loop {let candidate=crate::domain::identity::PointId(format!("{}:point:{index}:{suffix}",unit.id.0));if used_points.insert(candidate.clone()){point.id=candidate;break;}suffix=suffix.checked_add(1).ok_or_else(||Error::new("IDENTITY_EXHAUSTED","点身份耗尽"))?;}
             }
         }
         validate_endpoint(catalog, &copy)?;

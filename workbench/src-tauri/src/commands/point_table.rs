@@ -156,3 +156,25 @@ async fn save_exchange(
     .await
     .map_err(|e| Error::new("FILE_WRITE", e.to_string()))?
 }
+
+/// 显式展平保存的 Unit 有效点表，不改变引用或覆盖。
+/// # Errors
+/// 引用缺失、覆盖非法、格式不支持、编码或文件写入失败。
+#[tauri::command]
+pub async fn export_unit_points(
+    endpoint: String,
+    unit: String,
+    format: String,
+    engine: State<'_, Engine>,
+) -> Result<bool, ErrorDto> {
+    let e = engine.inner().clone();
+    let model = tauri::async_runtime::spawn_blocking(move || {
+        e.saved_effective_model(
+            &essim_core::domain::identity::EndpointId(endpoint),
+            &essim_core::domain::identity::UnitId(unit),
+        )
+    })
+    .await
+    .map_err(|_| ErrorDto::new("EXPORT_FAILED", "有效点表读取失败"))??;
+    save_exchange(model, format).await
+}

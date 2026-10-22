@@ -1,7 +1,8 @@
 //! TCP／RTU主站共享适配器（保留既有模块路径）：独立连接所有者、有限手动队列和按需查询。
+use crate::operation_gates::OperationPermit;
 mod bridge;
-mod rtu_bridge;
 mod journal;
+mod rtu_bridge;
 mod worker;
 use essim_core::{
     application::{
@@ -39,12 +40,17 @@ pub struct MasterSnapshot {
     pub values: BTreeMap<UnitId, UnitValues>,
 }
 pub(super) struct Projection {
+    publish_gate: Arc<Mutex<()>>,
     view: MasterView,
     points: BTreeMap<UnitId, BTreeMap<PointId, MasterPoint>>,
     sequence: u64,
     journal: Option<journal::Journal>,
     record_failed: bool,
+    disconnect_pending: bool,
     snapshot: Option<MasterSnapshot>,
+    release_permit: Option<OperationPermit>,
+    memory_charge: Option<crate::resources::Reservation>,
+    active_charge: Option<crate::resources::Reservation>,
 }
 pub(super) type Shared = Arc<Mutex<Projection>>;
 pub(super) fn failure(e: impl std::fmt::Display) -> Error {
@@ -58,17 +64,37 @@ pub(super) fn now() -> String {
         .to_string()
 }
 pub(super) fn publish(shared: &Shared, fact: MasterFact) {
+    // 主站所有者与wire观测线程共享文件，按端点串行写；查询不持有此锁。
+    let gate = match shared.lock() {
+        Ok(p) => p.publish_gate.clone(),
+        Err(_) => return,
+    };
+    let Ok(_writer) = gate.lock() else {
+        if let Ok(mut p) = shared.lock() {
+            p.record_failed = true;
+        }
+        return;
+    };
+    let (sequence, unix_ms, mut journal) = {
+        let Ok(mut p) = shared.lock() else {
+            return;
+        };
+        if p.record_failed {
+            return;
+        }
+        (p.sequence + 1, now(), p.journal.take())
+    };
+    let result = if let Some(j) = &mut journal {
+        j.write(&serde_json::json!({"sequence":sequence.to_string(),"unixMs":unix_ms,"fact":fact}))
+    } else {
+        Ok(())
+    };
     if let Ok(mut p) = shared.lock() {
-        let sequence = p.sequence + 1;
-        let unix_ms = now();
-        if let Some(j) = &mut p.journal {
-            if let Err(e) = j.write(
-                &serde_json::json!({"sequence":sequence.to_string(),"unixMs":unix_ms,"fact":fact}),
-            ) {
-                p.record_failed = true;
-                p.view.error = Some(e.message);
-                return;
-            }
+        p.journal = journal;
+        if let Err(e) = result {
+            p.record_failed = true;
+            p.view.error = Some(e.message);
+            return;
         }
         p.sequence = sequence;
         p.view.revision = sequence.to_string();
@@ -85,8 +111,9 @@ pub(super) fn publish(shared: &Shared, fact: MasterFact) {
 
 fn empty(id: EndpointId) -> Projection {
     Projection {
+        publish_gate: Default::default(),
         view: MasterView {
-            diagnostic:None,
+            diagnostic: None,
             endpoint: id,
             state: "disconnected".into(),
             polling: false,
@@ -106,12 +133,19 @@ fn empty(id: EndpointId) -> Projection {
         sequence: 0,
         journal: None,
         record_failed: false,
+        disconnect_pending: false,
         snapshot: None,
+        release_permit: None,
+        memory_charge: None,
+        active_charge: None,
     }
 }
 pub(super) struct Job {
     command: MasterCommand,
     snapshot: Option<MasterSnapshot>,
+    permit: Option<OperationPermit>,
+    memory_charge: Option<crate::resources::Reservation>,
+    active_charge: Option<crate::resources::Reservation>,
 }
 struct Owner {
     tx: SyncSender<Job>,
@@ -123,15 +157,40 @@ struct Owner {
 }
 /// TCP／RTU合计最多32个独立主站所有者，每个手动命令队列容量1；查询不等待网络。
 pub struct TcpMasterRuntime {
+    recording: Result<crate::recording::RecordingPool, Error>,
+    resources: crate::resources::ResourceManager,
     owners: Mutex<BTreeMap<EndpointId, Owner>>,
     root: std::path::PathBuf,
 }
 impl TcpMasterRuntime {
     /// 指定可靠运行记录目录，连接前建立自包含快照。
     pub fn new(root: std::path::PathBuf) -> Self {
+        Self::with_resources(root, Default::default())
+    }
+    /// 共享会话资源账本，32主站所有者边界仍独立生效。
+    pub fn with_resources(
+        root: std::path::PathBuf,
+        resources: crate::resources::ResourceManager,
+    ) -> Self {
+        let recording = crate::recording::RecordingPool::new(resources.clone());
         Self {
+            recording,
+            resources,
             owners: Mutex::new(BTreeMap::new()),
             root,
+        }
+    }
+    /// 装配会话共享录制池，不增加每端点录制线程。
+    pub fn with_recording(
+        root: std::path::PathBuf,
+        resources: crate::resources::ResourceManager,
+        recording: crate::recording::RecordingPool,
+    ) -> Self {
+        Self {
+            root,
+            resources,
+            recording: Ok(recording),
+            owners: Default::default(),
         }
     }
     /// 提交已应用主站操作；立即返回执行投影，最终结果通过查询获取。
@@ -142,6 +201,14 @@ impl TcpMasterRuntime {
         command: MasterCommand,
         snapshot: Option<MasterSnapshot>,
     ) -> Result<MasterView, Error> {
+        self.execute_permitted(command, snapshot, None)
+    }
+    pub(crate) fn execute_permitted(
+        &self,
+        command: MasterCommand,
+        snapshot: Option<MasterSnapshot>,
+        parent: Option<&OperationPermit>,
+    ) -> Result<MasterView, Error> {
         if command.command_id.trim().is_empty()
             || serde_json::to_vec(&command).map_err(failure)?.len() > 8 * 1024 * 1024
         {
@@ -150,6 +217,28 @@ impl TcpMasterRuntime {
         if matches!(&command.action,MasterAction::Write{values,..} if values.len()>1024) {
             return Err(Error::new("BATCH_LIMIT", "单批主站下发最多1024个完整点"));
         }
+        let memory_charge = snapshot
+            .as_ref()
+            .map(|s| {
+                self.resources
+                    .reserve(essim_core::domain::resources::ResourceUsage {
+                        memory_bytes: crate::resources::serialized_size(s)?.saturating_mul(8),
+                        ..Default::default()
+                    })
+            })
+            .transpose()?;
+        let active_charge = if matches!(command.action, MasterAction::Connect) {
+            Some(
+                self.resources
+                    .reserve(essim_core::domain::resources::ResourceUsage {
+                        endpoints: 1,
+                        connections: 1,
+                        ..Default::default()
+                    })?,
+            )
+        } else {
+            None
+        };
         let id = command.endpoint.clone();
         let mut owners = self.owners.lock().map_err(failure)?;
         if !owners.contains_key(&id) {
@@ -172,6 +261,7 @@ impl TcpMasterRuntime {
             let shutdown = Arc::new(AtomicBool::new(false));
             let (tx, rx) = mpsc::sync_channel(1);
             let root = self.root.clone();
+            let recording = self.recording.clone()?;
             let (state, c, d, stop) = (
                 shared.clone(),
                 cancel.clone(),
@@ -180,7 +270,7 @@ impl TcpMasterRuntime {
             );
             let join = std::thread::Builder::new()
                 .name("modbus-master".into())
-                .spawn(move || worker::run(rx, state, c, d, stop, root))
+                .spawn(move || worker::run(rx, state, c, d, stop, root, recording))
                 .map_err(failure)?;
             owners.insert(
                 id.clone(),
@@ -204,7 +294,13 @@ impl TcpMasterRuntime {
             if matches!(command.action, MasterAction::Disconnect) {
                 owner.disconnect.store(true, Ordering::Release);
             }
-            owner.shared.lock().map_err(failure)?.view.polling = false;
+            {
+                let mut p = owner.shared.lock().map_err(failure)?;
+                p.view.polling = false;
+                if matches!(command.action, MasterAction::Disconnect) {
+                    p.disconnect_pending = true;
+                }
+            }
             return Ok(owner.shared.lock().map_err(failure)?.view.clone());
         }
         if let Some(s) = &snapshot {
@@ -214,7 +310,7 @@ impl TcpMasterRuntime {
             worker::validate(s)?;
         }
         let mut p = owner.shared.lock().map_err(failure)?;
-        if p.view.busy {
+        if p.view.busy || p.disconnect_pending {
             return Err(Error::new(
                 "MASTER_BUSY",
                 "当前连接已有手动操作，请等待结果",
@@ -226,7 +322,13 @@ impl TcpMasterRuntime {
         p.view.total = 0;
         owner.cancel.store(false, Ordering::Release);
         owner.disconnect.store(false, Ordering::Release);
-        if let Err(e) = owner.tx.try_send(Job { command, snapshot }) {
+        if let Err(e) = owner.tx.try_send(Job {
+            command,
+            snapshot,
+            permit: parent.map(OperationPermit::retain_callback).transpose()?,
+            memory_charge,
+            active_charge,
+        }) {
             p.view.busy = false;
             return Err(failure(e));
         }
@@ -245,6 +347,7 @@ impl TcpMasterRuntime {
         };
         let p = owner.shared.lock().map_err(failure)?;
         let mut view = p.view.clone();
+        view.busy |= p.disconnect_pending;
         if let Some(unit) = q.unit {
             if !q.points.is_empty() {
                 if p.view.busy && !p.points.contains_key(&unit) {
@@ -271,14 +374,27 @@ impl TcpMasterRuntime {
     /// # Errors
     /// 在最大连接／请求等待后仍不能确认释放时拒绝配置切换。
     pub fn disconnect_wait(&self, id: &EndpointId) -> Result<(), Error> {
+        self.disconnect_wait_permitted(id, None)
+    }
+    pub(crate) fn disconnect_wait_permitted(
+        &self,
+        id: &EndpointId,
+        parent: Option<&OperationPermit>,
+    ) -> Result<(), Error> {
         {
             let owners = self.owners.lock().map_err(failure)?;
             let Some(o) = owners.get(id) else {
                 return Ok(());
             };
+            let mut projection = o.shared.lock().map_err(failure)?;
+            if projection.release_permit.is_none() {
+                projection.release_permit =
+                    parent.map(OperationPermit::retain_callback).transpose()?;
+            }
+            projection.view.polling = false;
+            projection.disconnect_pending = true;
             o.cancel.store(true, Ordering::Release);
             o.disconnect.store(true, Ordering::Release);
-            o.shared.lock().map_err(failure)?.view.polling = false;
         }
         let until = Instant::now() + Duration::from_secs(65);
         loop {
@@ -341,27 +457,46 @@ impl TcpMasterRuntime {
     /// # Errors
     /// 快照无效、尚未断开或队列不可用。
     pub fn reconfigure(&self, snapshot: MasterSnapshot) -> Result<(), Error> {
+        self.reconfigure_permitted(snapshot, None)
+    }
+    pub(crate) fn reconfigure_permitted(
+        &self,
+        snapshot: MasterSnapshot,
+        parent: Option<&OperationPermit>,
+    ) -> Result<(), Error> {
         validate_snapshot(&snapshot)?;
         let owners = self.owners.lock().map_err(failure)?;
         let Some(o) = owners.get(&snapshot.endpoint.id) else {
             return Ok(());
         };
         let mut p = o.shared.lock().map_err(failure)?;
-        if p.view.busy || p.view.state != "disconnected" {
+        if p.view.busy || p.disconnect_pending || p.view.state != "disconnected" {
             return Err(Error::new("MASTER_BUSY", "配置替换前必须断开"));
         }
         o.cancel.store(false, Ordering::Release);
         o.disconnect.store(false, Ordering::Release);
+        let permit = parent.map(OperationPermit::retain_callback).transpose()?;
+        let memory_charge = Some(self.resources.reserve(
+            essim_core::domain::resources::ResourceUsage {
+                memory_bytes: crate::resources::serialized_size(&snapshot)?.saturating_mul(8),
+                ..Default::default()
+            },
+        )?);
         p.view.busy = true;
-        o.tx.try_send(Job {
+        if let Err(error) = o.tx.try_send(Job {
             command: MasterCommand {
                 command_id: "apply-master".into(),
                 endpoint: snapshot.endpoint.id.clone(),
                 action: MasterAction::Disconnect,
             },
             snapshot: Some(snapshot),
-        })
-        .map_err(failure)?;
+            permit,
+            memory_charge,
+            active_charge: None,
+        }) {
+            p.view.busy = false;
+            return Err(failure(error));
+        }
         Ok(())
     }
     /// 删除端点后释放所有者槽位；必须先确认断开。
@@ -402,4 +537,42 @@ impl Drop for TcpMasterRuntime {
 
 fn validate_snapshot(s: &MasterSnapshot) -> Result<(), Error> {
     worker::validate(s)
+}
+
+fn release_completed(shared: &Shared) {
+    let permit = shared.lock().ok().and_then(|mut p| {
+        if p.view.state == "disconnected" && !p.view.busy && !p.disconnect_pending {
+            p.release_permit.take()
+        } else {
+            None
+        }
+    });
+    drop(permit);
+}
+
+#[cfg(test)]
+mod release_gate_tests {
+    use super::*;
+    use crate::operation_gates::OperationGates;
+
+    #[test]
+    fn release_callback_keeps_gate_until_disconnected_and_idle() {
+        let gates = OperationGates::default();
+        let id = EndpointId("master".into());
+        let parent = gates.acquire(&id).unwrap();
+        let mut projection = empty(id.clone());
+        projection.view.state = "connected".into();
+        projection.view.busy = true;
+        projection.release_permit = Some(parent.retain_callback().unwrap());
+        let shared = Arc::new(Mutex::new(projection));
+        drop(parent);
+        release_completed(&shared);
+        assert_eq!(gates.acquire(&id).err().unwrap().code, "ENDPOINT_BUSY");
+        shared.lock().unwrap().view.state = "disconnected".into();
+        release_completed(&shared);
+        assert!(gates.acquire(&id).is_err());
+        shared.lock().unwrap().view.busy = false;
+        release_completed(&shared);
+        assert!(gates.acquire(&id).is_ok());
+    }
 }

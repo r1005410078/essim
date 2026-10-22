@@ -19,6 +19,9 @@ pub struct Navigation {
     pub folders: Vec<Folder>,
     /// 非根目录端点成员关系。
     pub members: BTreeMap<EndpointId, FolderId>,
+    /// 分组模型的会话文件夹归属，不改变模型引用。
+    #[serde(default, rename="modelMembers")]
+    pub model_members: BTreeMap<ModelId, FolderId>,
 }
 
 impl Navigation {
@@ -60,6 +63,7 @@ impl Navigation {
         }
         if self.folders.iter().any(|f| f.parent.as_ref() == Some(id))
             || self.members.values().any(|p| p == id)
+            || self.model_members.values().any(|p| p == id)
         {
             return Err(Error::new("FOLDER_NOT_EMPTY", "请先移出或删除文件夹内容"));
         }

@@ -6,7 +6,7 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 [workspace.dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 essim-core = { path = "crates/core" }
 essim-infrastructure = { path = "crates/infrastructure", default-features = false }
 libmodbus-src = { path = "crates/libmodbus/libmodbus-src" }

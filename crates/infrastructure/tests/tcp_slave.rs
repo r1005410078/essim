@@ -402,7 +402,7 @@ fn deleting_saved_configuration_also_releases_units_still_in_the_applied_snapsho
     let _ = std::fs::remove_dir_all(path);
 }
 #[test]
-fn empty_applied_model_can_stop_and_restart_without_invented_values() {
+fn empty_applied_model_is_saved_but_cannot_start() {
     let path = root();
     let engine = WorkspaceEngine::with_tcp_runtime(path.clone()).unwrap();
     let port = free_port();
@@ -425,10 +425,14 @@ fn empty_applied_model_can_stop_and_restart_without_invented_values() {
         })
         .unwrap();
     for _ in 0..2 {
-        run(&engine, "e", SlaveAction::Start { max_clients: 10 });
-        let mut client = socket(port);
-        assert_eq!(request(&mut client, 1, &[3, 0, 10, 0, 1]), [1, 0x83, 2]);
-        run(&engine, "e", SlaveAction::Stop);
+        let error = engine.execute_slave(SlaveCommand {
+            command_id: "empty-start".into(),
+            endpoint: EndpointId("e".into()),
+            action: SlaveAction::Start { max_clients: 10 },
+        }).unwrap_err();
+        assert_eq!(error.code, "EMPTY_UNIT_MODEL");
+        assert!(TcpListener::bind(("127.0.0.1", port)).is_ok());
+        assert!(engine.query().unwrap().catalog.values.values().all(|v| v.raw.is_empty()));
     }
     drop(engine);
     let _ = std::fs::remove_dir_all(path);
@@ -448,23 +452,353 @@ fn observations_match_reliable_records_and_socket_bytes() {
     // 等待发送确认投影，避免把收到响应与可靠记录完成混为同一时刻。
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
     let view = loop {
-        let view = engine.query_slave(SlaveQuery {endpoint: EndpointId("observed".into()),unit:None,points:vec![]}).unwrap();
-        if view.observations.iter().any(|row| row.event.contains("responseSent")) {break view;}
+        let view = engine
+            .query_slave(SlaveQuery {
+                endpoint: EndpointId("observed".into()),
+                unit: None,
+                points: vec![],
+            })
+            .unwrap();
+        if view
+            .observations
+            .iter()
+            .any(|row| row.event.contains("responseSent"))
+        {
+            break view;
+        }
         assert!(std::time::Instant::now() < deadline);
         std::thread::sleep(Duration::from_millis(5));
     };
-    let records: Vec<serde_json::Value> = std::fs::read_to_string(view.record_path.as_ref().unwrap()).unwrap().lines().map(|line|serde_json::from_str(line).unwrap()).collect();
+    let records: Vec<serde_json::Value> =
+        std::fs::read_to_string(view.record_path.as_ref().unwrap())
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
     for observation in &view.observations {
-        let record=records.iter().find(|r|r["sequence"]==observation.sequence).unwrap();
-        assert_eq!(record["unixMs"],observation.unix_ms);
-        assert_eq!(record["fact"],serde_json::from_str::<serde_json::Value>(&observation.event).unwrap());
+        let record = records
+            .iter()
+            .find(|r| r["sequence"] == observation.sequence)
+            .unwrap();
+        assert_eq!(record["unixMs"], observation.unix_ms);
+        assert_eq!(
+            record["fact"],
+            serde_json::from_str::<serde_json::Value>(&observation.event).unwrap()
+        );
     }
-    let bytes = |kind:&str| -> Vec<u8> { view.observations.iter().filter_map(|row|serde_json::from_str::<serde_json::Value>(&row.event).ok()).find(|fact|fact["kind"]==kind).unwrap()["bytes"].as_array().unwrap().iter().map(|v|v.as_u64().unwrap() as u8).collect() };
-    assert_eq!(bytes("request"),request);
-    let prepared=bytes("responsePrepared");
-    assert_eq!(prepared[..6], [0,42,0,0,0,response.len() as u8]);
-    assert_eq!(prepared[6..],response);
-    run(&engine,"observed",SlaveAction::Stop);
+    let bytes = |kind: &str| -> Vec<u8> {
+        view.observations
+            .iter()
+            .filter_map(|row| serde_json::from_str::<serde_json::Value>(&row.event).ok())
+            .find(|fact| fact["kind"] == kind)
+            .unwrap()["bytes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_u64().unwrap() as u8)
+            .collect()
+    };
+    assert_eq!(bytes("request"), request);
+    let prepared = bytes("responsePrepared");
+    assert_eq!(prepared[..6], [0, 42, 0, 0, 0, response.len() as u8]);
+    assert_eq!(prepared[6..], response);
+    run(&engine, "observed", SlaveAction::Stop);
     drop(engine);
     std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn pending_completion_reports_real_listener_start_stop_and_foreign_permit_is_rejected() {
+    use essim_infrastructure::{
+        operation_gates::OperationGates,
+        tcp_slave::{Snapshot, TcpSlaveRuntime},
+    };
+    let root = root();
+    let port = free_port();
+    let engine = WorkspaceEngine::default();
+    configure(&engine, "pending", port);
+    let catalog = engine.query().unwrap().catalog;
+    let runtime = TcpSlaveRuntime::new(root.clone()).unwrap();
+    let id = EndpointId("pending".into());
+    let mut completion = runtime
+        .execute_pending(
+            SlaveCommand {
+                command_id: "pending-start".into(),
+                endpoint: id.clone(),
+                action: SlaveAction::Start { max_clients: 2 },
+            },
+            Some(Snapshot {
+                endpoint: catalog.applied[0].clone(),
+                values: catalog.values,
+            }),
+        )
+        .unwrap();
+    let view = completion
+        .wait_timeout(Duration::from_secs(3))
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(view.state, SlaveState::Running);
+    assert!(TcpStream::connect(("127.0.0.1", port)).is_ok());
+    let foreign = OperationGates::default().acquire(&id).unwrap();
+    assert_eq!(
+        runtime
+            .execute_pending_permitted(
+                SlaveCommand {
+                    command_id: "wrong-owner".into(),
+                    endpoint: id.clone(),
+                    action: SlaveAction::Stop
+                },
+                None,
+                &foreign
+            )
+            .err()
+            .unwrap()
+            .code,
+        "OPERATION_PERMIT_MISMATCH"
+    );
+    let mut stop = runtime
+        .execute_pending(
+            SlaveCommand {
+                command_id: "pending-stop".into(),
+                endpoint: id,
+                action: SlaveAction::Stop,
+            },
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        stop.wait_timeout(Duration::from_secs(3))
+            .unwrap()
+            .unwrap()
+            .unwrap()
+            .state,
+        SlaveState::Stopped
+    );
+    assert!(TcpListener::bind(("127.0.0.1", port)).is_ok());
+    runtime.shutdown();
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn shared_batch_gate_rejects_manual_slave_commands_but_runtime_query_remains_available() {
+    let root = root();
+    let engine = WorkspaceEngine::with_tcp_runtime(root.clone()).unwrap();
+    configure(&engine, "gated", free_port());
+    let id = EndpointId("gated".into());
+    let permit = engine.operation_gates().acquire(&id).unwrap();
+    for action in [SlaveAction::Start { max_clients: 2 }, SlaveAction::Stop] {
+        assert_eq!(
+            engine
+                .execute_slave(SlaveCommand {
+                    command_id: "manual".into(),
+                    endpoint: id.clone(),
+                    action
+                })
+                .unwrap_err()
+                .code,
+            "ENDPOINT_BUSY"
+        );
+    }
+    assert!(engine
+        .query_slave(SlaveQuery {
+            endpoint: id.clone(),
+            unit: None,
+            points: vec![]
+        })
+        .is_ok());
+    assert!(engine.query().is_ok());
+    drop(permit);
+    let started = engine
+        .execute_slave(SlaveCommand {
+            command_id: "start-after-release".into(),
+            endpoint: id.clone(),
+            action: SlaveAction::Start { max_clients: 2 },
+        })
+        .unwrap();
+    assert_eq!(started.state, SlaveState::Running);
+    engine
+        .execute_slave(SlaveCommand {
+            command_id: "stop-after-release".into(),
+            endpoint: id,
+            action: SlaveAction::Stop,
+        })
+        .unwrap();
+    engine.shutdown_slave();
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn response_requires_its_own_durable_barrier_and_failed_sync_stops_only_affected_endpoint() {
+    use essim_infrastructure::{
+        operation_gates::OperationGates,
+        recording::{DurableSink, LazyFile, RecordingPool, SinkFactory},
+        resources::ResourceManager,
+    };
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Condvar, Mutex,
+    };
+    struct Control {
+        released: Mutex<bool>,
+        wake: Condvar,
+        entered: AtomicUsize,
+        files: AtomicUsize,
+        fail: bool,
+    }
+    struct Sink {
+        file: LazyFile,
+        last: Vec<u8>,
+        control: Arc<Control>,
+        target: bool,
+    }
+    impl Write for Sink {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            self.last.extend_from_slice(b);
+            self.file.write(b)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.file.flush()
+        }
+    }
+    impl DurableSink for Sink {
+        fn sync_data(&mut self) -> std::io::Result<()> {
+            let barrier =
+                self.target && String::from_utf8_lossy(&self.last).contains("responsePrepared");
+            self.last.clear();
+            if barrier {
+                self.control.entered.fetch_add(1, Ordering::SeqCst);
+                let mut r = self.control.released.lock().unwrap();
+                while !*r {
+                    r = self.control.wake.wait(r).unwrap();
+                }
+                if self.control.fail {
+                    return Err(std::io::Error::other("注入响应结果同步失败"));
+                }
+            }
+            self.file.sync_data()
+        }
+    }
+    struct Factory(Arc<Control>);
+    impl SinkFactory for Factory {
+        fn create(&self, path: PathBuf) -> Box<dyn DurableSink> {
+            Box::new(Sink {
+                file: LazyFile::new(path),
+                last: vec![],
+                control: self.0.clone(),
+                target: self.0.files.fetch_add(1, Ordering::SeqCst) == 0,
+            })
+        }
+    }
+    struct Release(Arc<Control>);
+    impl Drop for Release {
+        fn drop(&mut self) {
+            *self.0.released.lock().unwrap() = true;
+            self.0.wake.notify_all();
+        }
+    }
+    for fail in [false, true] {
+        let root = root();
+        let manager = ResourceManager::default();
+        let control = Arc::new(Control {
+            released: Mutex::new(false),
+            wake: Condvar::new(),
+            entered: AtomicUsize::new(0),
+            files: AtomicUsize::new(0),
+            fail,
+        });
+        let pool = RecordingPool::with_factory(manager.clone(), Arc::new(Factory(control.clone())))
+            .unwrap();
+        let engine = WorkspaceEngine::with_runtime_recording(
+            root.clone(),
+            OperationGates::default(),
+            manager,
+            pool,
+        )
+        .unwrap();
+        let release = Release(control.clone());
+        let port = free_port();
+        let other = free_port();
+        configure(&engine, "slow", port);
+        configure(&engine, "healthy", other);
+        run(&engine, "slow", SlaveAction::Start { max_clients: 10 });
+        run(&engine, "healthy", SlaveAction::Start { max_clients: 10 });
+        let mut peer = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        peer.set_read_timeout(Some(Duration::from_millis(40)))
+            .unwrap();
+        peer.write_all(&[0, 1, 0, 0, 0, 6, 1, 6, 0, 10, 0, 42])
+            .unwrap();
+        let until = std::time::Instant::now() + Duration::from_secs(3);
+        while control.entered.load(Ordering::SeqCst) == 0 {
+            assert!(std::time::Instant::now() < until);
+            std::thread::yield_now();
+        }
+        let waiting = engine
+            .query_slave(SlaveQuery {
+                endpoint: EndpointId("slow".into()),
+                unit: Some(UnitId("slow-u1".into())),
+                points: vec![PointId("h".into())],
+            })
+            .unwrap();
+        assert!(waiting.pending_recording);
+        assert_eq!(waiting.values[&PointId("h".into())], RawValue::Unsigned(7));
+        let mut reply = [0; 12];
+        assert!(peer.read(&mut reply).is_err(), "响应不得早于结果的可靠确认");
+        let mut health = TcpStream::connect(("127.0.0.1", other)).unwrap();
+        health
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        health
+            .write_all(&[0, 2, 0, 0, 0, 6, 1, 3, 0, 10, 0, 1])
+            .unwrap();
+        let mut ok = [0; 11];
+        health.read_exact(&mut ok).unwrap();
+        assert_eq!(&ok[9..], &[0, 7]);
+        let mut healthy_latencies = Vec::new();
+        for transaction in 3u16..23 {
+            let started = std::time::Instant::now();
+            let mut adu = vec![];
+            adu.extend(transaction.to_be_bytes());
+            adu.extend([0, 0, 0, 6, 1, 3, 0, 10, 0, 1]);
+            health.write_all(&adu).unwrap();
+            health.read_exact(&mut ok).unwrap();
+            assert_eq!(&ok[9..], &[0, 7]);
+            healthy_latencies.push(started.elapsed().as_micros() as u64);
+        }
+        healthy_latencies.sort();
+        println!(
+            "{}",
+            serde_json::json!({"fault":if fail {"response sync failure after controlled delay"}else{"slow response sync"},"healthyConcurrentRequests":21,"healthyLatencyP50Micros":healthy_latencies[9],"healthyLatencyP95Micros":healthy_latencies[18],"unconfirmedReplyBlocked":true,"queryReturnsLastReliableValue":true})
+        );
+
+        drop(release);
+        if fail {
+            assert_eq!(peer.read(&mut reply).unwrap(), 0);
+            let until = std::time::Instant::now() + Duration::from_secs(2);
+            loop {
+                let q = engine
+                    .query_slave(SlaveQuery {
+                        endpoint: EndpointId("slow".into()),
+                        unit: None,
+                        points: vec![],
+                    })
+                    .unwrap();
+                if q.state == SlaveState::Failed {
+                    assert!(q.uncertain);
+                    assert_eq!(q.last_reliable, waiting.last_reliable);
+                    break;
+                }
+                assert!(std::time::Instant::now() < until);
+            }
+        } else {
+            peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+            peer.read_exact(&mut reply).unwrap();
+            assert_eq!(reply, [0, 1, 0, 0, 0, 6, 1, 6, 0, 10, 0, 42]);
+        }
+        // 全局退出路径不依赖给失败的录制队列追加成功事实。
+        engine.shutdown_slave();
+        assert!(TcpListener::bind(("127.0.0.1", port)).is_ok());
+        assert!(TcpListener::bind(("127.0.0.1", other)).is_ok());
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

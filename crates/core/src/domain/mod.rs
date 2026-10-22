@@ -26,3 +26,9 @@ pub mod slave;
 
 /// TCP主站职责。
 pub mod master;
+
+/// 完整采集点分组规则。
+pub mod partition;
+
+/// 资源预算值对象。
+pub mod resources;

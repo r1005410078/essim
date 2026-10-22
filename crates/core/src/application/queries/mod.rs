@@ -22,3 +22,15 @@ pub mod slave;
 
 /// TCP主站职责。
 pub mod master;
+
+/// 点位分组摘要。
+pub mod partition;
+
+/// 批量生命周期任务契约。
+pub mod batch;
+
+/// 批量固定范围与内容复核。
+pub mod batch_plan;
+
+/// 从借用目录计算协议一致性，不复制点表或值。
+pub fn inspect_endpoint_matches(catalog:&crate::application::catalog::Catalog)->std::collections::BTreeMap<crate::domain::identity::EndpointId,std::collections::BTreeMap<crate::domain::identity::UnitId,bool>> {application_matches(catalog)}

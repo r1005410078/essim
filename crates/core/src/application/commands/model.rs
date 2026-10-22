@@ -71,6 +71,7 @@ pub(crate) fn delete_model(catalog: &mut Catalog, id: ModelId) -> Result<Handled
             ));
         }
         catalog.models.retain(|m| m.id != id);
+        catalog.navigation.model_members.remove(&id);
         id.0
     };
     Ok(Handled { object_id, fact })
@@ -81,6 +82,18 @@ pub(crate) fn save_model(catalog: &mut Catalog, model: CollectionModel) -> Resul
     };
     let object_id = {
         model.validate()?;
+        for endpoint in &catalog.endpoints {
+            for unit in endpoint.units.iter().filter(|u|u.model.id==model.id) {
+                let mut overrides=unit.overrides.clone();
+                overrides.removed_point_ids.retain(|id|model.points.iter().any(|p|&p.id==id));
+                overrides.resolve(&model).map_err(|mut e|{e.endpoint_id=Some(endpoint.id.0.clone());e.unit_id=Some(unit.id.0.clone());e})?;
+            }
+        }
+        for endpoint in &mut catalog.endpoints {
+            for unit in endpoint.units.iter_mut().filter(|u|u.model.id==model.id) {
+                unit.overrides.removed_point_ids.retain(|id|model.points.iter().any(|p|&p.id==id));
+            }
+        }
         let result = model.id.0.clone();
         if let Some(current) = catalog.models.iter_mut().find(|old| old.id == model.id) {
             *current = model;

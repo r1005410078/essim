@@ -83,22 +83,28 @@ impl UnitMapping {
     }
     pub fn values(&self) -> Result<UnitValues, Error> {
         Ok(UnitValues {
-            model: Some((*self.layout.model).clone()),
+            model: Some(self.layout.model.clone()),
             raw: self.raw_values()?,
             stale: false,
         })
     }
     /// 只检查支持的8个功能码；参数非法在调用C前拒绝，避免库的同步flush路径。
     pub fn check_request(&self, req: &[u8]) -> Result<(), Exception> {
-        let function = req[7];
+        self.check_pdu(&req[7..])
+    }
+    pub fn check_pdu(&self, req: &[u8]) -> Result<(), Exception> {
+        if req.is_empty() {
+            return Err(Exception::IllegalValue);
+        }
+        let function = req[0];
         if !matches!(function, 1..=6 | 15 | 16) {
             return Err(Exception::IllegalFunction);
         }
-        if req.len() < 12 {
+        if req.len() < 5 {
             return Err(Exception::IllegalValue);
         }
-        let address = u16::from_be_bytes([req[8], req[9]]);
-        let n = u16::from_be_bytes([req[10], req[11]]);
+        let address = u16::from_be_bytes([req[1], req[2]]);
+        let n = u16::from_be_bytes([req[3], req[4]]);
         let (area, count, write) = match function {
             1 => (0, n, false),
             2 => (1, n, false),
@@ -111,21 +117,21 @@ impl UnitMapping {
             _ => unreachable!(),
         };
         let valid = match function {
-            1 | 2 => req.len() == 12 && (1..=2000).contains(&n),
-            3 | 4 => req.len() == 12 && (1..=125).contains(&n),
-            5 => req.len() == 12 && (n == 0 || n == 0xff00),
-            6 => req.len() == 12,
+            1 | 2 => req.len() == 5 && (1..=2000).contains(&n),
+            3 | 4 => req.len() == 5 && (1..=125).contains(&n),
+            5 => req.len() == 5 && (n == 0 || n == 0xff00),
+            6 => req.len() == 5,
             15 => {
-                req.len() >= 13
+                req.len() >= 6
                     && (1..=1968).contains(&n)
-                    && usize::from(req[12]) == (usize::from(n) + 7) / 8
-                    && req.len() == 13 + usize::from(req[12])
+                    && usize::from(req[5]) == (usize::from(n) + 7) / 8
+                    && req.len() == 6 + usize::from(req[5])
             }
             16 => {
-                req.len() >= 13
+                req.len() >= 6
                     && (1..=123).contains(&n)
-                    && usize::from(req[12]) == usize::from(n) * 2
-                    && req.len() == 13 + usize::from(req[12])
+                    && usize::from(req[5]) == usize::from(n) * 2
+                    && req.len() == 6 + usize::from(req[5])
             }
             _ => false,
         };
@@ -142,9 +148,9 @@ impl UnitMapping {
                 5 => vec![u16::from(n != 0)],
                 6 => vec![n],
                 15 => (0..count)
-                    .map(|i| u16::from(req[13 + usize::from(i) / 8] & (1 << (i % 8)) != 0))
+                    .map(|i| u16::from(req[6 + usize::from(i) / 8] & (1 << (i % 8)) != 0))
                     .collect(),
-                16 => req[13..]
+                16 => req[6..]
                     .chunks_exact(2)
                     .map(|v| u16::from_be_bytes([v[0], v[1]]))
                     .collect(),

@@ -18,13 +18,28 @@ pub fn run() {
         .manage(ExitPermission::default())
         .setup(|app| {
             let record_root = app.path().app_data_dir()?.join("runs");
-            app.manage(Arc::new(WorkspaceEngine::with_tcp_runtime(record_root)?));
+            let engine=Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
+            app.manage(Arc::new(essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?));
+            app.manage(engine);
             Ok(())
         })
         .manage(commands::subscriptions::Subscriptions::default())
         .manage(commands::point_table::PointFileJobs::default())
         .invoke_handler(tauri::generate_handler![
+            commands::batch::preview_batch,
+            commands::batch::start_batch,
+            commands::batch::query_batch,
+            commands::batch::query_resources,
+            commands::batch::cancel_batch,
+            commands::batch::discard_batch,
+            commands::batch::retry_batch,
             commands::simulator::query_workspace,
+            commands::simulator::load_model,
+            commands::simulator::load_endpoint_values,
+            commands::serial::list_serial_ports,
+            commands::partition::preview_partition,
+            commands::partition::create_partition,
+            commands::partition::discard_partition,
             commands::master::execute_master,
             commands::master::query_master,
             commands::slave::execute_slave,
@@ -32,6 +47,10 @@ pub fn run() {
             commands::simulator::exit_workbench,
             commands::simulator::set_exit_guard_ready,
             commands::simulator::preview_apply,
+            commands::simulator::resolve_unit,
+            commands::simulator::preview_unit_promotion,
+            commands::simulator::capture_initials,
+            commands::point_table::export_unit_points,
             commands::simulator::inspect_endpoint,
             commands::simulator::execute_workspace,
             commands::point_table::preview_point_table,
@@ -47,6 +66,9 @@ pub fn run() {
         .expect("无法启动ESSim工作台")
         .run(|app, event| {
             if matches!(&event, tauri::RunEvent::Exit) {
+                let batches=app.state::<commands::batch::Batches>();
+                let _=batches.request_shutdown();
+                batches.wait_idle();
                 app.state::<Arc<WorkspaceEngine>>().shutdown_slave();
             }
             // macOS Cmd+Q不经过Window::CloseRequested，必须单独送至前端确认。

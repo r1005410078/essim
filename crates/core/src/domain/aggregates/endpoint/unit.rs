@@ -2,7 +2,7 @@
 use crate::domain::{identity::*, model::ModelRef};
 use serde::{Deserialize, Serialize};
 /// 端点聚合内的逻辑单元；无独立通信角色。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UnitConfig {
     /// 单元稳定身份。
     pub id: UnitId,
@@ -17,6 +17,9 @@ pub struct UnitConfig {
     pub enabled: bool,
     /// 模型身份。
     pub model: ModelRef,
+    /// 单层点表配置覆盖；旧配置缺省为完全继承。
+    #[serde(default)]
+    pub overrides: crate::domain::model::UnitOverrides,
     /// 可选设备关联。
     pub device: Option<DeviceId>,
 }

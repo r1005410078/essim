@@ -15,8 +15,8 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -197,11 +197,13 @@ fn write_timeout_never_retries_and_skips_remaining() {
         None,
     );
     let v = wait(&r, |v| !v.busy);
-    assert!(v.points[&PointId("p0".into())]
-        .write_result
-        .as_deref()
-        .unwrap()
-        .contains("不确定"));
+    assert!(
+        v.points[&PointId("p0".into())]
+            .write_result
+            .as_deref()
+            .unwrap()
+            .contains("不确定")
+    );
     assert_eq!(
         v.points[&PointId("p1".into())].write_result.as_deref(),
         Some("未执行")
@@ -303,12 +305,12 @@ fn reapply_preserves_only_compatible_cached_points_and_stays_disconnected() {
     wait(&r, |v| !v.busy);
     r.disconnect_wait(&EndpointId("e".into())).unwrap();
     let mut next = s;
-    next.values
+    Arc::make_mut(next.values
         .get_mut(&UnitId("u".into()))
         .unwrap()
         .model
         .as_mut()
-        .unwrap()
+        .unwrap())
         .points[1]
         .address = 3;
     r.reconfigure(next).unwrap();
@@ -372,4 +374,69 @@ fn failed_read_of_same_point_preserves_success_value_and_time() {
     assert!(after.error.is_some());
     r.shutdown();
     server.join().unwrap();
+}
+
+#[test]
+fn workspace_master_checks_shared_batch_gate_and_keeps_query_available() {
+    use essim_core::application::commands::{Action, Command};
+    use essim_infrastructure::workspace::WorkspaceEngine;
+    let root = std::env::temp_dir().join(format!(
+        "m06-master-gate-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let engine = WorkspaceEngine::with_tcp_runtime(root.clone()).unwrap();
+    let snapshot = snapshot(1502);
+    for action in [
+        Action::SaveModel {
+            model: snapshot.values[&UnitId("u".into())].model.as_deref().unwrap().clone(),
+        },
+        Action::CreateEndpoint {
+            endpoint: snapshot.endpoint,
+        },
+        Action::Apply {
+            id: EndpointId("e".into()),
+            reset_incompatible: false,
+        },
+    ] {
+        engine
+            .execute(Command {
+                command_id: "configure".into(),
+                action,
+            })
+            .unwrap();
+    }
+    let id = EndpointId("e".into());
+    let permit = engine.operation_gates().acquire(&id).unwrap();
+    for action in [MasterAction::Connect, MasterAction::Disconnect] {
+        assert_eq!(
+            engine
+                .execute_master(MasterCommand {
+                    command_id: "manual".into(),
+                    endpoint: id.clone(),
+                    action
+                })
+                .unwrap_err()
+                .code,
+            "ENDPOINT_BUSY"
+        );
+    }
+    assert_eq!(
+        engine
+            .query_master(MasterQuery {
+                endpoint: id,
+                unit: None,
+                points: vec![]
+            })
+            .unwrap()
+            .state,
+        "disconnected"
+    );
+    drop(permit);
+    engine.shutdown_slave();
+    if root.exists() {
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

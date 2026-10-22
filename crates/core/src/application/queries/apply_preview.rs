@@ -1,6 +1,6 @@
 //! 无副作用的完整配置应用与值迁移预览。
 use crate::{
-    application::catalog::{find_model, validate_endpoint, Catalog},
+    application::catalog::{effective_model, validate_endpoint, Catalog},
     domain::{
         endpoint::{EndpointConfig, Role},
         error::Error,
@@ -32,11 +32,12 @@ pub(crate) fn prepare_apply(
         .ok_or_else(|| Error::new("NOT_FOUND", "端点不存在"))?;
     validate_endpoint(catalog, &endpoint)?;
     let mut units = BTreeMap::new();
+    let mut models: Vec<std::sync::Arc<crate::domain::model::CollectionModel>> = Vec::new();
     for unit in &endpoint.units {
-        let next = find_model(catalog, &unit.model)?;
+        let next = effective_model(catalog, unit)?;
         let current = catalog.values.get(&unit.id).cloned().unwrap_or_default();
-        let old = current.model.as_ref();
-        let mut migration = migrate(old, &current, next, reset || endpoint.role == Role::Master)?;
+        let old = current.model.as_deref();
+        let mut migration = migrate(old, &current, &next, reset || endpoint.role == Role::Master)?;
         if endpoint.role == Role::Master {
             let same_source = catalog
                 .applied
@@ -63,6 +64,10 @@ pub(crate) fn prepare_apply(
             // 完整端点应用经过停止边界，保留的主站缓存也必须标记过期。
             migration.values.stale = true;
         }
+        let shared = models.iter().chain(catalog.values.values().filter_map(|v|v.model.as_ref()))
+            .find(|m|m.as_ref()==&next).cloned().unwrap_or_else(||std::sync::Arc::new(next));
+        models.push(shared.clone());
+        migration.values.model=Some(shared);
         units.insert(unit.id.clone(), migration);
     }
     Ok(ApplyPreview { endpoint, units })

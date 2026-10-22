@@ -8,6 +8,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SlaveFact {
+    /// 实际RTU字节及其完整性；发送准备不等于驱动写出或远端确认。
+    RtuFrame {
+        /// RX或TX。
+        direction: String,
+        /// 完整十六进制字节。
+        hex: String,
+        /// 软件是否取得完整帧。
+        complete: bool,
+        /// 观测CRC结果。
+        #[serde(rename = "crcValid")]
+        crc_valid: bool,
+        /// 非本站、广播查询或非法帧被忽略。
+        discarded: bool,
+        /// received、prepared或driverWritten。
+        stage: String,
+    },
     /// 监听已建立。
     Listening,
     /// 停止请求已接收。

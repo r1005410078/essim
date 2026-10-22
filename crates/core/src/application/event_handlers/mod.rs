@@ -2,3 +2,6 @@
 /// 工作区查询投影监听器。
 pub mod workspace_projection;
 pub use workspace_projection::WorkspaceProjectionListener;
+
+/// 批量任务轻量投影监听。
+pub mod batch_projection;

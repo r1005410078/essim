@@ -10,9 +10,11 @@ pub(crate) async fn exit_workbench(
     app: tauri::AppHandle,
     permission: State<'_, crate::ExitPermission>,
     engine: State<'_, Engine>,
+    batches: State<'_,super::batch::Batches>,
 ) -> Result<(), ErrorDto> {
+    let batches=batches.inner().clone();
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || engine.shutdown_slave())
+    tauri::async_runtime::spawn_blocking(move || {let _=batches.request_shutdown();batches.wait_idle();engine.shutdown_slave();})
         .await
         .map_err(|_| ErrorDto::new("SHUTDOWN_FAILED", "运行资源回收任务失败"))?;
     permission
@@ -33,7 +35,7 @@ pub(crate) fn set_exit_guard_ready(ready: bool, permission: State<'_, crate::Exi
 /// 状态锁故障时失败。
 #[tauri::command]
 pub fn query_workspace(engine: State<'_, Engine>) -> Result<WorkspaceView, ErrorDto> {
-    engine.query()
+    engine.query_navigation()
 }
 /// 执行强类型配置命令，校验权威配置，不接受前端伪造的应用状态。
 /// # Errors
@@ -69,4 +71,70 @@ pub fn inspect_endpoint(
     engine: State<'_, Engine>,
 ) -> Result<std::collections::BTreeMap<essim_core::domain::identity::UnitId, bool>, ErrorDto> {
     engine.inspect_endpoint(endpoint)
+}
+
+/// 按需读取完整保存模型。
+#[tauri::command]
+pub async fn load_model(id:String,engine:State<'_,Engine>)->Result<essim_core::domain::model::CollectionModel,ErrorDto>{let e=engine.inner().clone();tauri::async_runtime::spawn_blocking(move||e.load_model(&essim_core::domain::identity::ModelId(id))).await.map_err(|_|ErrorDto::new("MODEL_QUERY_FAILED","模型读取失败"))?}
+/// 按需读取目标端点已应用模型和值。
+#[tauri::command]
+pub async fn load_endpoint_values(id:String,engine:State<'_,Engine>)->Result<std::collections::BTreeMap<essim_core::domain::identity::UnitId,essim_core::domain::values::UnitValues>,ErrorDto>{let e=engine.inner().clone();tauri::async_runtime::spawn_blocking(move||e.load_endpoint_values(&essim_core::domain::identity::EndpointId(id))).await.map_err(|_|ErrorDto::new("ENDPOINT_QUERY_FAILED","端点读取失败"))?}
+
+/// 校验并解析单元覆盖草稿，不保存。
+/// # Errors
+/// 引用、覆盖校验、预算或后台任务失败。
+#[tauri::command]
+pub async fn resolve_unit(
+    unit: essim_core::domain::endpoint::UnitConfig,
+    engine: State<'_, Engine>,
+) -> Result<essim_core::domain::model::CollectionModel, ErrorDto> {
+    let e = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || e.resolve_unit(unit))
+        .await
+        .map_err(|_| ErrorDto::new("PREVIEW_FAILED", "有效配置查询失败"))?
+}
+/// 生成共享回写内容预览。
+/// # Errors
+/// 差异失效、字段依赖、共享引用冲突或预算不足。
+#[tauri::command]
+pub async fn preview_unit_promotion(
+    endpoint: String,
+    unit: String,
+    selection: essim_core::application::commands::overrides::OverrideSelection,
+    engine: State<'_, Engine>,
+) -> Result<essim_core::application::commands::overrides::PromotionPlan, ErrorDto> {
+    let e = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        e.preview_unit_promotion(
+            essim_core::domain::identity::EndpointId(endpoint),
+            essim_core::domain::identity::UnitId(unit),
+            selection,
+        )
+    })
+    .await
+    .map_err(|_| ErrorDto::new("PREVIEW_FAILED", "回写预览失败"))?
+}
+/// 固定所选点确认值为默认初值预览。
+/// # Errors
+/// 选区非法、映射不一致、确认值失效或配置在取样期间改变。
+#[tauri::command]
+pub async fn capture_initials(
+    endpoint: String,
+    unit: String,
+    points: Vec<String>,
+    engine: State<'_, Engine>,
+) -> Result<Vec<essim_infrastructure::unit_overrides::InitialSample>, ErrorDto> {
+    let e = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        e.capture_initials(
+            essim_core::domain::identity::EndpointId(endpoint),
+            essim_core::domain::identity::UnitId(unit),
+            points
+                .into_iter()
+                .map(essim_core::domain::identity::PointId)
+                .collect(),
+        )
+    })
+    .await
+    .map_err(|_| ErrorDto::new("CAPTURE_FAILED", "运行值捕获失败"))?
 }

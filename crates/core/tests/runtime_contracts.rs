@@ -203,7 +203,7 @@ fn replay_uses_fixed_snapshots_isolated_values_and_keeps_partial_intent() {
                 id: ModelId("m".into()),
                 name: "快照".into(),
                 points: vec![],
-            }),
+            }.into()),
             raw: BTreeMap::from([(point.clone(), RawValue::Unsigned(10))]),
             stale: false,
         },

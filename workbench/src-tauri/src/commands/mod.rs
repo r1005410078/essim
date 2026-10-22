@@ -13,3 +13,12 @@ pub mod slave;
 
 /// TCP主站IPC。
 pub mod master;
+
+/// 串口发现IPC。
+pub mod serial;
+
+/// 完整点位分组配置IPC。
+pub mod partition;
+
+/// 固定批量会话接口。
+pub mod batch;

@@ -83,7 +83,8 @@ fn fixture(
     };
     for station in 1..=3 {
         e.units.push(UnitConfig {
-            id: UnitId(format!("u{station}")),
+            overrides: Default::default(),
+id: UnitId(format!("u{station}")),
             name: format!("U{station}"),
         note: String::new(),
             station,

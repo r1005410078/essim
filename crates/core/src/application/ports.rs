@@ -4,6 +4,11 @@ use crate::domain::{endpoint::EndpointConfig, error::Error, identity::EndpointId
 use serde::{Deserialize, Serialize};
 /// 配置存储窄端口；提交必须原子成功或保持旧值。
 pub trait ConfigRepository {
+    /// 在复制事务目录前预留暂存；缺省实现不计费，基础设施可注入真实准入。
+    /// # Errors
+    /// 暂存预算不足时拒绝，尚未分配目录副本。
+    fn reserve_staging(&self) -> Result<Box<dyn Send>,Error> {Ok(Box::new(()))}
+
     /// 获取权威目录副本。
     fn load(&self) -> Catalog;
     /// 原子提交完整目录；不得在此持有协议资源。

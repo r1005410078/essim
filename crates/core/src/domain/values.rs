@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 #[serde(rename_all = "camelCase")]
 pub struct UnitValues {
     /// 实际应用的模型快照。
-    pub model: Option<CollectionModel>,
+    pub model: Option<std::sync::Arc<CollectionModel>>,
     /// 原始值，不随倍率变化重算。
     pub raw: BTreeMap<PointId, RawValue>,
     /// 主站上次结果是否过期。
@@ -51,7 +51,7 @@ pub fn migrate(
 ) -> Result<Migration, Error> {
     next.validate()?;
     let mut preview = Migration::default();
-    preview.values.model = Some(next.clone());
+    preview.values.model = Some(std::sync::Arc::new(next.clone()));
     preview.values.stale = current.stale;
     let previous_points: BTreeMap<_, _> = old
         .filter(|model| model.id == next.id)
@@ -115,7 +115,7 @@ pub fn migrate(
 /// 从站恢复已应用模型初值；主站仅清空缓存并标记过期，不能隐式向远端写入。
 pub fn reset_values(role: Role, model: &CollectionModel) -> UnitValues {
     UnitValues {
-        model: Some(model.clone()),
+        model: Some(std::sync::Arc::new(model.clone())),
         raw: if role == Role::Slave {
             model
                 .points

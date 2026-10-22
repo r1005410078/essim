@@ -1,5 +1,5 @@
 //! 自包含运行文件：每条确认经过sync_data，失败不降级为无录制继续运行。
-use super::{failure, mapping::UnitMapping};
+use super::mapping::UnitMapping;
 use essim_core::domain::{
     endpoint::EndpointConfig,
     identity::{PointId, UnitId},
@@ -10,15 +10,16 @@ use essim_core::{application::events::slave::SlaveFact, domain::error::Error};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{BufWriter, Write},
     path::Path,
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 static NEXT: AtomicU64 = AtomicU64::new(0);
 pub(super) struct Journal {
-    file: File,
+    stream: crate::recording::RecordStream,
+    chunks: u64,
+
+
     pub path: String,
     pub sequence: u64,
     pub unix_ms: String,
@@ -27,10 +28,11 @@ pub(super) struct Journal {
     pub fail_after: Option<u64>,
 }
 impl Journal {
-    pub fn create(
+    pub async fn create(
         root: &Path,
         endpoint: &EndpointConfig,
         mappings: &BTreeMap<u8, (UnitId, UnitMapping)>,
+        pool: &crate::recording::RecordingPool,
     ) -> Result<Self, Error> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -68,7 +70,6 @@ impl Journal {
             });
         }
 
-        fs::create_dir_all(root).map_err(failure)?;
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -85,13 +86,11 @@ impl Journal {
             models,
             units,
         };
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .map_err(failure)?;
         let mut journal = Self {
-            file,
+            stream: pool.open(path.clone())?,
+
+            chunks: 0,
+
             path: path.to_string_lossy().into_owned(),
             sequence: 0,
             unix_ms: String::new(),
@@ -99,27 +98,13 @@ impl Journal {
             #[cfg(test)]
             fail_after: None,
         };
-        journal.write(&snapshot)?;
-        // 同步目录项，避免仅同步文件内容却未可靠建立运行记录。
-        File::open(root)
-            .and_then(|dir| dir.sync_all())
-            .map_err(failure)?;
+        journal.write(&snapshot).await?;
         Ok(journal)
     }
-    fn write(&mut self, value: &impl Serialize) -> Result<(), Error> {
-        let result = (|| -> Result<(), Box<dyn std::error::Error>> {
-            let mut buffer = BufWriter::with_capacity(64 * 1024, &mut self.file);
-            serde_json::to_writer(&mut buffer, value)?;
-            buffer.write_all(b"\n")?;
-            buffer.flush()?;
-            Ok(())
-        })();
-        result.map_err(|e| Error::new("RECORDING_FAILED", format!("运行记录写入失败：{e}")))?;
-        self.file
-            .sync_data()
-            .map_err(|e| Error::new("RECORDING_FAILED", format!("运行记录同步失败：{e}")))
+    async fn write(&mut self, value: &impl Serialize) -> Result<(), Error> {
+        crate::recording::write_json_async(&self.stream, &mut self.chunks, value).await
     }
-    pub fn record(&mut self, command: Option<&str>, fact: &SlaveFact) -> Result<(), Error> {
+    pub async fn record(&mut self, command: Option<&str>, fact: &SlaveFact) -> Result<(), Error> {
         #[cfg(test)]
         if self.fail_after.is_some_and(|limit| self.sequence >= limit) {
             return Err(Error::new("RECORDING_FAILED", "注入可靠写入失败"));
@@ -148,7 +133,8 @@ impl Journal {
             unix_ms: unix_ms.clone(),
             command_id: command,
             fact,
-        })?;
+        })
+        .await?;
         self.sequence = next;
         self.unix_ms = unix_ms;
         Ok(())

@@ -18,7 +18,8 @@ fn endpoint(id: &str) -> EndpointConfig {
 }
 fn unit(id: &str, station: u8) -> UnitConfig {
     UnitConfig {
-        id: UnitId(id.into()),
+        overrides: Default::default(),
+id: UnitId(id.into()),
         name: id.into(),
         note: String::new(),
         station,
@@ -185,7 +186,7 @@ fn migration_keeps_raw_across_scale_and_address_changes_and_is_atomic() {
     let mut old = model(1);
     old.points = vec![point("keep"), point("removed")];
     let current = UnitValues {
-        model: Some(old.clone()),
+        model: Some(old.clone().into()),
         raw: [
             (PointId("keep".into()), RawValue::Unsigned(55)),
             (PointId("removed".into()), RawValue::Unsigned(22)),

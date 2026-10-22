@@ -34,12 +34,9 @@ pub fn inspect_endpoint(catalog: &Catalog, endpoint: &EndpointConfig) -> BTreeMa
                             && u.enabled == unit.enabled
                             && u.model == unit.model
                     })
-            }) && catalog
-                .models
-                .iter()
-                .find(|m| m.id == unit.model.id)
+            }) && crate::application::catalog::effective_model(catalog, unit).ok()
                 .zip(catalog.values.get(&unit.id).and_then(|v| v.model.as_ref()))
-                .is_some_and(|(a, b)| protocol_model_matches(a, b));
+                .is_some_and(|(a, b)| protocol_model_matches(&a, b));
             (unit.id.clone(), matches)
         })
         .collect();

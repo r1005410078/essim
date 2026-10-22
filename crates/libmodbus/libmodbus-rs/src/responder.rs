@@ -102,3 +102,111 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod rtu_tests {
+    use super::super::*;
+    fn frame(bytes: &[u8]) -> Vec<u8> {
+        let mut bytes = bytes.to_vec();
+        let crc = rtu_crc(&bytes);
+        bytes.extend(crc.to_le_bytes());
+        bytes
+    }
+    #[test]
+    fn rtu_response_crc_broadcast_and_diagnostic() {
+        let cfg = RtuConfig::new("/unused", 19200, 'N', 8, 2, 1, 50, 2).unwrap();
+        let mut responder = RtuResponder::new(&cfg).unwrap();
+        let mut map =
+            Mapping::new(None, None, Some(AddressRange::new(0, 1).unwrap()), None).unwrap();
+        map.set_holding(0, 7).unwrap();
+        let read = frame(&[1, 3, 0, 0, 0, 1]);
+        let response = responder.respond(&read, &mut map, None).unwrap();
+        assert_eq!(response, frame(&[1, 3, 2, 0, 7]));
+        let mut corrupt = read.clone();
+        corrupt[3] ^= 1;
+        assert!(responder.respond(&corrupt, &mut map, None).is_err());
+        assert!(responder.respond(&read[..4], &mut map, None).is_err());
+        assert!(responder
+            .respond(&frame(&[0, 6, 0, 0, 0, 9]), &mut map, None)
+            .unwrap()
+            .is_empty());
+        assert_eq!(map.holding(0).unwrap(), 9);
+        assert!(responder
+            .respond(&frame(&[0, 3, 0, 0, 0, 1]), &mut map, None)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            responder
+                .respond(&frame(&[1, 8, 0, 0, 0x12, 0x34]), &mut map, None)
+                .unwrap(),
+            frame(&[1, 8, 0, 0, 0x12, 0x34])
+        );
+        let id = responder.respond(&frame(&[1, 17]), &mut map, None).unwrap();
+        assert_eq!(&id[..5], &[1, 17, id[2], 0xb4, 0xff]);
+        assert_eq!(rtu_crc(&id), 0);
+        assert_eq!(
+            responder
+                .respond(&frame(&[1, 7]), &mut map, Some(Exception::IllegalFunction))
+                .unwrap(),
+            frame(&[1, 0x87, 1])
+        );
+    }
+}
+
+/// 在线程内用libmodbus生成RTU响应；真实串口由外层独立所有。
+/// 私有socket只承载单个至多256字节响应，不传入外部客户端描述符。
+pub struct RtuResponder {
+    context: super::RtuContext,
+    _input: UnixStream,
+    output: UnixStream,
+}
+impl RtuResponder {
+    /// 创建不打开串口的线程绑定响应上下文。
+    /// # Errors
+    /// socket创建、超时配置或C上下文分配失败。
+    pub fn new(config: &super::RtuConfig) -> io::Result<Self> {
+        let (input, output) = UnixStream::pair()?;
+        input.set_write_timeout(Some(Duration::from_secs(1)))?;
+        output.set_read_timeout(Some(Duration::from_secs(1)))?;
+        let context = super::RtuContext::channel(config, &input)?;
+        Ok(Self {
+            context,
+            _input: input,
+            output,
+        })
+    }
+    /// 校验完整RTU ADU并生成实际响应；广播只有基础写请求可执行且不应答。
+    /// `exception`来自调用者的业务权限校验；未知诊断必须由调用者显式拒绝。
+    /// # Errors
+    /// 长度或CRC错误、C响应失败或私有socket排空失败。
+    pub fn respond(
+        &mut self,
+        bytes: &[u8],
+        mapping: &mut Mapping,
+        exception: Option<Exception>,
+    ) -> io::Result<Vec<u8>> {
+        let request = super::RtuRequest::from_rtu_adu(bytes)?;
+        if request.is_broadcast() && (!matches!(bytes[1], 5 | 6 | 15 | 16) || exception.is_some()) {
+            return Ok(vec![]);
+        }
+        let n = if exception.is_none() && bytes[1] == 8 && bytes.len() == 8 && bytes[2..4] == [0, 0]
+        {
+            // SAFETY: context存活且独占，已校验ADU长度，原始请求去除末尾CRC；C补充CRC并写入私有socket。
+            super::checked(unsafe {
+                super::sys::modbus_send_raw_request(
+                    self.context.handle.as_ptr(),
+                    bytes.as_ptr(),
+                    (bytes.len() - 2) as i32,
+                )
+            })?
+        } else {
+            match exception {
+                Some(code) => self.context.reply_exception(&request, code)?,
+                None => self.context.reply(&request, mapping)?,
+            }
+        };
+        let mut response = vec![0; n];
+        self.output.read_exact(&mut response)?;
+        Ok(response)
+    }
+}

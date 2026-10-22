@@ -81,13 +81,28 @@ impl RtuConfig {
     }
 }
 
-/// 成功接收且检查结构的 RTU 请求；私有构造，不能用于 TCP 应答。
+/// 成功接收或校验构造的 RTU 请求；不能用于 TCP 应答。
 #[derive(Debug)]
 pub struct RtuRequest {
     bytes: [u8; RTU_MAX_ADU_LENGTH],
     length: usize,
 }
 impl RtuRequest {
+    /// 校验并复制完整RTU ADU；仅校验长度及CRC，业务PDU须由调用方检查。
+    /// # Errors
+    /// 长度不在4～256或CRC错误时返回InvalidInput。
+    pub fn from_rtu_adu(bytes: &[u8]) -> io::Result<Self> {
+        if !(4..=RTU_MAX_ADU_LENGTH).contains(&bytes.len()) || super::rtu_crc(bytes) != 0 {
+            return Err(invalid("非法RTU长度或CRC"));
+        }
+        let mut request = Self {
+            bytes: [0; RTU_MAX_ADU_LENGTH],
+            length: bytes.len(),
+        };
+        request.bytes[..bytes.len()].copy_from_slice(bytes);
+        Ok(request)
+    }
+
     /// 返回实际接收的 ADU，包含站号、PDU 和 CRC。
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes[..self.length]
@@ -260,7 +275,7 @@ impl RtuContext {
     /// # Errors
     /// C 应答或串口非阻塞写入失败时返回错误，不自动重试或无限等待。
     pub fn reply(&mut self, req: &RtuRequest, mapping: &mut Mapping) -> io::Result<usize> {
-        // SAFETY: 私有构造请求已检查协议与结构；context 和映射均存活且独占借用。
+        // SAFETY: 请求底层数组完整初始化；调用方已校验PDU结构，context和映射存活且独占借用。
         checked(unsafe {
             sys::modbus_reply(
                 self.handle.as_ptr(),

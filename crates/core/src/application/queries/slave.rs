@@ -49,6 +49,9 @@ pub struct SlaveObservation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SlaveView {
+    /// 正在等待当前文件可靠确认，查询返回最近可靠值。
+    #[serde(default)]
+    pub pending_recording: bool,
     /// 端点身份。
     pub endpoint: EndpointId,
     /// 运行状态。

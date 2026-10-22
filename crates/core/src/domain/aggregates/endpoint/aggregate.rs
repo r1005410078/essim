@@ -4,7 +4,7 @@ use crate::domain::{error::Error, identity::*};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 /// 通信配置聚合，统一校验下属单元站号。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EndpointConfig {
     /// 端点身份。

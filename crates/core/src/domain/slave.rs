@@ -34,6 +34,12 @@ impl ModelLayout {
     /// # Errors
     /// 模型非法、地址重叠或越界时拒绝。
     pub fn new(model: CollectionModel) -> Result<Self, Error> {
+        Self::shared(Arc::new(model))
+    }
+    /// 编译共享的已应用模型，不深复制点定义。
+    /// # Errors
+    /// 模型地址或定义非法。
+    pub fn shared(model: Arc<CollectionModel>) -> Result<Self, Error> {
         model.validate()?;
         let mut addresses: [BTreeMap<u16, usize>; 4] = Default::default();
         let mut points = BTreeMap::new();
@@ -44,7 +50,7 @@ impl ModelLayout {
             }
         }
         Ok(Self {
-            model: Arc::new(model),
+            model,
             addresses,
             points,
         })

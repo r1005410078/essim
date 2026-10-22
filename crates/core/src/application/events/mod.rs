@@ -13,3 +13,6 @@ pub mod slave;
 
 /// TCP主站职责。
 pub mod master;
+
+/// 批量生命周期任务契约。
+pub mod batch;

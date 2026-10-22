@@ -8,3 +8,7 @@ pub mod reference;
 pub use aggregate::{protocol_model_matches, CollectionModel};
 pub use point::{Area, PointDefinition, Telemetry};
 pub use reference::ModelRef;
+
+/// 单层实例覆盖与字段选择。
+pub mod overrides;
+pub use overrides::{OverrideField, PointOverride, UnitOverrides};

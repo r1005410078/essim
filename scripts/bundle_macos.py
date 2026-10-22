@@ -42,6 +42,7 @@ def main():
     if destination.exists():
         shutil.rmtree(destination)
     shutil.copytree(source,destination,symlinks=True)
+    shutil.copytree(ROOT/'docs/licenses/serialport', destination/'Contents/Resources/third-party/serialport', dirs_exist_ok=True)
     info = plistlib.loads((destination/'Contents/Info.plist').read_bytes())
     binary = destination/'Contents/MacOS'/info['CFBundleExecutable']
     links_modbus = 'libmodbus' in subprocess.check_output(['otool', '-L', str(binary)], text=True)

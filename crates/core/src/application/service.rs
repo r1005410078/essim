@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 pub struct ReleasePlan {
     command: Command,
     authority: Catalog,
+    _staging: Box<dyn Send>,
     endpoint: EndpointConfig,
 }
 impl ReleasePlan {
@@ -56,6 +57,10 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             projection: Projection::new(catalog),
         }
     }
+    /// 借用当前目录用于有界查询和准入估计，不深复制模型或点值。
+    pub fn catalog_ref(&self) -> &Catalog {
+        self.projection.query_catalog()
+    }
     /// 查询投影，不读取远端寄存器。
     pub fn query(&self) -> WorkspaceView {
         let mut view = self.projection.query();
@@ -70,13 +75,105 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
     /// # Errors
     /// 模型非法或存在未确认的不兼容类型时拒绝。
     pub fn preview_apply(&self, id: &EndpointId, reset: bool) -> Result<ApplyPreview, Error> {
-        prepare_apply(&self.repository.load(), id, reset)
+        prepare_apply(self.projection.query_catalog(), id, reset)
     }
     /// 执行最小配置命令，校验后原子提交。
     /// # Errors
     /// 失效引用、非法配置、迁移失败或未接入能力时拒绝；失败不提交、不发布事件。
     pub fn execute(&mut self, command: Command) -> Result<(Receipt, ConfigEvent), Error> {
         self.execute_inner(command, false)
+    }
+    /// 按身份借用已保存模型，不深复制工作区或运行值。
+    /// # Errors
+    /// 模型身份不存在。
+    pub fn saved_model(
+        &self,
+        id: &crate::domain::identity::ModelId,
+    ) -> Result<&crate::domain::model::CollectionModel, Error> {
+        self.projection
+            .query_catalog()
+            .models
+            .iter()
+            .find(|m| &m.id == id)
+            .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "源模型不存在"))
+    }
+    /// 固定批量端点范围及相关定义，不复制完整目录和运行值。
+    /// # Errors
+    /// 身份、范围、并发或目标数量非法。
+    pub fn prepare_batch(
+        &self,
+        id: String,
+        operation: crate::domain::aggregates::batch::BatchOperation,
+        scope: super::commands::batch_targets::BatchScope,
+        concurrency: usize,
+    ) -> Result<super::commands::batch_targets::BatchPlan, Error> {
+        super::commands::batch_targets::prepare_batch(
+            self.projection.query_catalog(),
+            id,
+            operation,
+            scope,
+            concurrency,
+        )
+    }
+    /// 取得端点操作门后复核固定目标；不会重新扩大任务范围。
+    /// # Errors
+    /// 目标已删除、超出清单或相关定义已改变。
+    pub fn revalidate_batch(
+        &self,
+        plan: &super::commands::batch_targets::BatchPlan,
+        id: &EndpointId,
+    ) -> Result<(), Error> {
+        plan.revalidate(self.projection.query_catalog(), id)
+    }
+    /// 规划点位分组，不复制无关端点的运行值。
+    /// # Errors
+    /// 输入、源模型、目录或分配冲突时拒绝。
+    pub fn prepare_partition(
+        &self,
+        request: super::commands::partition::PartitionRequest,
+    ) -> Result<super::commands::partition::PartitionPlan, Error> {
+        super::commands::partition::prepare_partition(self.projection.query_catalog(), request)
+    }
+    /// 在同一目录事务中创建全部分组；仓储失败不发布成功事实。
+    /// # Errors
+    /// 原内容变化、冲突或仓储提交失败；原目录保持不变。
+    pub fn commit_partition(
+        &mut self,
+        plan: super::commands::partition::PartitionPlan,
+        command_id: String,
+    ) -> Result<(Receipt, ConfigEvent), Error> {
+        if command_id.trim().is_empty() {
+            return Err(Error::new("INVALID_COMMAND", "命令身份不能为空"));
+        }
+        let batch = plan.request().batch_id.clone();
+        let _staging = self.repository.reserve_staging()?;
+        let mut catalog = self.repository.load();
+        let endpoints = super::commands::partition::commit_partition(&mut catalog, plan)?;
+        let sequence = self
+            .sequence
+            .checked_add(1)
+            .ok_or_else(|| Error::new("SEQUENCE_OVERFLOW", "通知序号耗尽"))?;
+        self.repository.commit(catalog.clone())?;
+        let event = ConfigEvent {
+            schema: 1,
+            fact: super::events::ConfigurationFact::PartitionCreated {
+                batch: batch.clone(),
+                endpoints,
+            },
+            sequence,
+            command_id,
+            object_id: batch.clone(),
+            catalog,
+        };
+        self.sequence = sequence;
+        WorkspaceProjectionListener::handle(&mut self.projection, &event)?;
+        Ok((
+            Receipt {
+                object_id: batch,
+                sequence,
+            },
+            event,
+        ))
     }
     /// 释放前读取与纯校验；返回后可释放目录锁，等待外部边界。
     /// # Errors
@@ -85,6 +182,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
         if command.command_id.trim().is_empty() {
             return Err(Error::new("INVALID_COMMAND", "命令身份不能为空"));
         }
+        let _staging = self.repository.reserve_staging()?;
         let authority = self.repository.load();
         let endpoint = match &command.action {
             Action::Apply {
@@ -103,6 +201,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             .insert(endpoint.id.clone(), ApplyState::Releasing);
         Ok(ReleasePlan {
             command,
+            _staging,
             authority,
             endpoint,
         })
@@ -147,6 +246,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
     pub fn finish_release(&mut self, plan: ReleasePlan) -> Result<(Receipt, ConfigEvent), Error> {
         self.application_states
             .insert(plan.endpoint.id.clone(), ApplyState::Stopped);
+        let _staging = self.repository.reserve_staging()?;
         let current = self.repository.load();
         if release_scope(&current, &plan.endpoint.id)
             != release_scope(&plan.authority, &plan.endpoint.id)
@@ -167,6 +267,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
         if command.command_id.trim().is_empty() {
             return Err(Error::new("INVALID_COMMAND", "命令身份不能为空"));
         }
+        let _staging = self.repository.reserve_staging()?;
         let mut catalog = self.repository.load();
         let mut observed_catalog = None;
         let mut lifecycle_context = lifecycle::LifecycleContext {
@@ -177,6 +278,9 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             released,
         };
         let result = match command.action {
+            Action::CreateEndpointWithModel{endpoint,model}=>super::commands::overrides::create(&mut catalog,endpoint,model),
+            Action::PromoteOverrides{plan}=>super::commands::overrides::promote(&mut catalog,plan),
+            Action::ExtractUnitModel{endpoint,unit,id,name}=>super::commands::overrides::extract(&mut catalog,endpoint,unit,id,name),
             Action::CopyModel { source, id, name } => {
                 model::copy_model(&mut catalog, source, id, name)
             }
@@ -282,6 +386,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
         id: &EndpointId,
         values: BTreeMap<crate::domain::identity::UnitId, crate::domain::values::UnitValues>,
     ) -> Result<(), Error> {
+        let _staging = self.repository.reserve_staging()?;
         let mut catalog = self.repository.load();
         let endpoint = catalog
             .applied

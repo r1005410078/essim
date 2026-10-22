@@ -7,3 +7,6 @@ pub mod endpoint;
 pub mod model;
 /// 独立会话导航。
 pub mod navigation;
+
+/// 批量生命周期任务与未确认占位。
+pub mod batch;

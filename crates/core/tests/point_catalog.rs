@@ -97,7 +97,8 @@ fn old_applied_reference_survives_new_saved_configuration() {
             port: 1502,
         },
         units: vec![UnitConfig {
-            id: UnitId("u".into()),
+            overrides: Default::default(),
+id: UnitId("u".into()),
             name: "U".into(),
             note: String::new(),
             station: 1,
@@ -150,7 +151,8 @@ fn deletion_rechecks_references_created_after_a_read_only_preview() {
             port: 1502,
         },
         units: vec![UnitConfig {
-            id: UnitId("new-u".into()),
+            overrides: Default::default(),
+id: UnitId("new-u".into()),
             name: "U".into(),
             note: String::new(),
             station: 1,
@@ -192,7 +194,8 @@ fn overwrite_keeps_applied_snapshot_until_explicit_apply() {
             port: 1502,
         },
         units: vec![UnitConfig {
-            id: UnitId("u".into()),
+            overrides: Default::default(),
+id: UnitId("u".into()),
             name: "U".into(),
             note: String::new(),
             station: 1,
@@ -243,7 +246,7 @@ fn overwrite_keeps_applied_snapshot_until_explicit_apply() {
     .unwrap();
     assert_eq!(
         w.query().catalog.values[&UnitId("u".into())].model,
-        Some(changed)
+        Some(changed.into())
     );
     let serialized = serde_json::to_value(&w.query().catalog).unwrap();
     assert!(serialized["endpoints"][0].get("revision").is_none());
