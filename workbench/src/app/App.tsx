@@ -1,3 +1,14 @@
+import { UnitSelector } from "../features/workspace/UnitSelector";
+import { ToolbarIcon } from "../features/workspace/ToolbarIcon";
+import {UnitPointEditor,CaptureInitialsDialog} from "../features/workspace/UnitPointEditor";
+import {ModelPicker} from "../features/workspace/ModelPicker";
+import {overrideCount,emptyOverrides} from "../features/workspace/unitOverrides";
+import { PropertyPanel, PropertyGroup, PropertyRow as Property, PropertyActions, PropertyIconButton, PropertyHint, PropertyScope } from "@essim/ui/components/property-panel";
+import {ResourcePanel} from "../features/workspace/ResourcePanel";
+import { createPortal } from "react-dom";
+import {BatchPanel} from "../features/workspace/BatchPanel";
+import { PartitionDialog } from "../features/workspace/PartitionDialog";
+import { SerialPortPicker } from "../features/workspace/SerialPortPicker";
 import {ResourceDocument} from "../features/resources/ResourceDocument";
 import {resources} from "../features/resources/catalog";
 import {Button} from "@essim/ui/components/button";
@@ -16,6 +27,7 @@ import { ApplyModelDialog } from "../features/workspace/ApplyModelDialog";
 import {
   createContext,
   useContext,
+  useId,
   useEffect,
   useMemo,
   useRef,
@@ -32,7 +44,7 @@ import {
   type IDockviewPanelHeaderProps,
   type IDockviewHeaderActionsProps,
 } from "dockview-react";
-import { FileTree, useFileTree } from "@pierre/trees/react";
+import { NavigationTabs, NavigationTree, navigationLabels, navigationSections } from "../features/workspace/ProjectNavigation";
 import {
   Tooltip,
   TooltipContent,
@@ -41,19 +53,16 @@ import {
 } from "@essim/ui/components/tooltip";
 import {
   Plus,
+  SlidersHorizontal,
+  Activity,
   Save,
   Play,
   Check,
   MoreHorizontal,
   Table2,
   Server,
-  Box,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  Menu,
-  Search,
-  ListFilter,
   FolderOpen,
   X,
   CircleCheck,
@@ -76,6 +85,7 @@ import {
   projectNavigation,
   documentPosition,
   type Target,
+  type NavigationSection,
 } from "../features/workspace/model";
 import {
   SheetViews,
@@ -96,6 +106,7 @@ import {
 type DialogKind = "model" | "endpoint" | "device" | null;
 interface WorkbenchContext {
   store: WorkspaceStore;
+  openTool:(tool:"batch"|"resources")=>void;
   sheets: SheetViews;
   open: (target: Target) => void;
   selected: Target | null;
@@ -152,7 +163,9 @@ function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
 }
 function ProjectPanel() {
-  const { store, open, dialog, removedModel, removedEndpoint } = useWorkbench();
+  const { store, open, dialog, removedModel, removedEndpoint, openTool } = useWorkbench();
+  const navigationId = useId();
+  const [section, setSection] = useState<NavigationSection>("simulators");
   const originalCatalog = store.view?.catalog;
   const draftResourceKey = JSON.stringify(
     [...store.modelDrafts.values()].map((d) => [d.id, d.name, d.persisted]),
@@ -179,6 +192,7 @@ function ProjectPanel() {
         : undefined,
     [originalCatalog, draftResourceKey],
   );
+  const [partitioning,setPartitioning]=useState(false);
   const [navigationAction,setNavigationAction]=useState<NavigationRequest|null>(null);
   const [importing, setImporting] = useState(false);
   const [appendImport, setAppendImport] = useState<string | null>(null);
@@ -189,38 +203,27 @@ function ProjectPanel() {
   const [rootMenu, setRootMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
-  const input = useMemo(
-    () =>
-      projectNavigation(catalog),
+  const inputs = useMemo(
+    () => ({
+      simulators: projectNavigation(catalog, "simulators"),
+      resources: projectNavigation(catalog, "resources"),
+    }),
     [catalog],
   );
-  const current = useRef({ input, open });
-  current.current = { input, open };
-  const { model } = useFileTree({
-    paths: [],
-    initialExpansion: "open",
-    flattenEmptyDirectories: false,
-    density: "default",
-    itemHeight: 30,
-    search: false,
-    renaming: false,
-    dragAndDrop: false,
-    composition: { contextMenu: { enabled: true, triggerMode: "both" } },
-    onSelectionChange: (paths) => {
-      const target = current.current.input.targets.get(paths.at(-1) ?? "");
-      if (target) current.current.open(target);
-    },
-    unsafeCSS:
-      ":host { color-scheme: light; --trees-bg-override:#fff; --trees-fg-override:#27334b; --trees-font-size-override:13px; --trees-selected-bg-override:#e7eef4; --trees-selected-focused-border-color-override:transparent; --trees-accent-override:#126bff; --trees-indent-guide-bg-override:transparent; }",
-  });
-  useEffect(() => {
-    model.resetPaths(input.paths);
-  }, [model, input]);
+  const newItems = section === "simulators" ? [
+    { label: "模拟器…", disabled: !store.view || store.busy, action: () => dialog("endpoint") },
+    { label: "模拟器文件夹…", disabled: !store.view || store.busy, action: () => setNavigationAction({ kind: "newFolder" }) },
+    { label: "按采集点分组创建…", disabled: !store.view?.catalog.models.length || store.busy, action: () => setPartitioning(true) },
+  ] : [
+    { label: "采集模型…", disabled: !store.view || store.busy, action: () => dialog("model") },
+    { label: "设备…", disabled: !store.view || store.busy, action: () => dialog("device") },
+    { label: "导入新模型…", disabled: !store.view || store.busy, action: () => setImporting(true) },
+  ];
   return (
     <div
       className="panel column navigation-panel"
       tabIndex={0}
-      aria-label="资源导航面板"
+      aria-label="项目导航面板"
       onContextMenu={(event) => {
         if (!event.defaultPrevented) {
           event.preventDefault();
@@ -239,27 +242,32 @@ function ProjectPanel() {
         }
       }}
     >
-      <div className="tree-tabs navigation-heading"><strong>项目</strong><span className="spacer"/>
-        <ActionMenu label="新建" items={[
-          {label:"模拟器…",disabled:!store.view||store.busy,action:()=>dialog("endpoint")},
-          {label:"采集模型…",disabled:!store.view||store.busy,action:()=>dialog("model")},
-          {label:"设备…",disabled:!store.view||store.busy,action:()=>dialog("device")},
-          {label:"模拟器文件夹…",disabled:!store.view||store.busy,action:()=>setNavigationAction({kind:"newFolder"})},
-          {label:"导入新模型…",disabled:!store.view||store.busy,action:()=>setImporting(true)}
-        ]}><Plus size={14}/>新建</ActionMenu>
+      <div className="navigation-heading">
+        <NavigationTabs id={navigationId} section={section} onChange={value => { setSection(value); setRootMenu(null); }} />
+        <div className="navigation-actions">
+          <ActionMenu label={`新建${navigationLabels[section]}`} items={newItems}><Plus size={14}/></ActionMenu>
+          <ActionMenu label="更多导航操作" items={[
+            { label: "批量任务", action: () => openTool("batch") },
+            { label: "运行资源", action: () => openTool("resources") },
+          ]}><MoreHorizontal size={14}/></ActionMenu>
+        </div>
       </div>
+      {navigationSections.map(treeSection => {
+        const input = inputs[treeSection];
+        return <div key={treeSection} role="tabpanel" className="navigation-tree-panel"
+          id={`${navigationId}-${treeSection}-panel`} aria-labelledby={`${navigationId}-${treeSection}-tab`}
+          hidden={section !== treeSection}>
       {input.paths.length ? (
-        <FileTree
-          model={model}
-          style={{ flex: 1, minHeight: 0 }}
+        <NavigationTree input={input} catalog={catalog} section={treeSection} open={open}
           renderContextMenu={(item, context) => {
             const target = input.targets.get(String(item.path));
-            const section=String(item.path).startsWith("文档资源/")?"documents":String(item.path).startsWith("模拟器/")?"simulators":"resources";
+            const section=treeSection === "resources" && String(item.path).split("/")[0] === "文档资源"?"documents":treeSection;
             const act = (action: () => void) => {
               context.close({ restoreFocus: false });
               action();
             };
-            return (
+            // 菜单脱离Dockview的裁切／层叠上下文，保留树组件识别门户所需的标记。
+            return createPortal(
               <div
                 role="menu"
                 className="tree-context-menu"
@@ -368,18 +376,22 @@ function ProjectPanel() {
                     ))}
                   </>
                 )}
-              </div>
+              </div>,
+              document.body,
             );
           }}
         />
       ) : (
         <Empty>
-          {store.view ? "尚无配置，请点击上方新建。" : "等待连接 Rust 核心。"}
+          {store.view ? "尚无模拟器，点击上方 ＋ 新建。" : "等待连接 Rust 核心。"}
         </Empty>
       )}
+        </div>;
+      })}
+      {partitioning&&<PartitionDialog store={store} close={()=>setPartitioning(false)}/>}
       {navigationAction && <NavigationDialog store={store} request={navigationAction} close={()=>setNavigationAction(null)} open={open} removed={removedEndpoint} />}
-      <div className="navigation-note">本次会话 · 退出后不保留配置和目录</div>
-      {rootMenu && (
+      <div className="navigation-note">会话配置 · 退出后不保留</div>
+      {rootMenu && createPortal(
         <div
           className="tree-menu-backdrop"
           onPointerDown={() => setRootMenu(null)}
@@ -390,26 +402,11 @@ function ProjectPanel() {
             style={{ left: rootMenu.x, top: rootMenu.y }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <button
-              role="menuitem"
-              onClick={() => {
-                setRootMenu(null);
-                dialog("model");
-              }}
-            >
-              新建采集模型
-            </button>
-            <button
-              role="menuitem"
-              onClick={() => {
-                setRootMenu(null);
-                setImporting(true);
-              }}
-            >
-              导入新模型…
-            </button>
+            {newItems.map(item => <button key={item.label} role="menuitem" disabled={item.disabled}
+              onClick={() => { setRootMenu(null); item.action(); }}>{item.label}</button>)}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       {importing && (
         <ImportPoints
@@ -444,7 +441,7 @@ function Welcome() {
     <Empty>
       <Table2 size={30} />
       <h2>Modbus 工作台</h2>
-      <p>创建采集模型，再创建模拟器并添加单元。</p>
+      <p>创建模拟器时选择模型，或输入名称新建并绑定。</p>
       <div className="welcome-actions">
         <button
           disabled={!store.view || store.busy}
@@ -459,7 +456,7 @@ function Welcome() {
           新建模拟器
         </button>
       </div>
-      <p>TCP 从站及 TCP／RTU 主站可在端点运行栏运行并查看真实通信；RTU从站及回放待接入。</p>
+      <p>TCP／RTU 主从站可在端点运行栏运行并查看真实通信。</p>
     </Empty>
   );
 }
@@ -622,6 +619,10 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
     if(!values){const next={...previous};delete next[id];return next;}
     return {...previous,[id]:values};
   });
+  const mode=store.endpointModes.get(params.id)??"configuration";
+  const [capture,setCapture]=useState<string[]|null>(null);
+  const selectionReaders=useRef(new Map<string,()=>string[]>());
+  const [captureError,setCaptureError]=useState("");
   const [applying, setApplying] = useState(false);
   const [resetting,setResetting]=useState(false);
   const [visited, setVisited] = useState<string[]>([]);
@@ -652,22 +653,29 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
     store.categories.set(key, next);
     store.changed();
   };
+  const selector=<UnitSelector units={endpoint.units} value={unit?.id??""} onChange={id=>{store.flushUnitEditors.get(key)?.();store.selectUnit(endpoint.id,id);}}/>;
+  const application=<><ToolbarIcon label="应用配置" disabled={store.busy||!saved||store.endpointDirty(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/></ToolbarIcon>
+    <span className={`configuration-badge ${store.endpointDirty(endpoint.id)?"pending":""}`}>{store.endpointDirty(endpoint.id)?"未保存":isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)?"已应用":applied?"待应用":"未应用"}</span></>;
+  const viewTabs=<div className="unit-view-tabs" role="tablist" aria-label="单元视图">{([['configuration','配置',SlidersHorizontal],['runtime','运行',Activity]] as const).map(([value,label,Icon])=><ToolbarIcon key={value} label={`${label}视图`} role="tab" aria-selected={mode===value} onClick={()=>{store.flushUnitEditors.get(key)?.();store.endpointModes.set(endpoint.id,value);store.changed();}}><Icon size={15}/></ToolbarIcon>)}</div>;
+  const address=<span className="point-toolbar-address" title={endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}>{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</span>;
+  const saveEndpoint={label:"保存端点配置",disabled:store.busy||!store.endpointDirty(endpoint.id),action:()=>attempt(store.saveEndpointDraft(endpoint.id))};
   return (
     <div className="panel column">
-      <div className="toolbar document-actions">
-        <Button size="sm" variant="ghost" data-save-document={`endpoint:${endpoint.id}`} disabled={store.busy||!store.drafts.has(endpoint.id)} onClick={()=>attempt(store.execute({kind:"saveEndpoint",endpoint}))}><Save size={15}/>保存配置</Button>
-        <Button size="sm" variant="outline" disabled={store.busy||!saved||store.drafts.has(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/>应用配置</Button>
-        <span className={`configuration-badge ${store.drafts.has(endpoint.id)?"pending":""}`}>{store.drafts.has(endpoint.id)?"未保存":isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)?"已应用":applied?"待应用":"未应用"}</span>
-        <span className="spacer"/>
-        {endpoint.transport.kind!=="tcp"&&endpoint.role!=="master"&&<span className="run-status">{applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}</span>}
-        {endpoint.transport.kind!=="tcp"&&endpoint.role!=="master"&&<ActionMenu label="运行值" disabled={!unit||!store.view?.catalog.values[unit.id]||store.busy} items={[{label:"恢复当前 Unit 初值…",action:()=>setResetting(true)}]}/>}
-      </div>
-      <SlaveRuntimeControls visible={visible} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
+      {(mode!=="configuration"||!unit)&&<div className="toolbar document-actions compact-point-toolbar">{selector}<i className="toolbar-divider"/>
+        <ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}
+        <span className="point-toolbar-model">{model?.name??"未绑定模型"}</span><span className="spacer"/>{address}{viewTabs}
+      </div>}
+      <div style={{display:mode==="runtime"?"contents":"none"}}>
+      <SlaveRuntimeControls visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model} category={category}
         readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onValues={updateLiveValues}/>
-      <MasterRuntimeControls visible={visible} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
+      <MasterRuntimeControls visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model}
         readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onPoints={updateMasterPoints}/>
+      </div>
+      {mode==="runtime"&&unit&&<div className="toolbar"><button onClick={()=>{try{setCaptureError("");const ids=selectionReaders.current.get(`${key}:${category}`)?.()??[];if(!ids.length)throw Error("请在运行表中选择需要捕获的点");const actual=store.view?.catalog.values[unit.id]?.model;if(!actual)throw Error("请先应用配置");const pending=endpoint.role==="master"?sheets.pendingMaster(unit.id,actual):sheets.pending(unit.id,actual);if(pending.some(p=>ids.includes(p.point.id)))throw Error("所选点含未提交运行草稿，请先处理");setCapture(ids);}catch(e){setCaptureError(errorMessage(e));}}}>将所选确认值设为默认初始值</button></div>}
+      {captureError&&<div className="error panel-note" role="alert">{captureError}</div>}
+      {capture&&unit&&<CaptureInitialsDialog store={store} endpoint={endpoint.id} unit={unit.id} points={capture} close={()=>setCapture(null)}/>}
       {resetting && unit && <ConfirmAction title={`恢复 ${unit.name} 初值`} message={endpoint.role === "slave" ? "仅恢复选定Unit已应用模型的初值，不应用未保存或待应用修改。" : "仅清空选定Unit本地缓存并标记过期，不向远端写入。"} close={()=>setResetting(false)} submit={()=>store.execute({kind:"resetUnit",id:endpoint.id,unit:unit.id})} />}
       {applying && (
         <ApplyModelDialog
@@ -678,22 +686,11 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
           close={() => setApplying(false)}
         />
       )}
-      <div className="model-strip runtime-context">
-        <span>
-          <EnumSelect label="运行单元" value={unit?.id??""} onChange={id=>store.selectUnit(endpoint.id,id)} options={unit?endpoint.units.map(item=>[item.id,`Unit ${item.station} · ${item.name}`] as const):[["","未添加单元"]]}/>
-        </span>
-        <span className="muted">{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</span>
-        <span className="spacer" />
-        <span>
-          {model
-            ? model.name
-            : "请在属性栏添加单元并选择模型"}
-        </span>
-      </div>
       {unit && store.modelDrafts.get(unit.model.id)?.dirty && (
         <div className="panel-note">引用模型有未保存修改，请先保存模型；当前显示已保存点表。</div>
       )}
-      <div className="sheet-area">
+      {mode==="configuration"&&unit&&<div className="sheet-area unit-configuration"><UnitPointEditor store={store} endpoint={endpoint.id} unit={unit.id} toolbar={{start:<>{selector}<i className="toolbar-divider"/></>,afterSave:application,context:address,end:<><i className="toolbar-divider"/>{viewTabs}</>,menu:[saveEndpoint]}}/></div>}
+      <div className="sheet-area" style={{display:mode==="runtime"?undefined:"none"}}>
         {!unit ? (
           <Empty>在右侧属性栏添加 Unit，并引用一个已保存的采集模型。</Empty>
         ) : (
@@ -702,12 +699,12 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
               const viewUnit = endpoint.units.find((item) => item.id === id);
               if (!viewUnit) return null;
               const { model: resolvedModel, values: resolvedValues } = resolveUnitSheet(
-                store.view?.catalog, endpoint, viewUnit, store.drafts.has(endpoint.id) ? {[endpoint.id]:store.draftMatches.get(endpoint.id) ?? store.view?.applicationMatches?.[endpoint.id] ?? {}} : store.view?.applicationMatches,
+                store.view?.catalog, endpoint, viewUnit, store.endpointDirty(endpoint.id) ? {[endpoint.id]:store.draftMatches.get(endpoint.id) ?? store.view?.applicationMatches?.[endpoint.id] ?? {}} : store.view?.applicationMatches,
               );
               const appliedValues=store.view?.catalog.values[id];
               const hasLive=liveValues[id]!==undefined;
-              const viewModel=hasLive?(appliedValues?.model??resolvedModel):resolvedModel;
-              const viewValues=hasLive?{model:viewModel??null,raw:liveValues[id]!,stale:false}:resolvedValues;
+              const viewModel=appliedValues?.model??resolvedModel;
+              const viewValues=hasLive?{model:viewModel??null,raw:liveValues[id]!,stale:false}:appliedValues??resolvedValues;
               return categories.map(([value, label]) => (
                 <div
                   key={`${id}:${value}`}
@@ -718,6 +715,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
                   }}
                 >
                   <RuntimeGrid
+                    onSelectionReader={read=>{const identity=`${id}:${value}`;if(read)selectionReaders.current.set(identity,read);else selectionReaders.current.delete(identity);}}
                     onPoint={point=>{if(id!==key||value!==category)return;if(point)store.runtimePoint.set(id,point);else store.runtimePoint.delete(id);store.changed();}}
                     onReader={read=>{const identity=`${id}:${value}`;if(read)runtimeReaders.current.set(identity,read);else runtimeReaders.current.delete(identity);}}
                     data={sheets.get(
@@ -738,7 +736,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
           </>
         )}
       </div>
-      <div className="category-tabs" role="tablist" aria-label="四遥分类">
+      <div className="category-tabs" role="tablist" aria-label="四遥分类" style={{display:mode==="runtime"?undefined:"none"}}>
         <button
           aria-label="上一分类"
           onClick={() =>
@@ -826,7 +824,7 @@ function CloseDraftDialog({
         <button
           disabled={busy}
           onClick={() => {
-            if(endpointId) store.drafts.delete(endpointId);
+            if(endpointId) store.discardEndpoint(endpointId);
             const d = endpointId ? undefined : store.modelDrafts.get(modelId);
             if (d && !d.persisted) store.modelDrafts.delete(modelId);
             else d?.discard();
@@ -843,9 +841,9 @@ function CloseDraftDialog({
             try {
               if(endpointId) {
                 const endpoint=store.endpoint(endpointId); if(!endpoint) throw Error("模拟器不存在");
-                await store.execute({kind:"saveEndpoint",endpoint});
+                await store.saveEndpointDraft(endpointId);
               } else await store.saveModelDraft(modelId);
-              if (endpointId ? store.drafts.has(endpointId) : store.modelDrafts.get(modelId)?.dirty) {
+              if (endpointId ? store.endpointDirty(endpointId) : store.modelDrafts.get(modelId)?.dirty) {
                 setError("保存期间又有新修改，请再次保存或取消。");
                 return;
               }
@@ -880,24 +878,11 @@ function ExitDialog({ cancel }: { cancel: () => void }) {
   );
 }
 
-const PropertySearch = createContext("");
-function Property({ label, children, field }: { label: string; children: ReactNode; field?: string }) {
-  const search = useContext(PropertySearch);
-  if (search && !label.toLowerCase().includes(search.toLowerCase()))
-    return null;
-  return (
-    <label className="property" data-config-field={field}>
-      <span>{label}</span>
-      <div>{children}</div>
-    </label>
-  );
-}
 function InspectorPanel() {
   const { store, selected, open } = useWorkbench();
   const [search, setSearch] = useState("");
   const [scope,setScope]=useState("unit");
-  const searchInput = useRef<HTMLInputElement>(null);
-  const inspector=useRef<HTMLDivElement>(null);
+  const inspector=useRef<HTMLElement>(null);
   const endpoint =
     selected?.kind === "endpoint" ? store.endpoint(selected.id) : undefined;
   const unit = currentUnit(store, endpoint);
@@ -955,7 +940,7 @@ function InspectorPanel() {
   };
   if(selected?.kind==="resource"){
     const resource=resources.find(resource=>resource.id===selected.id);
-    return <div className="panel details"><div className="details-title"><BookOpen size={16}/><strong>文档资源</strong></div><div className="details-subject">{resource?.title??"文档不存在"}</div><details open><summary>资源信息</summary><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">内置 · 只读</Property></details></div>;
+    return <PropertyPanel title="文档资源" icon={<BookOpen size={14}/>} subject={resource?.title??"文档不存在"}><PropertyGroup title="资源信息"><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">内置 · 只读</Property></PropertyGroup></PropertyPanel>;
   }
   if (selected?.kind === "model")
     return <ModelDetails store={store} id={selected.id} open={open} />;
@@ -969,58 +954,29 @@ function InspectorPanel() {
       endpoint.units.length > 0
     );
   return (
-    <div ref={inspector} className="panel details inspector-panel">
-      <div className="details-title">
-        <Menu size={16} />
-        <strong>详细信息</strong>
-        <span className="spacer" />
-        <span className="details-save-state">
-          {endpoint && store.drafts.has(endpoint.id) ? "未保存" : ""}
-        </span>
-        <MoreHorizontal size={17} className="muted" />
-      </div>
-      <div className="details-subject">
-        {endpoint
-          ? `${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"}${unit ? ` / Unit ${unit.station}` : ""}`
-          : (device?.name ?? "未选择对象")}
-      </div>
-      <div className="property-search">
-        <Search size={17} />
-        <input
-          ref={searchInput}
-          aria-label="搜索属性"
-          placeholder="搜索属性"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <Icon
-          label="按属性名称搜索"
-          onClick={() => searchInput.current?.focus()}
-        >
-          <ListFilter size={17} />
-        </Icon>
-      </div>
-      {endpoint&&<div className="context-tabs" role="tablist" aria-label="属性范围"><button role="tab" aria-selected={scope==="point"} onClick={()=>setScope("point")}>点</button><button role="tab" aria-selected={scope==="unit"} onClick={()=>setScope("unit")}>Unit</button><button role="tab" aria-selected={scope==="endpoint"} onClick={()=>setScope("endpoint")}>端点</button></div>}
-      <PropertySearch.Provider value={search}>
+    <PropertyPanel ref={inspector} subject={endpoint
+      ? `${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"}${unit ? ` / Unit ${unit.station}` : ""}`
+      : (device?.name ?? "未选择对象")}
+      status={endpoint && store.endpointDirty(endpoint.id) ? "未保存" : undefined}
+      search={{ value: search, onChange: setSearch }}
+      filters={endpoint && <PropertyScope value={scope} onChange={setScope} options={[{value:"point",label:"点"},{value:"unit",label:"Unit"},{value:"endpoint",label:"端点"}]}/>}>
         {!endpoint ? (
           device ? (
-            <details open>
-              <summary>设备</summary>
+            <PropertyGroup title="设备">
               <Property label="名称" field="unit.name">{device.name}</Property>
               <Property label="类型">{device.kind}</Property>
-            </details>
+            </PropertyGroup>
           ) : (
             <Empty>选择模拟器或设备查看属性。</Empty>
           )
         ) : (
           <>
-            {scope==="point"&&!search&&<details open><summary>当前点</summary>{selectedPoint?<><Property label="点名">{selectedPoint.name}</Property><Property label="数据区">{selectedPoint.area}</Property><Property label="零基地址">{selectedPoint.address}</Property><Property label="类型">{selectedPoint.valueType}</Property><Property label="倍率">{selectedPoint.scale}</Property><Property label="单位">{selectedPoint.unit||"—"}</Property><Property label="允许外部写入">{selectedPoint.slaveWritable?"是":"否"}</Property><div className="details-hint">选择仅用于查看属性，刷新与提交范围独立。</div></>:<Empty>在运行表选择一个点查看属性。</Empty>}</details>}
-            <details open hidden={!search&&scope!=="unit"}>
-              <summary>单元配置</summary>
+            {scope==="point"&&!search&&<PropertyGroup title="当前点">{selectedPoint?<><Property label="点名">{selectedPoint.name}</Property><Property label="数据区">{selectedPoint.area}</Property><Property label="零基地址">{selectedPoint.address}</Property><Property label="类型">{selectedPoint.valueType}</Property><Property label="倍率">{selectedPoint.scale}</Property><Property label="单位">{selectedPoint.unit||"—"}</Property><Property label="允许外部写入">{selectedPoint.slaveWritable?"是":"否"}</Property><PropertyHint>选择仅用于查看属性，刷新与提交范围独立。</PropertyHint></>:<Empty>在运行表选择一个点查看属性。</Empty>}</PropertyGroup>}
+            <PropertyGroup title="单元配置" hidden={!search&&scope!=="unit"}>
               <Property label="当前单元" field="units">
-                <div className="unit-select">
-                  <EnumSelect label="选择单元" value={unit?.id ?? ""} onChange={v=>store.selectUnit(endpoint.id,v)} options={[["","尚无单元"],...endpoint.units.map(u=>[u.id,`${u.name} · Unit ${u.station}${u.enabled ? "" : " · 已禁用"}`] as const)]} />
-                  <Icon
+                <PropertyActions>
+                  <UnitSelector units={endpoint.units} value={unit?.id??""} onChange={id=>{if(unit)store.flushUnitEditors.get(unit.id)?.();store.selectUnit(endpoint.id,id);}}/>
+                  <PropertyIconButton
                     label={
                       canAdd
                         ? "添加 Unit"
@@ -1030,8 +986,8 @@ function InspectorPanel() {
                     onClick={add}
                   >
                     <Plus size={19} />
-                  </Icon>
-                </div>
+                  </PropertyIconButton>
+                </PropertyActions>
               </Property>
               {unit && (
                 <>
@@ -1049,15 +1005,17 @@ function InspectorPanel() {
                   </Property>
                   <Property label="名称" field="name">
                     <input
+                      aria-label="单元名称"
                       value={unit.name}
                       onChange={(event) => patch({ name: event.target.value })}
                     />
                   </Property>
-                  <Property label="Unit备注"><input value={unit.note ?? ""} onChange={e=>patch({note:e.target.value})} /></Property>
+                  <Property label="Unit备注"><input aria-label="Unit备注" value={unit.note ?? ""} onChange={e=>patch({note:e.target.value})} /></Property>
                   <Property label="删除单元"><button onClick={()=>edit({...endpoint,units:endpoint.units.filter(u=>u.id!==unit.id)})}>从草稿移除 {unit.name}</button></Property>
                   <Property label="启用">
                     <input
                       type="checkbox"
+                      aria-label="启用单元"
                       checked={unit.enabled}
                       onChange={(event) =>
                         patch({ enabled: event.target.checked })
@@ -1065,9 +1023,9 @@ function InspectorPanel() {
                     />
                   </Property>
                   <Property label="关联设备" field="device">
-                    <div className="reference-field">
+                    <PropertyActions>
                       <EnumSelect label="关联设备" value={unit.device ?? ""} onChange={v=>patch({device:v || null})} options={[["","独立模拟器"],...(catalog?.devices ?? []).map(d=>[d.id,d.name] as const)]} />
-                      <Icon
+                      <PropertyIconButton
                         label="定位关联设备"
                         disabled={!unit.device}
                         onClick={() =>
@@ -1076,35 +1034,34 @@ function InspectorPanel() {
                         }
                       >
                         <FolderOpen size={17} />
-                      </Icon>
-                      <Icon
+                      </PropertyIconButton>
+                      <PropertyIconButton
                         label="解除设备关联"
                         disabled={!unit.device}
                         onClick={() => patch({ device: null })}
                       >
                         <X size={16} />
-                      </Icon>
-                    </div>
+                      </PropertyIconButton>
+                    </PropertyActions>
                   </Property>
                   <Property label="采集模型" field="model">
-                    <div className="reference-field">
-                      <EnumSelect label="采集模型" value={unit.model.id} onChange={v=>patch({model:{id:v}})} options={latest.map(m=>[m.id,m.name] as const)} />
-                      <Icon
+                    <PropertyActions>
+                      <EnumSelect label="采集模型" value={unit.model.id} onChange={v=>{if(overrideCount(unit.overrides)||store.unitDrafts.get(unit.id)?.dirty){if(!window.confirm("更换模型将丢弃当前 Unit 覆盖和点表草稿，是否继续？"))return;}store.unitDrafts.delete(unit.id);patch({model:{id:v},overrides:emptyOverrides()});}} options={latest.map(m=>[m.id,m.name] as const)} />
+                      <PropertyIconButton
                         label="打开采集模型"
                         onClick={() =>
                           open({ kind: "model", id: unit.model.id })
                         }
                       >
                         <FolderOpen size={17} />
-                      </Icon>
-                    </div>
+                      </PropertyIconButton>
+                    </PropertyActions>
                   </Property>
                 </>
               )}
-            </details>
-            <details open hidden={!search&&scope!=="endpoint"}>
-              <summary>端点配置</summary>
-              <Property label="模拟器备注"><input value={endpoint.note ?? ""} onChange={e=>edit({...endpoint,note:e.target.value})} /></Property>
+            </PropertyGroup>
+            <PropertyGroup title="端点配置" hidden={!search&&scope!=="endpoint"}>
+              <Property label="模拟器备注"><input aria-label="模拟器备注" value={endpoint.note ?? ""} onChange={e=>edit({...endpoint,note:e.target.value})} /></Property>
               <Property label="角色">
                 {endpoint.role === "slave" ? "从站" : "主站"}
               </Property>
@@ -1113,6 +1070,7 @@ function InspectorPanel() {
               </Property>
               <Property label="名称" field="name">
                 <input
+                  aria-label="模拟器名称"
                   value={endpoint.name}
                   onChange={(event) =>
                     edit({ ...endpoint, name: event.target.value })
@@ -1125,6 +1083,7 @@ function InspectorPanel() {
                     label={endpoint.role === "slave" ? "监听地址" : "目标地址"}
                   >
                     <input
+                      aria-label={endpoint.role === "slave" ? "监听地址" : "目标地址"}
                       value={endpoint.transport.address}
                       onChange={(event) => {
                         if (endpoint.transport.kind === "tcp")
@@ -1141,6 +1100,7 @@ function InspectorPanel() {
                   <Property label="端口" field="transport">
                     <input
                       type="number"
+                      aria-label="端口"
                       min="1"
                       max="65535"
                       value={endpoint.transport.port}
@@ -1160,19 +1120,9 @@ function InspectorPanel() {
               ) : (
                 <>
                   <Property label="串口路径" field="transport">
-                    <input
-                      value={endpoint.transport.path}
-                      onChange={(event) => {
-                        if (endpoint.transport.kind === "rtu")
-                          edit({
-                            ...endpoint,
-                            transport: {
-                              ...endpoint.transport,
-                              path: event.target.value,
-                            },
-                          });
-                      }}
-                    />
+                    <SerialPortPicker client={store.client} value={endpoint.transport.path} onChange={path => {
+                      if(endpoint.transport.kind === "rtu") edit({...endpoint, transport:{...endpoint.transport,path}});
+                    }}/>
                   </Property>
                   <Property label="波特率" field="transport"><EnumSelect label="波特率" value={String(endpoint.transport.baud)} onChange={v=>{if(endpoint.transport.kind==="rtu")edit({...endpoint,transport:{...endpoint.transport,baud:Number(v)}});}} options={[9600,19200,38400,57600,115200].map(v=>[String(v),String(v)])} /></Property>
                   <Property label="校验位" field="transport"><EnumSelect label="校验位" value={endpoint.transport.parity} onChange={v=>{if(endpoint.transport.kind==="rtu")edit({...endpoint,transport:{...endpoint.transport,parity:v as "none"|"even"|"odd"}});}} options={[["none","无"],["even","偶校验"],["odd","奇校验"]]} /></Property>
@@ -1186,13 +1136,12 @@ function InspectorPanel() {
                   {applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}
                 </span>
               </Property>
-            </details>
+            </PropertyGroup>
 
           </>
         )}
-      </PropertySearch.Provider>
-      <div className="details-hint">切换单元仅切换视图，不影响运行与草稿。</div>
-    </div>
+      <PropertyHint>切换单元仅切换视图，不影响运行与草稿。</PropertyHint>
+    </PropertyPanel>
   );
 }
 function ProblemsPanel(){
@@ -1225,7 +1174,7 @@ function CreateDialog({
   const [modelId,setModelId]=useState(models.length===1 ? models[0].id : "");
   const [unitName,setUnitName]=useState("Unit 1");
   const [station,setStation]=useState("1");
-  const [creatingModel,setCreatingModel]=useState(false);
+  const [newModelName,setNewModelName]=useState("");
   useEffect(()=>{if(!modelId && models.length===1) setModelId(models[0].id);},[models,modelId]);
   useEffect(() => {
     store.error="";store.lastError=null;store.changed();
@@ -1271,13 +1220,10 @@ function CreateDialog({
                   dataBits: 8,
                   stopBits: 1,
                 },
-          units: [{id:crypto.randomUUID(),name:unitName,station:Number(station),enabled:true,model:{id:modelId},device:null}],
+          units: [{id:crypto.randomUUID(),name:unitName,station:Number(station),enabled:true,model:{id:modelId==="__new__"?crypto.randomUUID():modelId},device:null}],
         };
-        await store.execute({
-          kind: "createEndpoint",
-          endpoint,
-
-        });
+        await store.execute(modelId==="__new__"?{kind:"createEndpointWithModel",endpoint,model:{id:endpoint.units[0]!.model.id,name:newModelName.trim(),points:[]}}:{kind:"createEndpoint",endpoint});
+        store.endpointModes.set(id,"configuration");
         open({ kind: "endpoint", id });
       }
       close();
@@ -1312,8 +1258,7 @@ function CreateDialog({
           <>
             <label>首个Unit名称<input value={unitName} onChange={e=>setUnitName(e.target.value)} required /></label>
             <label>站号<input type="number" min="1" max="247" value={station} onChange={e=>setStation(e.target.value)} required /></label>
-            <label>采集模型<EnumSelect label="首个Unit模型" value={modelId} onChange={setModelId} options={[["","请选择已保存模型"],...models.map(m=>[m.id,m.name] as const)]} /></label>
-            {models.length===0 && <p>请先创建采集模型。<button type="button" onClick={()=>setCreatingModel(true)}>创建模型并返回</button></p>}
+            <label>采集模型<ModelPicker models={models} value={modelId} newName={newModelName} onChange={(id,name)=>{setModelId(id);setNewModelName(name);}}/></label>
             <label>
               通信角色
               <EnumSelect label="通信角色" value={role} onChange={v=>setRole(v as "master"|"slave")} options={[["slave","从站"],["master","主站"]]} />
@@ -1346,15 +1291,10 @@ function CreateDialog({
               </>
             ) : (
               <>
-                <label>
-                  串口路径
-                  <input
-                    required
-                    placeholder="填写实际串口路径"
-                    value={path}
-                    onChange={(event) => setPath(event.target.value)}
-                  />
-                </label>
+                <div>
+                  <span>串口路径</span>
+                  <SerialPortPicker client={store.client} value={path} onChange={setPath} required/>
+                </div>
                 <label>
                   波特率
                   <EnumSelect label="波特率" value={baud} onChange={setBaud} options={[9600,19200,38400,57600,115200].map(v=>[String(v),String(v)])} />
@@ -1376,12 +1316,12 @@ function CreateDialog({
           <button type="button" disabled={store.busy} onClick={close}>
             取消
           </button>
-          <button className="primary" disabled={store.busy || !name.trim() || (kind === "endpoint" && (!modelId || !models.some(m=>m.id===modelId)))}>
+          <button className="primary" disabled={store.busy || !name.trim() || (kind === "endpoint" && (modelId==="__new__"?!newModelName.trim():(!modelId || !models.some(m=>m.id===modelId))))}>
             创建
           </button>
         </div>
       </form>
-      {creatingModel && <CreateDialog kind="model" close={()=>setCreatingModel(false)} />}
+
     </dialog>
   );
 }
@@ -1413,7 +1353,7 @@ function DocumentTab({
       {api.id.startsWith("resource:")?<BookOpen size={16}/>:endpoint ? <Table2 size={16} /> : <FileSpreadsheet size={16} />}
       <span>
         {title}
-        {draft?.dirty || (endpoint && store.drafts.has(endpoint.id)) ? " ●" : ""}
+        {draft?.dirty || (endpoint && store.endpointDirty(endpoint.id)) ? " ●" : ""}
       </span>
       <button
         type="button"
@@ -1515,7 +1455,7 @@ export function App() {
       ? store.modelDrafts.get(id.slice(6))
       : undefined;
     if (draft?.dirty) setCloseRequest({ id, close });
-    else if(id.startsWith("endpoint:") && store.drafts.has(id.slice(9))) setCloseRequest({id,close});
+    else if(id.startsWith("endpoint:") && store.endpointDirty(id.slice(9))) setCloseRequest({id,close});
     else close();
   };
   useEffect(() => {
@@ -1554,6 +1494,7 @@ export function App() {
     };
   }, [store]);
   const open = (target: Target) => {
+    if(target.kind==="model"||target.kind==="endpoint")void store.loadTarget(target.kind,target.id).catch(e=>{store.error=errorMessage(e);store.changed();});
     setSelected((previous) =>
       previous?.id === target.id &&
       previous.kind === target.kind &&
@@ -1598,7 +1539,7 @@ export function App() {
       component: "project",
       title: "导航",
       position: { referencePanel: "welcome", direction: "left" },
-      initialWidth: 225,
+      initialWidth: 288,
     });
     layout.addPanel({
       id: "inspector",
@@ -1643,6 +1584,8 @@ export function App() {
   const components = useMemo(
     () => ({
       resource:({params}:IDockviewPanelProps<{id:string;anchor?:string;navigation?:number}>)=><ResourceDocument {...params}/>,
+      resources:()=>{const {store}=useWorkbench();return <ResourcePanel store={store}/>;},
+      batch:()=>{const {store,sheets}=useWorkbench();return <BatchPanel store={store} sheets={sheets}/>;},
       project: ProjectPanel,
       inspector: InspectorPanel,
       welcome: Welcome,
@@ -1662,6 +1605,7 @@ export function App() {
       <Context.Provider
         value={{
           store,
+          openTool:tool=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:documentPosition(api.current?.panels.map(p=>p.id)??[])});},
           sheets,
           open,
           selected,
@@ -1677,26 +1621,6 @@ export function App() {
         }}
       >
         <div className="workbench">
-          <header>
-            <Box size={22} className="brand-icon" />
-            <strong>ESSim</strong>
-            <span className="app-title">Modbus 协议仿真工作台</span>
-            <span className="spacer" />
-            <Icon
-              label="刷新真实配置目录"
-              onClick={() =>
-                attempt(
-                  store.refresh().catch((error) => {
-                    store.error = String(error.message ?? error);
-                    store.changed();
-                  }),
-                )
-              }
-            >
-              <RefreshCw size={14} />
-            </Icon>
-            <span className="muted">本次会话</span>
-          </header>
           {store.error && (
             <div className="error-banner" role="alert">
               {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}

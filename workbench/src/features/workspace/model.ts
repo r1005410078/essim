@@ -1,3 +1,4 @@
+import {UnitPointDraft,effectiveRows,buildOverrides} from "./unitOverrides";
 import {resourceNavigation} from "../resources/catalog";
 import type {
   Action,
@@ -8,7 +9,7 @@ import type {
   WorkspaceView,
 } from "../../shared/api/contracts";
 import { newerView } from "../../shared/api/contracts";
-import { ModelDraft, modelRows } from "./pointDraft";
+import { ModelDraft, modelRows, fields } from "./pointDraft";
 export type Target = {
   kind: "endpoint" | "model" | "device" | "folder" | "resource";
   id: string;
@@ -32,10 +33,17 @@ export function navigation(
   };
   const paths: string[] = [];
   if (section === "resources") {
-    for (const model of catalog.models)
-      paths.push(
-        leaf("采集模型", model.name, model.id, { kind: "model", id: model.id }),
-      );
+    const modelFolders = new Map<string,string>();
+    const modelFolder = (id:string):string => {
+      const cached=modelFolders.get(id);if(cached)return cached;
+      const folder=catalog.navigation?.folders.find(f=>f.id===id);if(!folder)return "采集模型";
+      const path=leaf(folder.parent?modelFolder(folder.parent):"采集模型",folder.name,folder.id,{kind:"folder",id:folder.id});
+      modelFolders.set(id,path);paths.push(`${path}/`);targets.set(`${path}/`,{kind:"folder",id:folder.id});return path;
+    };
+    for (const model of catalog.models) {
+      const parent=catalog.navigation?.modelMembers?.[model.id];
+      paths.push(leaf(parent?modelFolder(parent):"采集模型",model.name,model.id,{kind:"model",id:model.id}));
+    }
     for (const device of catalog.devices) {
       const path = leaf("设备", device.name, device.id, {
         kind: "device",
@@ -85,10 +93,16 @@ export function navigation(
   }
   return { paths, targets };
 }
-/** 合并项目树根目录；只改显示路径，设备、文件夹和Unit身份继续来自显式映射。 */
-export function projectNavigation(catalog:Catalog|undefined){
- const resources=catalog?navigation(catalog,"resources"):{paths:[],targets:new Map<string,Target>()};const simulators=catalog?navigation(catalog,"simulators"):{paths:[],targets:new Map<string,Target>()};const documents=resourceNavigation();
- return {paths:["模拟器/",...simulators.paths.map(path=>`模拟器/${path}`),"采集模型/","设备/",...resources.paths,...documents.paths],targets:new Map([...documents.targets,...resources.targets,...[...simulators.targets].map(([path,target])=>[`模拟器/${path}`,target] as const)])};
+export type NavigationSection = "simulators" | "resources";
+/** 按标签投影导航，路径只用于展示，设备引用和Unit仍指向稳定业务身份。 */
+export function projectNavigation(catalog: Catalog | undefined, section: NavigationSection) {
+  const tree = catalog ? navigation(catalog, section) : { paths: [], targets: new Map<string, Target>() };
+  if (section === "simulators") return tree;
+  const documents = resourceNavigation();
+  return {
+    paths: ["采集模型/", "设备/", ...tree.paths, ...documents.paths],
+    targets: new Map([...tree.targets, ...documents.targets]),
+  };
 }
 export function errorMessage(error: unknown): string {
   const value = error as Partial<ApiError>;
@@ -107,9 +121,57 @@ export class WorkspaceStore {
   readonly draftMatches=new Map<string,Record<string,boolean>>();
   readonly drafts = new Map<string, EndpointConfig>();
   readonly modelDrafts = new Map<string, ModelDraft>();
+  readonly unitDrafts=new Map<string,UnitPointDraft>();
+  readonly flushUnitEditors=new Map<string,()=>void>();
+  readonly endpointModes=new Map<string,"configuration"|"runtime">();
+  endpointDirty(id:string){return this.drafts.has(id)||[...this.unitDrafts.values()].some(d=>d.endpointId===id&&d.dirty);}
+  discardEndpoint(id:string){this.drafts.delete(id);this.draftMatches.delete(id);for(const [key,d] of this.unitDrafts)if(d.endpointId===id)this.unitDrafts.delete(key);this.changed();}
+  unitDraft(endpointId:string,unitId:string){
+    const unit=this.endpoint(endpointId)?.units.find(u=>u.id===unitId);if(!unit)return;
+    if(this.client.loadModel&&!this.loadedModels.has(unit.model.id)){void this.loadTarget("model",unit.model.id).catch(e=>{this.error=errorMessage(e);this.changed();});return;}
+    const base=this.view?.catalog.models.find(m=>m.id===unit.model.id);if(!base)return;
+    let draft=this.unitDrafts.get(unitId);
+    if(draft&&!draft.dirty&&(draft.changedBase(base)||JSON.stringify(draft.sourceUnit.overrides)!==JSON.stringify(unit.overrides)||draft.sourceUnit.model.id!==unit.model.id)){this.unitDrafts.delete(unitId);draft=undefined;}
+    if(!draft){draft=new UnitPointDraft(endpointId,unit,base,this.changed);this.unitDrafts.set(unitId,draft);}return draft;
+  }
+  rebaseUnitDraft(endpointId:string,unitId:string){
+    const old=this.unitDrafts.get(unitId);const unit=this.endpoint(endpointId)?.units.find(u=>u.id===unitId);const base=this.view?.catalog.models.find(m=>m.id===unit?.model.id);if(!old||!unit||!base)throw Error("模型不可用");
+    if(old.sourceUnit.model.id!==unit.model.id)throw Error("模型引用已改变，请放弃旧草稿后重新编辑。");
+    const next=new UnitPointDraft(endpointId,unit,base,this.changed);
+    const originals=new Map(effectiveRows(old.base,old.sourceUnit).map(r=>[r.id,r]));
+    next.change(state=>{
+      const rows=new Map(state.rows.map(r=>[r.id,r]));const retained=new Set(old.rows.map(r=>r.id));
+      for(const [id] of originals)if(!retained.has(id))rows.delete(id);
+      for(const row of old.rows){const original=originals.get(row.id);if(!original){rows.set(row.id,structuredClone(row));continue;}
+        const changed=fields.filter(f=>row[f]!==original[f]);if(!changed.length)continue;
+        const target=rows.get(row.id);if(!target)throw Error(`基础点 ${row.name} 已删除，请先处理该点草稿。`);
+        for(const f of changed)target[f]=row[f]!;
+      }
+      state.rows=[...rows.values()];state.inheritedFields=[...old.inheritedFields];
+      const baseRows=new Map(modelRows(base).map(r=>[r.id,r]));for(const key of old.inheritedFields){const field=fields.find(f=>key.endsWith(`:${f}`));if(!field)continue;const id=key.slice(0,-field.length-1);const row=state.rows.find(r=>r.id===id);if(row&&baseRows.get(id))row[field]=baseRows.get(id)![field]!;}
+    });this.unitDrafts.set(unitId,next);this.changed();
+  }
+  async saveEndpointDraft(id:string){
+    for(const flush of this.flushUnitEditors.values())flush();
+    const endpoint=structuredClone(this.endpoint(id));if(!endpoint)throw Error("模拟器不存在");
+    const original=JSON.stringify(endpoint);
+    const submitted=new Map<string,{draft:UnitPointDraft;content:string}>();
+    for(const unit of endpoint.units){const d=this.unitDrafts.get(unit.id);if(!d?.dirty)continue;
+      const base=await this.client.loadModel?.(unit.model.id)??this.view?.catalog.models.find(m=>m.id===unit.model.id);
+      if(d.changedBase(base)||d.sourceUnit.model.id!==unit.model.id)throw Error("基础模型已改变：请在配置表中处理草稿后再保存，输入已保留。");
+      const content=d.content();const inherited=[...d.inheritedFields];const preview=await this.client.previewPoints?.(d.input());if(!preview?.model)throw preview?.errors[0]??Error("点表校验不可用");
+      unit.overrides=buildOverrides(d.base,d.sourceUnit.overrides,preview.model,inherited);submitted.set(unit.id,{draft:d,content});
+    }
+    if(JSON.stringify(this.endpoint(id))!==original)throw Error("校验期间配置又有修改，请再次保存，输入已保留。");
+    this.drafts.set(id,endpoint);
+    const receipt=await this.execute({kind:"saveEndpoint",endpoint});
+    for(const [id,{draft,content}] of submitted){draft.sourceUnit.overrides=structuredClone(endpoint.units.find(u=>u.id===id)?.overrides);draft.saved(content);if(draft.content()===content)this.unitDrafts.delete(id);}
+    this.changed();return receipt;
+  }
   modelDraft(id: string) {
     let draft = this.modelDrafts.get(id);
     if (!draft) {
+      if(this.client.loadModel&&!this.loadedModels.has(id)){void this.loadTarget("model",id).catch(e=>{this.error=errorMessage(e);this.changed();});return;}
       const model = this.view?.catalog.models.find((m) => m.id === id);
       if (!model) return;
       draft = new ModelDraft(
@@ -150,9 +212,50 @@ export class WorkspaceStore {
     this.changeCount++;
     for (const listener of [...this.listeners]) listener();
   };
+  private loadedModels=new Set<string>();
+  private loadedEndpoints=new Set<string>();
+  private loading=new Map<string,Promise<void>>();
+  private mergeLazy(view:WorkspaceView){
+    if(!this.client.loadModel)return view;
+    const old=this.view;
+    const models=view.catalog.models.map(m=>this.loadedModels.has(m.id)?old?.catalog.models.find(v=>v.id===m.id)??m:m);
+    const units=new Set(view.catalog.applied.flatMap(e=>this.loadedEndpoints.has(e.id)?e.units.map(u=>u.id):[]));
+    return {...view,catalog:{...view.catalog,models,values:Object.fromEntries(Object.entries(old?.catalog.values??{}).filter(([id])=>units.has(id)))}};
+  }
+  async loadTarget(kind:"model"|"endpoint",id:string,force=false):Promise<void>{
+    if(!this.client.loadModel || (kind==="model"&&this.modelDrafts.get(id)?.persisted===false))return;
+    const sequence=this.view?.sequence;const key=`${sequence}:${kind}:${id}`;
+    const known=kind==="model"?this.loadedModels:this.loadedEndpoints;
+    if(known.has(id)&&!force)return;
+    const pending=this.loading.get(key);if(pending)return pending;
+    const job=(async()=>{
+      if(kind==="model"){
+        const model=await this.client.loadModel!(id);
+        if(!this.view||this.view.sequence!==sequence)return;
+        this.view={...this.view,catalog:{...this.view.catalog,models:this.view.catalog.models.map(m=>m.id===id?model:m)}};
+        this.loadedModels.add(id);
+      }else{
+        const endpoint=this.view?.catalog.endpoints.find(e=>e.id===id);if(!endpoint)return;
+        await Promise.all([...new Set(endpoint.units.map(u=>u.model.id))].map(m=>this.loadTarget("model",m,force)));
+        const applied=this.view?.catalog.applied.find(e=>e.id===id);
+        const values=applied?await this.client.loadEndpointValues?.(id):{};
+        if(!this.view||this.view.sequence!==sequence)return;
+        this.view={...this.view,catalog:{...this.view.catalog,values:{...this.view.catalog.values,...values}}};
+        this.loadedEndpoints.add(id);
+      }
+      this.changed();
+    })();
+    this.loading.set(key,job);
+    try{await job;}finally{this.loading.delete(key);}
+  }
+  private reloadLazy(){
+    for(const id of this.loadedModels)void this.loadTarget("model",id,true).catch(e=>{this.error=errorMessage(e);this.changed();});
+    for(const id of this.loadedEndpoints)void this.loadTarget("endpoint",id,true).catch(e=>{this.error=errorMessage(e);this.changed();});
+  }
   receive = (view: WorkspaceView) => {
     if (newerView(this.view, view)) {
-      this.view = view;
+      this.view = this.mergeLazy(view);
+      this.reloadLazy();
       this.inspectDrafts();
       this.changed();
     }
@@ -160,7 +263,8 @@ export class WorkspaceStore {
   async refresh() {
     const view = await this.client.query();
     if (this.view?.sequence === view.sequence) {
-      this.view = view;
+      this.view = this.mergeLazy(view);
+      this.reloadLazy();
       this.inspectDrafts();
       this.changed();
     } else this.receive(view);
@@ -218,6 +322,9 @@ export class WorkspaceStore {
         action,
       });
       await this.refresh();
+      const target=action.kind==="saveEndpoint"||action.kind==="createEndpoint"||action.kind==="createEndpointWithModel"?action.endpoint.id:action.kind==="promoteOverrides"?action.plan.endpoint:action.kind==="extractUnitModel"?action.endpoint:null;
+      if(target)await this.loadTarget("endpoint",target,true);
+      if(action.kind==="saveModel")await this.loadTarget("model",action.model.id,true);
       if (action.kind === "saveEndpoint") {
         const current = this.drafts.get(action.endpoint.id);
         if (!current || JSON.stringify(current) === submitted) {

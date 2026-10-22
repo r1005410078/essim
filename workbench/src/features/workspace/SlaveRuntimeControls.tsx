@@ -21,7 +21,7 @@ export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,c
  const responseGate=useRef(new SlaveResponseGate());const pending=useRef(false);
  useEffect(()=>{responseGate.current.invalidate();setReset(null);},[endpoint.id,unit?.id,category,store.view?.sequence]);
  const latest=useRef({unit,model,category,readVisiblePoints,onValues});latest.current={unit,model,category,readVisiblePoints,onValues};
- const active=endpoint.role==="slave"&&endpoint.transport.kind==="tcp";
+ const active=endpoint.role==="slave";
  const query=async()=>{
   const ticket=responseGate.current.ticket();const sequence=store.view?.sequence;
   const current=latest.current;
@@ -75,20 +75,22 @@ export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,c
    await perform({kind:"setValues",unit:unit.id,values},()=>sheets.acknowledge(sent));
   }catch(e){setError(errorMessage(e));}
  };
- const labels={idle:"未启动",starting:"启动中",running:"监听中",stopping:"停止中",stopped:"已停止",failed:"运行失败"};
+ const rtu=endpoint.transport.kind==="rtu";
+ const labels={idle:"未启动",starting:"启动中",running:rtu?"串口应答中":"监听中",stopping:"停止中",stopped:"已停止",failed:"运行失败"};
  return <>
-  <div className="runtime-summary" aria-label="TCP从站运行">
+  <div className="runtime-summary" aria-label={rtu?"RTU从站运行":"TCP从站运行"}>
    <span className={`runtime-state ${running?"running":""}`}><span className="status-dot"/>{labels[view?.state??"idle"]}</span>
-   <span>连接 {view?.clients??0}/{view?.maxClients??limit}</span><span>请求 {view?.requests??0}</span><span className={Number(view?.exceptions)>0?"error":""}>异常 {view?.exceptions??0}</span>
+   {view?.pendingRecording&&<span className="muted">等待可靠录制 · 显示最近可靠值</span>}
+   {!rtu&&<span>连接 {view?.clients??0}/{view?.maxClients??limit}</span>}<span>请求 {view?.requests??0}</span><span className={Number(view?.exceptions)>0?"error":""}>异常 {view?.exceptions??0}</span>
    <span className="runtime-timing muted">最近处理 {view?.lastRequestMicros??"—"} μs</span><span className="spacer"/>
-   <Button size="sm" variant={running?"outline":"default"} disabled={busy||store.busy||!store.client.executeSlave||(!running&&!store.view?.catalog.applied.some(item=>item.id===endpoint.id))} title={running?"停止当前TCP端点":"使用已应用快照启动TCP从站"} onClick={()=>void perform(running?{kind:"stop"}:{kind:"start",maxClients:limit})}>{running?<Square size={14}/>:<Play size={14}/>} {running?"停止":"启动"}</Button>
+   <Button size="sm" variant={running?"outline":"default"} disabled={busy||store.busy||!store.client.executeSlave||(!running&&!store.view?.catalog.applied.some(item=>item.id===endpoint.id))} title={running?"停止当前从站并释放资源":"使用已应用快照启动从站"} onClick={()=>void perform(running?{kind:"stop"}:{kind:"start",maxClients:limit})}>{running?<Square size={14}/>:<Play size={14}/>} {rtu?(running?"关闭串口":"打开串口"):(running?"停止":"启动")}</Button>
   </div>
   <div className="toolbar runtime-actions">
    <Button size="sm" variant="ghost" disabled={busy||!unit||!ready} title="原子提交当前Unit所有待修改点，与选区无关" onClick={()=>void submit()}><Check size={15}/>提交修改（{edits.length}）</Button>
    <ActionMenu label="恢复初值" disabled={busy||!unit||!ready} items={[{label:"指定地址范围…",action:()=>setReset("range")},{label:"复位当前 Unit…",action:()=>setReset("unit")}]}/>
    <Button size="sm" variant="ghost" disabled={busy} title="刷新当前可见行的实际值" aria-label="刷新可见行" onClick={()=>void query().catch(e=>setError(errorMessage(e)))}><RefreshCw size={14}/></Button>
    <span className="spacer"/>
-   <ActionMenu label="运行设置" items={[{label:`连接上限 ${limit}…`,disabled:!!running||busy,action:()=>setConfiguring(true)}]}/>
+   {!rtu&&<ActionMenu label="运行设置" items={[{label:`连接上限 ${limit}…`,disabled:!!running||busy,action:()=>setConfiguring(true)}]}/>}
   </div>
   {(store.drafts.has(endpoint.id)||!store.view?.applicationMatches?.[endpoint.id]||Object.values(store.view.applicationMatches[endpoint.id]??{}).some(value=>!value))&&<div className="configuration-notice">配置尚未应用 · 启动使用已应用快照，请先保存并应用配置。</div>}
   {(error||view?.error)&&<div className="panel-note error" role="alert">{error||view?.error}{view?.uncertain?"；存在未确认结果，请勿据此重复写入。":""}</div>}

@@ -10,6 +10,14 @@ export function createWorkspaceClient(): WorkspaceClient {
       };
     };
     return {
+      resolveUnit:unavailable,previewUnitPromotion:unavailable,captureInitials:unavailable,exportUnitPoints:unavailable,
+      loadModel:unavailable,loadEndpointValues:unavailable,
+      queryResources:unavailable,
+      previewBatch:unavailable,startBatch:unavailable,queryBatch:unavailable,cancelBatch:unavailable,discardBatch:unavailable,retryBatch:unavailable,
+      previewPartition:unavailable,
+      createPartition:unavailable,
+      discardPartition:unavailable,
+      listSerialPorts: unavailable,
       exportObservations:unavailable,
       executeMaster:unavailable,
       queryMaster:unavailable,
@@ -26,6 +34,23 @@ export function createWorkspaceClient(): WorkspaceClient {
     };
   }
   return {
+    resolveUnit:unit=>invoke("resolve_unit",{unit}),
+    previewUnitPromotion:(endpoint,unit,selection)=>invoke("preview_unit_promotion",{endpoint,unit,selection}),
+    captureInitials:(endpoint,unit,points)=>invoke("capture_initials",{endpoint,unit,points}),
+    exportUnitPoints:(endpoint,unit,format)=>invoke("export_unit_points",{endpoint,unit,format}),
+    loadModel:id=>invoke("load_model",{id}),
+    loadEndpointValues:id=>invoke("load_endpoint_values",{id}),
+    queryResources:()=>invoke("query_resources"),
+    previewBatch:(request,drafts)=>invoke("preview_batch",{request,drafts}),
+    startBatch:id=>invoke("start_batch",{id}),
+    queryBatch:()=>invoke("query_batch"),
+    cancelBatch:id=>invoke("cancel_batch",{id}),
+    discardBatch:id=>invoke("discard_batch",{id}),
+    retryBatch:(previous,id,drafts)=>invoke("retry_batch",{previous,id,drafts}),
+    previewPartition:request=>invoke("preview_partition",{request}),
+    createPartition:token=>invoke("create_partition",{token}),
+    discardPartition:token=>invoke("discard_partition",{token}),
+    listSerialPorts: () => invoke("list_serial_ports"),
     exportObservations:content=>invoke("export_observations",{content}),
     executeMaster:command=>invoke("execute_master",{command}),
     queryMaster:query=>invoke("query_master",{query}),

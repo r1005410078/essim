@@ -47,3 +47,11 @@ it("主站TX请求关联RX响应且保留实际方向",()=>{
  const records=[{sequence:"1",unixMs:"1",event:JSON.stringify({kind:"frame",direction:"TX",hex:"00 01 00 00 00 06 01 03 00 0A 00 01"})},{sequence:"2",unixMs:"2",event:JSON.stringify({kind:"frame",direction:"RX",hex:"00 01 00 00 00 05 01 03 02 00 07"})}];
  const rows=observationRows(records,true);expect(rows[0].direction).toBe("TX");expect(rows[1].direction).toBe("RX");expect(rows[1].requestHex).toBe(rows[0].hex);
 });
+
+it("RTU从站保留实际方向，准备与驱动写出分开且仅准备响应关联地址",()=>{
+ const frame=(direction:string,hex:string,stage:string)=>({kind:"rtuFrame",direction,hex,stage,complete:true,crcValid:true,discarded:false});
+ const rows=observationRows([entry(1,frame("RX","01 03 00 0A 00 01 A4 08","received")),entry(2,frame("TX","01 03 02 00 07 F9 86","prepared")),entry(3,frame("TX","01 03 02 00 07 F9 86","driverWritten"))]);
+ expect(rows.map(row=>row.direction)).toEqual(["RX","TX","TX"]);
+ expect(rows[1].requestHex).toBe(rows[0].hex);expect(rows[2].requestHex).toBeUndefined();
+ expect(rows[1].status).toContain("发送准备");expect(rows[2].status).toContain("本机驱动");expect(rows.every(row=>row.transport==="rtu")).toBe(true);
+});

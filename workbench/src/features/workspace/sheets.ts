@@ -25,8 +25,6 @@ export const sheetTheme = {
   metrics: {
     ...denseGridTheme.metrics,
     rowHeaderWidth: 38,
-    rowHeight: 28,
-    headerHeight: 31,
     fontSize: 12,
     fontFamily:
       'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif',

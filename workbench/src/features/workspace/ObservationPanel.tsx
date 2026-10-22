@@ -13,7 +13,7 @@ export function ObservationPanel({store,endpointId,kind,api,onReference}:{onRefe
  const [chosen,setChosen]=useState("");const [paused,setPaused]=useState(false);const [direction,setDirection]=useState("all");
  const [window,setWindow]=useState<ObservationWindow>({run:undefined,records:[]});const records=window.records;const [selected,setSelected]=useState("");
  const [error,setError]=useState("");const [exporting,setExporting]=useState(false);
- const endpoints=store.view?.catalog.endpoints.filter(e=>e.transport.kind==="tcp"||e.role==="master")??[];
+ const endpoints=store.view?.catalog.endpoints??[];
  const followedEndpoint=useRef(endpointId);if(endpointId)followedEndpoint.current=endpointId;
  const id=chosen||(endpoints.some(endpoint=>endpoint.id===followedEndpoint.current)?followedEndpoint.current:endpoints[0]?.id);
  const master=endpoints.find(e=>e.id===id)?.role==="master";

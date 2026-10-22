@@ -1,3 +1,4 @@
+import {ModelDraft} from "./pointDraft";
 import { expect, it, vi } from "vitest";
 import { WorkspaceStore, projectNavigation, navigation, documentPosition, isEndpointApplied } from "./model";
 import { SheetViews } from "./sheets";
@@ -317,12 +318,70 @@ it("核心草稿比较的迟到结果不能覆盖新的映射或展示编辑",as
  finishSecond({"unit-a":false});await Promise.resolve();finishFirst({"unit-a":true});await Promise.resolve();expect(store.draftMatches.get(endpoint.id)).toEqual({"unit-a":false});
 });
 
-it("合并项目树保留文件夹与设备引用的稳定身份，缩短端点标签",()=>{
+it("模拟器与资源分别导航，文件夹、Unit和设备引用保留稳定身份",()=>{
  const catalog=view().catalog;
  catalog.navigation={folders:[{id:"folder",name:"现场",parent:null}],members:{[endpoint.id]:"folder"}};
- const tree=projectNavigation(catalog);
- expect(tree.targets.get("模拟器/现场/端点A/")).toEqual({kind:"endpoint",id:endpoint.id});
- expect(tree.targets.get("模拟器/现场/端点A/Unit 1 · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
- expect(tree.targets.get("设备/PCS/端点A · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
- expect(tree.targets.get("采集模型/模型A")).toEqual({kind:"model",id:model.id});
+ const simulators=projectNavigation(catalog,"simulators");
+ const resources=projectNavigation(catalog,"resources");
+ expect(simulators.targets.get("现场/端点A/")).toEqual({kind:"endpoint",id:endpoint.id});
+ expect(simulators.targets.get("现场/端点A/Unit 1 · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
+ expect(simulators.paths.some(path=>/^(模拟器|采集模型|设备|文档资源)\//.test(path))).toBe(false);
+ expect(resources.targets.get("设备/PCS/端点A · 单元A")).toEqual({kind:"endpoint",id:endpoint.id,unit:"unit-a"});
+ expect(resources.targets.get("采集模型/模型A")).toEqual({kind:"model",id:model.id});
+ expect(resources.targets.has("现场/端点A/")).toBe(false);
+ expect([...resources.targets.values()].some(target=>target.kind==="resource")).toBe(true);
+});
+
+it("无后端时模拟器显示空态，资源仍可访问内置文档",()=>{
+ expect(projectNavigation(undefined,"simulators").paths).toEqual([]);
+ const resources=projectNavigation(undefined,"resources");
+ expect(resources.paths).toContain("采集模型/");
+ expect(resources.paths).toContain("设备/");
+ expect([...resources.targets.values()].some(target=>target.kind==="resource")).toBe(true);
+});
+
+it("分组模型与端点可同归文件夹，模型入口保留稳定身份",()=>{
+ const catalog=view().catalog;
+ catalog.navigation={folders:[{id:"batch",name:"分组",parent:null}],members:{},modelMembers:{[model.id]:"batch"}};
+ const tree=projectNavigation(catalog,"resources");
+ expect(tree.targets.get("采集模型/分组/模型A")).toEqual({kind:"model",id:model.id});
+ expect(tree.targets.has("采集模型/模型A")).toBe(false);
+});
+
+it("导航摘要不创建空模型草稿，打开时按需加载并忽略过期异步内容",async()=>{
+ const adapter=client();const summary=view();summary.catalog.models[0]!.points=[];
+ adapter.query=vi.fn(async()=>summary);
+ let resolve:((m:CollectionModel)=>void)|undefined;
+ adapter.loadModel=vi.fn(()=>new Promise<CollectionModel>(r=>{resolve=r;}));
+ const store=new WorkspaceStore(adapter);await store.refresh();
+ expect(store.modelDraft(model.id)).toBeUndefined();
+ expect(adapter.loadModel).toHaveBeenCalledTimes(1);
+ const pending=store.loadTarget("model",model.id);
+ const newer=view("2");newer.catalog.models[0]!.points=[];store.receive(newer);
+ resolve?.({...model,name:"过期内容"});await pending;
+ expect(store.view?.catalog.models[0]?.name).toBe(model.name);
+ expect(store.view?.catalog.models[0]?.points).toEqual([]);
+ adapter.loadModel=vi.fn(async()=>structuredClone(model));await store.loadTarget("model",model.id);
+ expect(store.modelDraft(model.id)?.name).toBe(model.name);
+ expect(store.view?.catalog.models[0]?.points).toHaveLength(1);
+});
+
+it("只加载打开端点的模型和值，重新接收导航时保留页面内容并刷新缓存",async()=>{
+ const adapter=client();const summary=view();summary.catalog.models[0]!.points=[];summary.catalog.applied=[structuredClone(endpoint)];
+ adapter.query=vi.fn(async()=>summary);adapter.loadModel=vi.fn(async()=>structuredClone(model));
+ adapter.loadEndpointValues=vi.fn(async()=>({"unit-a":{model:structuredClone(model),raw:{voltage:{kind:"unsigned" as const,value:"20"}},stale:false}}));
+ const store=new WorkspaceStore(adapter);await store.refresh();expect(adapter.loadModel).not.toHaveBeenCalled();
+ await store.loadTarget("endpoint",endpoint.id);expect(adapter.loadEndpointValues).toHaveBeenCalledWith(endpoint.id);
+ expect(store.view?.catalog.values["unit-a"]?.raw.voltage?.value).toBe("20");
+ const next=structuredClone(summary);next.sequence="2";store.receive(next);
+ expect(store.view?.catalog.models[0]?.points).toHaveLength(1);
+ await store.loadTarget("endpoint",endpoint.id,true);
+ expect(store.view?.catalog.values["unit-a"]?.raw.voltage?.value).toBe("20");
+});
+
+it("本地新模型草稿不发已保存模型查询",async()=>{
+ const adapter=client();adapter.loadModel=vi.fn(async()=>{throw Error("不应读取尚未保存的模型");});
+ const store=new WorkspaceStore(adapter);await store.refresh();
+ store.modelDrafts.set("local",new ModelDraft("local","本地草稿",[],store.changed,false));
+ await store.loadTarget("model","local");expect(adapter.loadModel).not.toHaveBeenCalled();expect(store.error).toBe("");
 });

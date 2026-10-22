@@ -1,3 +1,6 @@
+import { ToolbarIcon } from "./ToolbarIcon";
+import type { ActionMenuItem } from "./ActionMenu";
+import { PropertyPanel, PropertyGroup, PropertyRow, PropertyHint } from "@essim/ui/components/property-panel";
 import {EnumSelect} from "./EnumSelect";
 import {ActionMenu} from "./ActionMenu";
 import {
@@ -19,6 +22,8 @@ import {
   Undo2,
   Redo2,
   FileInput,
+  FileOutput,
+  MoreHorizontal,
 } from "lucide-react";
 import type {
   ApiError,
@@ -73,12 +78,19 @@ export function PointEditor({
     </EditorBoundary>
   );
 }
-function EditorBody({
+export interface EditorToolbar { start?:ReactNode; afterSave?:ReactNode; context?:ReactNode; end?:ReactNode; info?:ReactNode; menu?:ActionMenuItem[]; }
+export function EditorBody({
   store,
   draft,
+  owner,
+  extra,
+  toolbar,
 }: {
   store: WorkspaceStore;
   draft: ModelDraft;
+  owner?:{endpoint:string;unit:string};
+  extra?:ReactNode;
+  toolbar?:EditorToolbar;
 }) {
   const [category, setCategory] = useState<Category>("measurement");
   const [preview, setPreview] = useState<DraftPreview | null>(null);
@@ -92,6 +104,7 @@ function EditorBody({
     () => new DraftSource(draft, category),
     [draft, category],
   );
+  useEffect(()=>{if(!owner)return;store.flushUnitEditors.set(owner.unit,()=>{source.flush();});return()=>{source.flush();store.flushUnitEditors.delete(owner.unit);};},[store,source,owner?.unit]);
   useEffect(() => {
     source.sync(preview);
     grid.current?.clearHistory();
@@ -173,7 +186,7 @@ function EditorBody({
   const save = () =>
     task(async () => {
       source.flush();
-      await store.saveModelDraft(draft.id);
+      if(owner)await store.saveEndpointDraft(owner.endpoint);else await store.saveModelDraft(draft.id);
     });
   const add = () =>
     draft.change((s) => {
@@ -226,66 +239,26 @@ function EditorBody({
 
       }}
     >
-      <div className="toolbar document-actions model-actions">
-        <button
-          data-save-document={`model:${draft.id}`}
-          title="保存模型（⌘S / Ctrl+S，本次会话）"
-          aria-label="保存模型"
-          disabled={busy}
-          onClick={() => void save()}
-        >
-          <Save size={17} />保存模型
-        </button>
-        <button title="新增点" aria-label="新增点" onClick={add}>
-          <Plus size={17} />新增点
-        </button>
-        <button
-          title="删除选中点"
-          aria-label="删除选中点"
-          disabled={!draft.selected}
-          onClick={() =>
-            draft.change((s) => {
-              s.rows = s.rows.filter((r) => r.id !== draft.selected);
-              draft.selected = null;
-            })
-          }
-        >
-          <Trash2 size={16} />
-        </button>
-        <button
-          title="撤销"
-          aria-label="撤销"
-          disabled={!draft.canUndo}
-          onClick={() => {
-            source.flush();
-            draft.undo();
-          }}
-        >
-          <Undo2 size={17} />
-        </button>
-        <button
-          title="重做"
-          aria-label="重做"
-          disabled={!draft.canRedo}
-          onClick={() => draft.redo()}
-        >
-          <Redo2 size={17} />
-        </button>
-        <span>
-          {draft.name} ·{" "}
-          {draft.dirty ? "未保存" : "已保存"}
-        </span>
-        <span className="spacer" />
-        <button
-          title="导入追加"
-          aria-label="导入追加"
-          onClick={() => setImporting(true)}
-        >
-          <FileInput size={17} />导入
-        </button>
-        <ActionMenu label="导出模型" disabled={!draft.persisted} items={["json","csv","xlsx"].map(format=>({label:format.toUpperCase(),action:()=>void task(async()=>{const done=await store.client.exportPointFile?.(draft.id,format);if(done===undefined)throw Error("文件服务未接入");})}))}/>
+      <div className="toolbar document-actions model-actions compact-point-toolbar">
+        {toolbar?.start}
+        <ToolbarIcon label={owner?"保存实例修改（本次会话）":"保存模型（⌘S / Ctrl+S，本次会话）"}
+          data-save-document={owner?`endpoint:${owner.endpoint}`:`model:${draft.id}`} disabled={busy} onClick={()=>void save()}><Save size={16}/></ToolbarIcon>
+        {toolbar?.afterSave}
+        <i className="toolbar-divider"/>
+        <ToolbarIcon label="新增点" onClick={add}><Plus size={16}/></ToolbarIcon>
+        <ToolbarIcon label="删除选中点" disabled={!draft.selected} onClick={()=>draft.change(s=>{s.rows=s.rows.filter(r=>r.id!==draft.selected);draft.selected=null;})}><Trash2 size={15}/></ToolbarIcon>
+        <ToolbarIcon label="撤销" disabled={!draft.canUndo} onClick={()=>{source.flush();draft.undo();}}><Undo2 size={16}/></ToolbarIcon>
+        <ToolbarIcon label="重做" disabled={!draft.canRedo} onClick={()=>draft.redo()}><Redo2 size={16}/></ToolbarIcon>
+        <i className="toolbar-divider"/>
+        <span className="point-toolbar-model" title={`${draft.name} · ${draft.dirty?"未保存":"已保存"}`}>{draft.name} · {draft.dirty?"未保存":"已保存"}{toolbar?.info}</span>
+        <span className="spacer"/>
+        {toolbar?.context}
+        <ToolbarIcon label="导入追加" onClick={()=>setImporting(true)}><FileInput size={16}/></ToolbarIcon>
+        <ActionMenu label="导出模型" disabled={!draft.persisted} items={["json","csv","xlsx"].map(format=>({label:format.toUpperCase(),action:()=>void task(async()=>{const done=owner?await store.client.exportUnitPoints?.(owner.endpoint,owner.unit,format):await store.client.exportPointFile?.(draft.id,format);if(done===undefined)throw Error("文件服务未接入");})}))}><FileOutput size={16}/></ActionMenu>
+        {!!toolbar?.menu?.length&&<ActionMenu label="更多点表操作" items={toolbar.menu}><MoreHorizontal size={16}/></ActionMenu>}
+        {toolbar?.end}
       </div>
-      <details className="field-help-disclosure"><summary>字段说明</summary><div className="point-help-strip" aria-label="点表字段说明">{fields.map(field=><span key={field}>{labels[field]}<FieldHelp field={field}/></span>)}</div></details>
+      {extra}
       {error && (
         <div role="alert" className="error panel-note">
           {error}
@@ -369,15 +342,9 @@ export function ModelDetails({
     ),
   ];
   return (
-    <div className="panel details inspector-panel">
-      <div className="details-title">
-        <strong>详细信息</strong>
-      </div>
-      <div className="details-subject">{draft.name}</div>
-      <details open>
-        <summary>模型</summary>
-        <label className="property">
-          <span>名称</span>
+    <PropertyPanel subject={draft.name}>
+      <PropertyGroup title="模型">
+        <PropertyRow label="名称">
           <input
             aria-label="模型名称"
             value={draft.name}
@@ -387,19 +354,13 @@ export function ModelDetails({
               })
             }
           />
-        </label>
-        <div className="panel-note">保存仅限本次会话，不自动应用。</div>
-      </details>
-      <details open>
-        <summary>选中点</summary>
+        </PropertyRow>
+        <PropertyHint>保存仅限本次会话，不自动应用。</PropertyHint>
+      </PropertyGroup>
+      <PropertyGroup title="选中点">
         {selected ? (
           fields.map((field) => (
-            <label className="property" key={field}>
-              <span>
-                {labels[field]}
-                <FieldHelp field={field} />
-              </span>
-              <div>
+            <PropertyRow key={field} label={labels[field]} help={<FieldHelp field={field}/>}>
                 {choices[field] ? (
                   <EnumSelect label={labels[field]} value={selected[field]??""} options={choices[field]!.map(value=>[value,value] as const)} disabled={(selected.valueType==="bool"&&(field==="byteOrder"||field==="wordOrder"))||((widths[selected.valueType!]??1)===1&&field==="wordOrder")} onChange={value=>draft.change(state=>{state.rows.find(row=>row.id===selected.id)![field]=value;})}/>
 
@@ -435,17 +396,15 @@ export function ModelDetails({
                     }
                   />
                 )}
-              </div>
-            </label>
+            </PropertyRow>
           ))
         ) : (
-          <div className="panel-note">选择点表行以编辑属性。</div>
+          <PropertyHint>选择点表行以编辑属性。</PropertyHint>
         )}
-      </details>
+      </PropertyGroup>
       {selected && (
-        <details open>
-          <summary>编码预览</summary>
-          <div className="panel-note">
+        <PropertyGroup title="编码预览">
+          <PropertyHint>
             原始值：
             {String(
               draft.preview?.previews.find((p) => p.pointId === selected.id)
@@ -465,11 +424,10 @@ export function ModelDetails({
                   : v.toString(16).padStart(4, "0").toUpperCase(),
               )
               .join(" · ") ?? "待校验"}
-          </div>
-        </details>
+          </PropertyHint>
+        </PropertyGroup>
       )}
-      <details open>
-        <summary>模型引用</summary>
+      <PropertyGroup title="模型引用">
           <div className="model-references">
             <strong>
               {references.length} 处引用
@@ -490,7 +448,7 @@ export function ModelDetails({
               </button>
             ))}
           </div>
-      </details>
-    </div>
+      </PropertyGroup>
+    </PropertyPanel>
   );
 }

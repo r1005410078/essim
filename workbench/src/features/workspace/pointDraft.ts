@@ -6,6 +6,7 @@ import type {
 } from "../../shared/api/contracts";
 export type InputRow = Record<string, string>;
 export interface DraftState {
+  inheritedFields?:string[];
   name: string;
   rows: InputRow[];
 }
@@ -106,6 +107,7 @@ export class ModelDraft {
     this.state = { name, rows: structuredClone(rows) };
     this.baseline = this.content();
   }
+  get inheritedFields(){return this.state.inheritedFields??[];}
   get name() {
     return this.state.name;
   }

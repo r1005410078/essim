@@ -106,3 +106,24 @@ it("文件取消发送任务令牌并丢弃后台迟到结果", async () => {
   complete({ name: "late.csv", sheets: [] });
   expect(await task).toBeNull();
 });
+it("串口发现仅调用查询，保留路径和设备名称", async () => {
+  const ports = [{path:"/dev/cu.test",name:"RS485 · USB 1234:5678"}];
+  invoke.mockResolvedValueOnce(ports);
+  await expect(createWorkspaceClient().listSerialPorts!()).resolves.toEqual(ports);
+  expect(invoke).toHaveBeenCalledWith("list_serial_ports");
+});
+it("浏览器串口发现明确失败，不伪造设备", async () => {
+  isTauri.mockReturnValue(false);
+  await expect(createWorkspaceClient().listSerialPorts!()).rejects.toMatchObject({code:"BACKEND_UNAVAILABLE"});
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("分组规划、提交与释放经统一适配传输，失败保留后端原因",async()=>{
+ const client=createWorkspaceClient();
+ const request={source:"m",batchId:"b",prefix:"组",groupSize:1000,startIp:"127.0.0.1",port:1080,station:1,folder:null};
+ invoke.mockRejectedValueOnce({code:"IP_NOT_LOCAL",message:"未配置"});
+ await expect(client.previewPartition!(request)).rejects.toMatchObject({code:"IP_NOT_LOCAL"});
+ expect(invoke).toHaveBeenLastCalledWith("preview_partition",{request});
+ invoke.mockResolvedValueOnce({});await client.createPartition!("b");expect(invoke).toHaveBeenLastCalledWith("create_partition",{token:"b"});
+ invoke.mockResolvedValueOnce(undefined);await client.discardPartition!("b");expect(invoke).toHaveBeenLastCalledWith("discard_partition",{token:"b"});
+});

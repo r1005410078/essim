@@ -5,7 +5,7 @@ describe("内置文档资源",()=>{
  it("离线资源有稳定身份和分类，与采集模型平级",()=>{
   const tree=resourceNavigation();expect(tree.paths).toContain("文档资源/协议/Modbus/Modbus 详细指南");
   expect(tree.targets.get(tree.paths[0]!)).toEqual({kind:"resource",id:"modbus-guide"});
-  const project=projectNavigation(undefined);expect(project.paths).toContain("文档资源/协议/Modbus/Modbus 详细指南");
+  const project=projectNavigation(undefined,"resources");expect(project.paths).toContain("文档资源/协议/Modbus/Modbus 详细指南");
  });
  it("功能码与异常都能定位正文中的真实章节",()=>{
   const guide=resources[0]!;const ids=new Set(markdownHeadings(guide.content).map(h=>h.id));

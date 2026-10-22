@@ -18,7 +18,7 @@ export function observationRows(records:SlaveObservation[],master=false):Observa
   const date=new Date(Number(record.unixMs));
   const row:ObservationRow={id:record.sequence,time:Number.isNaN(date.valueOf())?"—":date.toLocaleTimeString("zh-CN",{hour12:false})+`.`+String(date.getMilliseconds()).padStart(3,"0"),direction:frame?(fact.direction==="TX"?"TX":"RX"):kind==="request"?"RX":kind==="responsePrepared"?"TX":"事件",client,summary:labels[kind]??"无法解析的观测记录",hex:bytes.map(b=>b.toString(16).padStart(2,"0").toUpperCase()).join(" "),status:"已记录"};
   const rtu=kind==="rtuFrame";row.transport=rtu?"rtu":"tcp";
-  if(rtu&&bytes.length>=2){row.unit=bytes[0];row.functionCode=bytes[1];row.status=fact.discarded?"迟到／非在途数据已隔离":!fact.complete?"短帧／不完整":!fact.crcValid?"CRC错误":row.direction==="TX"?"发送准备（非远端确认）":"实际RTU接收字节";}
+  if(rtu&&bytes.length>=2){row.unit=bytes[0];row.functionCode=bytes[1];row.status=!fact.complete?"短帧／不完整":!fact.crcValid?"CRC错误":fact.discarded?"已忽略／隔离":row.direction==="TX"?(fact.stage==="driverWritten"?"已写出本机驱动（非远端确认）":"发送准备（非远端确认）"):"实际RTU接收字节";}
   if(!rtu&&bytes.length>=8){row.transaction=(bytes[0]!<<8)|bytes[1]!;row.unit=bytes[6];row.functionCode=bytes[7];}
   if(row.direction!=="事件"){
    row.summary=`Unit ${row.unit??"?"} · FC ${row.functionCode??"?"} · ${bytes.length} 字节`;
@@ -27,9 +27,9 @@ export function observationRows(records:SlaveObservation[],master=false):Observa
   else if(typeof fact?.peer==="string")row.summary+=` · ${fact.peer}`;
   if((rtu?bytes.length>=4:bytes.length>=8)&&(client!=="—"||!!frame)&&(!rtu||fact.complete&&fact.crcValid&&!fact.discarded)){
    const key=`${client}:${row.transaction}:${row.unit}:${(row.functionCode??0)&0x7f}`;
-   if(kind==="request"||(frame&&master&&row.direction==="TX")){
+   if(kind==="request"||(frame&&(master?row.direction==="TX":row.direction==="RX"))){
     const previous=requests.get(key);requests.set(key,{hex:[...(previous?.hex??[]),row.hex],ambiguous:!!previous});
-   }else if(kind==="responsePrepared"||(frame&&master&&row.direction==="RX")){
+   }else if(kind==="responsePrepared"||(frame&&(master?row.direction==="RX":row.direction==="TX")&&fact.stage!=="driverWritten")){
     const candidate=requests.get(key);
     if(candidate){const request=candidate.hex.shift();if(!candidate.ambiguous)row.requestHex=request;if(!candidate.hex.length)requests.delete(key);}
    }
