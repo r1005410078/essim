@@ -15,6 +15,12 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 
 左侧导航采用亮色图标标签：服务器图标切换模拟器，叠层图标切换资源（采集模型、设备和文档）。右侧“＋”按当前分类新建，“更多”提供批量任务和运行资源；文件夹及业务图标按类别配色。[本轮验证](docs/test-records/2026-10-22-navigation-tabs.md)。
 
+事件记录／通信报文／问题现位于中央工作区下方的 Dockview 圆角面板，宽度与文档区对齐，默认展开并选中通信报文；状态栏压缩为22px，显示连接、端点、待应用和问题计数。[验证记录](docs/test-records/2026-10-22-bottom-edge.md)。
+
+首开窗口目标为1280×800逻辑像素，按显示器可用区域缩小并居中；左右栏与底部按初始视口分配比例。[布局规则](docs/design/startup-layout.md) · [原生验证](docs/test-records/2026-10-22-startup-layout.md)。
+
+欢迎页、模拟器空态与未选对象的属性栏采用轻量工程线稿，以细灰轮廓、少量浅色和留白表达EMS联调、设备机柜与点表检查；底部事件／通信空态使用简洁通信符号，问题空态复用点表检查线稿。[插画与界面验证](docs/test-records/2026-10-23-light-illustrations.md)。
+
 **当前配置仅保留本次会话，退出即丢失。** SQLite及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
 
 M02正在实施[点表管理提案](openspec/changes/implement-modbus-point-table-management/proposal.md)：已接入树右键CRUD、NovaSheet编辑、精确数值编码、模型引用、Markdown帮助和JSON／CSV／XLSX交换，自动化及主要原生流程已验证，下拉修改与属性同步已由用户确认，剩余快捷键／键盘帮助复核中。实际测试及限制见[实施记录](docs/test-records/2026-10-16-m02-progress.md)，未将实现中的功能标为整体验收完成。
@@ -35,11 +41,13 @@ cargo test --workspace --offline
 cargo doc --workspace --no-deps --offline
 ```
 
+业务弹框已统一为工程紧凑公共组件，支持标题栏拖动、八方向缩放、复位和固定操作栏。后续接入见[弹框规范](docs/design/workbench-dialog.md)，交互夹具为 `/dialogs.html`；[本轮验证](docs/test-records/2026-10-22-compact-dialogs.md)。
+
 正式入口在 `workbench/`，共享UI在 `packages/ui/`。`prototype/`保留原有独立工具链，只表达原型业务交互，不是当前产品协议后端。学习资料见 [学习路线](docs/learning-roadmap.md)，其中教学SOC课程为历史实验。
 
 属性面板已统一接入共享组件，采用紧凑分类属性表；后续字段、协议与对象按[接入规范](docs/design/property-panel.md)扩展。开发服务的 `/property-panel.html` 提供独立组件样例，不连接协议后端。
 
-点表配置页采用单行图标工具栏与可搜索Unit切换，表格恢复NovaSheet默认25px行高／表头，移除顶部字段说明。入口与扩展方式见[点表工具栏规范](docs/design/point-toolbar.md)；`/point-editor.html`提供独立真实组件预览。
+点表配置页采用单行图标工具栏与可搜索Unit切换，表格恢复NovaSheet默认25px行高／表头，移除顶部字段说明。入口与扩展方式见[点表工具栏规范](docs/design/point-toolbar.md)；`/point-editor.html`提供独立真实组件预览。运行视图同样合并为38px单行图标工具栏，未应用说明进入状态提示，真实错误／未确认结果保留显式警报；`/runtime-toolbar.html`提供无协议后端的UI夹具，[验证记录](docs/test-records/2026-10-22-runtime-toolbar.md)。
 
 ## 通用 libmodbus 封装
 

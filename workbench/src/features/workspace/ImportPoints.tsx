@@ -1,3 +1,4 @@
+import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
 import {EnumSelect} from "./EnumSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -35,7 +36,7 @@ export function ImportPoints({
   const reading = useRef<AbortController | null>(null);
   useEffect(() => {
     active.current = true;
-    ref.current?.showModal();
+
     return () => {
       active.current = false;
       reading.current?.abort();
@@ -145,8 +146,8 @@ export function ImportPoints({
     }
   };
   return (
-    <dialog ref={ref} className="import-dialog" onCancel={close}>
-      <h2>{target ? `追加到 ${target.name}` : "导入采集模型"}</h2>
+    <WorkbenchDialog ref={ref} className="import-dialog" onCancel={close} title={<>{target ? `追加到 ${target.name}` : "导入采集模型"}</>} busy={busy} initialWidth={file ? 880 : 600}>
+      <DialogBody>
       <p className="muted">
         预览及确认只修改草稿；不自动保存、不应用。导入生成新的点身份，不覆盖已有点。
       </p>
@@ -264,7 +265,7 @@ export function ImportPoints({
           {error}
         </pre>
       )}
-      <div className="dialog-actions">
+      </DialogBody><DialogFooter>
         <button onClick={close}>取消</button>
         <button
           disabled={!file || busy}
@@ -273,7 +274,7 @@ export function ImportPoints({
         >
           校验并导入草稿
         </button>
-      </div>
-    </dialog>
+      </DialogFooter>
+    </WorkbenchDialog>
   );
 }

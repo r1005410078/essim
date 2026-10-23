@@ -1,3 +1,4 @@
+import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
 import { useEffect, useRef, useState } from 'react';
 import { EditorBody, type EditorToolbar } from './PointEditor';
 import { WorkspaceStore, errorMessage } from './model';
@@ -77,7 +78,6 @@ function OverrideDialog({ store, endpoint, unit, mode, close }: {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [name, setName] = useState(`${saved.name} 模型`);
-    useEffect(() => { ref.current?.showModal(); }, []);
     const load = async () => { setBusy(true); setError(''); setPlan(null); try {
         const p = await store.client.previewUnitPromotion?.(endpoint, unit, selection);
         if (!p)
@@ -124,11 +124,11 @@ function OverrideDialog({ store, endpoint, unit, mode, close }: {
     finally {
         setBusy(false);
     } };
-    return <dialog ref={ref} aria-label={mode === 'extract' ? '另存为新模型并绑定' : '回写模型'} onCancel={e => { e.preventDefault(); if (!busy)
-        close(); }} className="override-dialog"><h2>{mode === 'extract' ? '另存为新模型并绑定' : '回写模型'}</h2>
+    return <WorkbenchDialog ref={ref} aria-label={mode === 'extract' ? '另存为新模型并绑定' : '回写模型'} onCancel={e => { e.preventDefault(); if (!busy)
+        close(); }} className="override-dialog" title={<>{mode === 'extract' ? '另存为新模型并绑定' : '回写模型'}</>} busy={busy} initialWidth={680}><DialogBody>
  {mode === 'extract' ? <><label>模型名称<input value={name} onChange={e => setName(e.target.value)}/></label><p>生成独立模型与点身份，清空当前 Unit 覆盖。原运行快照保留；下次应用会按新模型初始化，不自动迁移旧值。</p></> : <><p>只回写所选配置差异。保存后不会自动应用或启动任何模拟器。</p><div className="override-selection">{Object.entries(all.fields).flatMap(([id, fs]) => fs.map(f => <label key={`${id}:${f}`}><input type="checkbox" checked={selection.fields[id]?.includes(f) ?? false} onChange={e => toggle(id, f, e.target.checked)}/>{store.view?.catalog.models.find(m => m.id === saved.model.id)?.points.find(p => p.id === id)?.name ?? id} · {labels[f]}</label>))}{(['added', 'removed'] as const).flatMap(kind => all[kind].map(id => <label key={`${kind}:${id}`}><input type="checkbox" checked={selection[kind].includes(id)} onChange={e => toggle(id, kind, e.target.checked)}/>{kind === 'added' ? '新增基础点' : '删除基础点'} · {(kind === 'added' ? saved.overrides?.addedPoints : store.view?.catalog.models.find(m => m.id === saved.model.id)?.points)?.find(p => p.id === id)?.name ?? id}</label>))}</div>
  {plan && <><p>目标：{plan.before.name} · {plan.references.length} 个引用 Unit · {new Set(plan.references.map(r => r.endpoint)).size} 个端点</p><div className="override-diff">{Object.entries(plan.selection.fields).flatMap(([id, fs]) => fs.map(f => <div key={`${id}:${f}`}>{plan.before.points.find(p => p.id === id)?.name} · {labels[f]}：{String(plan.before.points.find(p => p.id === id)?.[f] ?? '')} → {String(plan.after.points.find(p => p.id === id)?.[f] ?? '')}</div>))}{plan.references.map(r => <div key={r.unit.id}>{store.view?.catalog.endpoints.find(e => e.id === r.endpoint)?.name} / {r.unit.name} · {store.view?.applicationStates?.[r.endpoint] ?? '未运行'} · 协议变更待显式应用</div>)}</div></>}
- </>}{error && <p role="alert" className="error">{error}</p>}<div className="dialog-actions"><button onClick={close} disabled={busy}>取消</button>{mode === 'promotion' && <button onClick={() => void load()} disabled={busy}>刷新预览</button>}<button disabled={busy || (mode === 'promotion' ? !plan : !name.trim())} onClick={() => void submit()}>{mode === 'extract' ? '另存并绑定' : '确认回写'}</button></div></dialog>;
+ </>}{error && <p role="alert" className="error">{error}</p>}</DialogBody><DialogFooter><button onClick={close} disabled={busy}>取消</button>{mode === 'promotion' && <button onClick={() => void load()} disabled={busy}>刷新预览</button>}<button disabled={busy || (mode === 'promotion' ? !plan : !name.trim())} onClick={() => void submit()}>{mode === 'extract' ? '另存并绑定' : '确认回写'}</button></DialogFooter></WorkbenchDialog>;
 }
 export function CaptureInitialsDialog({ store, endpoint, unit, points, close }: {
     store: WorkspaceStore;
@@ -142,10 +142,10 @@ export function CaptureInitialsDialog({ store, endpoint, unit, points, close }: 
     const ref = useRef<HTMLDialogElement>(null);
     const [samples, setSamples] = useState<InitialSample[] | null>(null);
     const [error, setError] = useState('');
-    useEffect(() => { ref.current?.showModal(); let active = true; baseline.current = baselineContent(); void store.client.captureInitials?.(endpoint, unit, points).then(s => { if (active)
+    useEffect(() => {  let active = true; baseline.current = baselineContent(); void store.client.captureInitials?.(endpoint, unit, points).then(s => { if (active)
         setSamples(s); }).catch(e => { if (active)
         setError(errorMessage(e)); }); return () => { active = false; }; }, [store, endpoint, unit]);
-    return <dialog ref={ref} aria-label="捕获默认初始值" onCancel={e => { e.preventDefault(); close(); }}><h2>将确认值设为默认初始值</h2><p>以下为固定取样，只生成配置草稿，不保存、不回写、不下发。</p>{samples?.map(s => <div key={s.point}>{store.unitDraft(endpoint, unit)?.rows.find(p => p.id === s.point)?.name ?? s.point}：{s.engineering} · {new Date(Number(s.unixMs)).toLocaleString()}</div>)}{error && <p role="alert" className="error">{error}</p>}<div className="dialog-actions"><button onClick={close}>取消</button><button disabled={!samples} onClick={async () => { try {
+    return <WorkbenchDialog ref={ref} aria-label="捕获默认初始值" onCancel={e => { e.preventDefault(); close(); }} title={<>将确认值设为默认初始值</>} initialWidth={560}><DialogBody><p>以下为固定取样，只生成配置草稿，不保存、不回写、不下发。</p>{samples?.map(s => <div key={s.point}>{store.unitDraft(endpoint, unit)?.rows.find(p => p.id === s.point)?.name ?? s.point}：{s.engineering} · {new Date(Number(s.unixMs)).toLocaleString()}</div>)}{error && <p role="alert" className="error">{error}</p>}</DialogBody><DialogFooter><button onClick={close}>取消</button><button disabled={!samples} onClick={async () => { try {
         await store.refresh();
         await store.loadTarget('endpoint', endpoint, true);
         if (baseline.current !== baselineContent())
@@ -167,5 +167,5 @@ export function CaptureInitialsDialog({ store, endpoint, unit, points, close }: 
     }
     catch (e) {
         setError(errorMessage(e));
-    } }}>生成初值草稿</button></div></dialog>;
+    } }}>生成初值草稿</button></DialogFooter></WorkbenchDialog>;
 }

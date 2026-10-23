@@ -19,8 +19,22 @@
 
 继续使用NovaSheet的`denseGridTheme`。移除项目的`rowHeight:28`和`headerHeight:31`覆盖，目前锁定的core 0.17.3默认均为25px。编辑表、Unit配置表与运行表共用`sheetTheme`，不以外层CSS压缩Canvas或改写组件内部绘制。
 
+滚动条通过NovaSheet公开的`Theme.scrollbar`接入共享亮色配色，颜色统一维护在`packages/ui/src/scrollbar.css`：未悬停时使用贴近背景的浅灰滑块，hover加深，按压拖动再加深。保留原轨道宽度及最小滑块长度，通过内缩收细可见部分；横向、纵向一致。普通面板、导航与公共弹框沿用同一配色，不修改第三方包或重写滚动行为。
+
 ## 开发验证入口
 
 `pnpm --filter @essim/workbench dev`启动后，`/point-editor.html`展示真实`UnitPointEditor`、`UnitSelector`和NovaSheet组件，数据明确为独立配置样例；后端操作不可用，不模拟保存或真实运行成功，也不进入生产入口。
 
 本轮验证见[实施记录](../test-records/2026-10-22-point-toolbar.md)。
+
+## 运行工具栏
+
+TCP／RTU 主从站同样使用38px单行工具栏。`RuntimeToolbar`接收页面提供的单元、保存／应用、模型名、捕获初始值和视图切换插槽；各协议控制器保留查询、动作、忙碌状态和对话框的所有权，不搬移DOM，不改变快照、草稿提交和回验规则。
+
+- 从站：启停、批量提交、恢复初值菜单、刷新、捕获初始值；TCP另有连接上限设置。主站：连接／断开与周期采集分别使用独立图标，保留手动读取菜单、下发、暂停／恢复当前Unit采集、设置和RTU诊断。
+- 按钮统一使用`ToolbarIcon`／图标`ActionMenu`，提供hover与焦点提示；待提交数量用图标徽标显示。连接、请求、协议异常和处理时间以图标加数值显示，说明放在提示内。RTU从站不显示TCP连接统计。
+- `ConfigurationStatus`区分未保存、未应用、待应用和已应用；提示说明使用已应用快照、首次运行前需保存并应用。已有快照时，待应用修改不额外阻止启动／连接。引用模型未保存的说明也进入状态提示。
+- 状态点和运行状态保留文字。可靠录制等待仍直接显示；`RuntimeError`将真实错误与未确认结果单独显示为`role="alert"`，不因工具栏压缩而隐藏。
+- 窄栏继续保持一行并横向滚动，键盘可聚焦末尾操作；模型名截断，地址保留可读宽度。
+
+开发入口`/runtime-toolbar.html`使用真实主从站控制器和明确标注的UI状态／命令响应夹具，无协议后端，不进入生产入口。验证见[运行工具栏实施记录](../test-records/2026-10-22-runtime-toolbar.md)。

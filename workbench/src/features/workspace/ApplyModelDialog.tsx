@@ -1,3 +1,4 @@
+import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
 import {Button} from "@essim/ui/components/button";
 import { useEffect, useRef, useState } from "react";
 import type { ApplyPreview, EndpointConfig } from "../../shared/api/contracts";
@@ -24,9 +25,6 @@ export function ApplyModelDialog({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
-  useEffect(() => {
     let active = true;
     setPreview(null);
     setError("");
@@ -47,8 +45,8 @@ export function ApplyModelDialog({
     };
   }, [store, endpoint, reset]);
   return (
-    <dialog ref={dialog} className="resource-dialog apply-dialog" onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}>
-      <h2>应用端点配置</h2>
+    <WorkbenchDialog ref={dialog} className="resource-dialog apply-dialog" onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}} title={<>应用端点配置</>} busy={busy} initialWidth={760}>
+      <DialogBody>
       <div className="apply-identity"><strong>{endpoint.name}</strong><code>{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</code><span className="configuration-badge">{endpoint.units.length} 个 Unit</span></div>
       <p>应用范围为完整端点。现有连接会断开，应用完成后保持停止，需手动启动。</p>
       <table className="migration-table"><thead><tr><th>Unit／模型</th><th>保留</th><th>新增／恢复</th><th>移除</th><th>倍率变化</th></tr></thead><tbody>{preview?.endpoint.units.map(unit=>{
@@ -70,7 +68,7 @@ export function ApplyModelDialog({
           {error}
         </p>
       )}
-      <div className="dialog-actions">
+      </DialogBody><DialogFooter>
         <Button variant="ghost" disabled={busy} onClick={close}>
           取消
         </Button>
@@ -96,7 +94,7 @@ export function ApplyModelDialog({
         >
           {busy?"正在应用…":"停止并应用配置"}
         </Button>
-      </div>
-    </dialog>
+      </DialogFooter>
+    </WorkbenchDialog>
   );
 }

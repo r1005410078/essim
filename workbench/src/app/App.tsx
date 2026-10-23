@@ -1,4 +1,8 @@
+import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
+import { WorkspaceIllustration } from "../features/workspace/WorkspaceIllustration";
+import { initialWorkbenchLayout } from "../features/workspace/initialLayout";
 import { UnitSelector } from "../features/workspace/UnitSelector";
+import { ConfigurationStatus } from "../features/workspace/RuntimeToolbar";
 import { ToolbarIcon } from "../features/workspace/ToolbarIcon";
 import {UnitPointEditor,CaptureInitialsDialog} from "../features/workspace/UnitPointEditor";
 import {ModelPicker} from "../features/workspace/ModelPicker";
@@ -68,6 +72,7 @@ import {
   CircleCheck,
   Info,
   FileCheck2,
+  ListStart,
   FileSpreadsheet,
   BookOpen,
 } from "lucide-react";
@@ -382,9 +387,11 @@ function ProjectPanel() {
           }}
         />
       ) : (
-        <Empty>
-          {store.view ? "尚无模拟器，点击上方 ＋ 新建。" : "等待连接 Rust 核心。"}
-        </Empty>
+        <div className="workspace-side-empty">
+          <WorkspaceIllustration kind="cabinet"/>
+          <h2>{store.view ? "添加第一台模拟器" : "等待连接核心"}</h2>
+          <p>{store.view ? "点击上方 ＋，配置端点和单元。" : "连接 Rust 核心后，开始配置设备。"}</p>
+        </div>
       )}
         </div>;
       })}
@@ -438,26 +445,16 @@ function ProjectPanel() {
 function Welcome() {
   const { store, dialog } = useWorkbench();
   return (
-    <Empty>
-      <Table2 size={30} />
+    <div className="workspace-welcome"><div className="workspace-welcome-content">
+      <WorkspaceIllustration kind="testbench"/>
       <h2>Modbus 工作台</h2>
-      <p>创建模拟器时选择模型，或输入名称新建并绑定。</p>
+      <p>从一张采集模型开始，连接 EMS 与储能设备。</p>
       <div className="welcome-actions">
-        <button
-          disabled={!store.view || store.busy}
-          onClick={() => dialog("model")}
-        >
-          新建采集模型
-        </button>
-        <button
-          disabled={!store.view || store.busy}
-          onClick={() => dialog("endpoint")}
-        >
-          新建模拟器
-        </button>
+        <button disabled={!store.view || store.busy} onClick={() => dialog("model")}>新建采集模型</button>
+        <button disabled={!store.view || store.busy} onClick={() => dialog("endpoint")}>新建模拟器</button>
       </div>
-      <p>TCP／RTU 主从站可在端点运行栏运行并查看真实通信。</p>
-    </Empty>
+      <p className="workspace-welcome-note">配置 TCP／RTU 端点，应用后运行，在下方观察真实通信。</p>
+    </div></div>
   );
 }
 function ResourceActionDialog({
@@ -491,9 +488,6 @@ function ResourceActionDialog({
   ].flatMap((e) =>
     e.units.filter((u) => u.model.id === action.id).map((u) => ({ e, u })),
   );
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
   const submit = async () => {
     setBusy(true);
     setError("");
@@ -533,14 +527,14 @@ function ResourceActionDialog({
     }
   };
   return (
-    <dialog ref={ref} onCancel={close}>
-      <h2>
+    <WorkbenchDialog ref={ref} onCancel={close} title={<>
         {action.kind === "rename"
           ? "重命名模型草稿"
           : action.kind === "copy"
             ? "复制模型"
             : "删除模型"}
-      </h2>
+      </>} busy={busy}>
+      <DialogBody>
       {action.kind === "delete" ? (
         <>
           <p>确认删除“{draft?.name}”及其未保存草稿？</p>
@@ -577,7 +571,7 @@ function ResourceActionDialog({
           {error}
         </p>
       )}
-      <div className="dialog-actions">
+      </DialogBody><DialogFooter>
         <button onClick={close} disabled={busy}>
           取消
         </button>
@@ -591,8 +585,8 @@ function ResourceActionDialog({
         >
           确认
         </button>
-      </div>
-    </dialog>
+      </DialogFooter>
+    </WorkbenchDialog>
   );
 }
 function currentUnit(
@@ -655,25 +649,46 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
   };
   const selector=<UnitSelector units={endpoint.units} value={unit?.id??""} onChange={id=>{store.flushUnitEditors.get(key)?.();store.selectUnit(endpoint.id,id);}}/>;
   const application=<><ToolbarIcon label="应用配置" disabled={store.busy||!saved||store.endpointDirty(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/></ToolbarIcon>
-    <span className={`configuration-badge ${store.endpointDirty(endpoint.id)?"pending":""}`}>{store.endpointDirty(endpoint.id)?"未保存":isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)?"已应用":applied?"待应用":"未应用"}</span></>;
+    <ConfigurationStatus dirty={store.endpointDirty(endpoint.id)} applied={isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)} hasSnapshot={!!applied} master={endpoint.role==="master"} modelDirty={!!(unit&&store.modelDrafts.get(unit.model.id)?.dirty)}/></>;
   const viewTabs=<div className="unit-view-tabs" role="tablist" aria-label="单元视图">{([['configuration','配置',SlidersHorizontal],['runtime','运行',Activity]] as const).map(([value,label,Icon])=><ToolbarIcon key={value} label={`${label}视图`} role="tab" aria-selected={mode===value} onClick={()=>{store.flushUnitEditors.get(key)?.();store.endpointModes.set(endpoint.id,value);store.changed();}}><Icon size={15}/></ToolbarIcon>)}</div>;
   const address=<span className="point-toolbar-address" title={endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}>{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</span>;
   const saveEndpoint={label:"保存端点配置",disabled:store.busy||!store.endpointDirty(endpoint.id),action:()=>attempt(store.saveEndpointDraft(endpoint.id))};
+  const captureAction = <ToolbarIcon label="将所选确认值设为默认初始值" disabled={!unit} onClick={() => {
+    if (!unit) return;
+    try {
+      setCaptureError("");
+      const ids = selectionReaders.current.get(`${key}:${category}`)?.() ?? [];
+      if (!ids.length) throw Error("请在运行表中选择需要捕获的点");
+      const actual = store.view?.catalog.values[unit.id]?.model;
+      if (!actual) throw Error("请先应用配置");
+      const pending = endpoint.role === "master" ? sheets.pendingMaster(unit.id, actual) : sheets.pending(unit.id, actual);
+      if (pending.some(p => ids.includes(p.point.id))) throw Error("所选点含未提交运行草稿，请先处理");
+      setCapture(ids);
+    } catch (e) {
+      setCaptureError(errorMessage(e));
+    }
+  }}><ListStart size={15}/></ToolbarIcon>;
+  const runtimeToolbar={
+    start:<>{selector}<i className="toolbar-divider"/><ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}</>,
+    capture:captureAction,
+    model:<span className="point-toolbar-model">{model?.name??"未绑定模型"}</span>,
+    end:<>{address}<i className="toolbar-divider"/>{viewTabs}</>,
+  };
   return (
     <div className="panel column">
-      {(mode!=="configuration"||!unit)&&<div className="toolbar document-actions compact-point-toolbar">{selector}<i className="toolbar-divider"/>
+      {(mode==="configuration"&&!unit)&&<div className="toolbar document-actions compact-point-toolbar">{selector}<i className="toolbar-divider"/>
         <ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}
         <span className="point-toolbar-model">{model?.name??"未绑定模型"}</span><span className="spacer"/>{address}{viewTabs}
       </div>}
       <div style={{display:mode==="runtime"?"contents":"none"}}>
-      <SlaveRuntimeControls visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
+      <SlaveRuntimeControls toolbar={runtimeToolbar} visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model} category={category}
         readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onValues={updateLiveValues}/>
-      <MasterRuntimeControls visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
+      <MasterRuntimeControls toolbar={runtimeToolbar} visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model}
         readVisiblePoints={()=>runtimeReaders.current.get(`${key}:${category}`)?.()??[]} onPoints={updateMasterPoints}/>
       </div>
-      {mode==="runtime"&&unit&&<div className="toolbar"><button onClick={()=>{try{setCaptureError("");const ids=selectionReaders.current.get(`${key}:${category}`)?.()??[];if(!ids.length)throw Error("请在运行表中选择需要捕获的点");const actual=store.view?.catalog.values[unit.id]?.model;if(!actual)throw Error("请先应用配置");const pending=endpoint.role==="master"?sheets.pendingMaster(unit.id,actual):sheets.pending(unit.id,actual);if(pending.some(p=>ids.includes(p.point.id)))throw Error("所选点含未提交运行草稿，请先处理");setCapture(ids);}catch(e){setCaptureError(errorMessage(e));}}}>将所选确认值设为默认初始值</button></div>}
+
       {captureError&&<div className="error panel-note" role="alert">{captureError}</div>}
       {capture&&unit&&<CaptureInitialsDialog store={store} endpoint={endpoint.id} unit={unit.id} points={capture} close={()=>setCapture(null)}/>}
       {resetting && unit && <ConfirmAction title={`恢复 ${unit.name} 初值`} message={endpoint.role === "slave" ? "仅恢复选定Unit已应用模型的初值，不应用未保存或待应用修改。" : "仅清空选定Unit本地缓存并标记过期，不向远端写入。"} close={()=>setResetting(false)} submit={()=>store.execute({kind:"resetUnit",id:endpoint.id,unit:unit.id})} />}
@@ -686,7 +701,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
           close={() => setApplying(false)}
         />
       )}
-      {unit && store.modelDrafts.get(unit.model.id)?.dirty && (
+      {mode==="configuration" && unit && store.modelDrafts.get(unit.model.id)?.dirty && (
         <div className="panel-note">引用模型有未保存修改，请先保存模型；当前显示已保存点表。</div>
       )}
       {mode==="configuration"&&unit&&<div className="sheet-area unit-configuration"><UnitPointEditor store={store} endpoint={endpoint.id} unit={unit.id} toolbar={{start:<>{selector}<i className="toolbar-divider"/></>,afterSave:application,context:address,end:<><i className="toolbar-divider"/>{viewTabs}</>,menu:[saveEndpoint]}}/></div>}
@@ -784,8 +799,7 @@ function ModelPanel({ params }: { params: { id: string } }) {
 }
 function ConfirmAction({title,message,close,submit}:{title:string;message:string;close:()=>void;submit:()=>Promise<unknown>}) {
  const ref=useRef<HTMLDialogElement>(null);const [error,setError]=useState("");const [busy,setBusy]=useState(false);
- useEffect(()=>{ref.current?.showModal();},[]);
- return <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}}><h2>{title}</h2><p>{message}</p>{error && <p role="alert" className="error">{error}</p>}<div className="dialog-actions"><button disabled={busy} onClick={close}>取消</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await submit();close();}catch(e){setError(errorMessage(e));}finally{setBusy(false);}}}>确认</button></div></dialog>;
+ return <WorkbenchDialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)close();}} title={<>{title}</>} busy={busy}><DialogBody><p>{message}</p>{error && <p role="alert" className="error">{error}</p>}</DialogBody><DialogFooter><button disabled={busy} onClick={close}>取消</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await submit();close();}catch(e){setError(errorMessage(e));}finally{setBusy(false);}}}>确认</button></DialogFooter></WorkbenchDialog>;
 }
 function CloseDraftDialog({
   store,
@@ -799,9 +813,6 @@ function CloseDraftDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
   const endpointId = request.id.startsWith("endpoint:") ? request.id.slice(9) : null;
   const modelId = request.id.startsWith("model:") ? request.id.slice(6) : request.id;
   const finish = () => {
@@ -809,15 +820,15 @@ function CloseDraftDialog({
     cancel();
   };
   return (
-    <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)cancel();}}>
-      <h2>{endpointId ? "模拟器" : "模型"}有未保存修改</h2>
+    <WorkbenchDialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)cancel();}} title={<>{endpointId ? "模拟器" : "模型"}有未保存修改</>} busy={busy}>
+      <DialogBody>
       <p>保存仅保留本次会话。请选择如何关闭。</p>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
-      <div className="dialog-actions">
+      </DialogBody><DialogFooter>
         <button disabled={busy} onClick={cancel}>
           取消
         </button>
@@ -857,24 +868,21 @@ function CloseDraftDialog({
         >
           保存并关闭
         </button>
-      </div>
-    </dialog>
+      </DialogFooter>
+    </WorkbenchDialog>
   );
 }
 function ExitDialog({ cancel }: { cancel: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
   return (
-    <dialog ref={ref} onCancel={cancel}>
-      <h2>退出本次会话？</h2>
+    <WorkbenchDialog ref={ref} onCancel={cancel} title={<>退出本次会话？</>}>
+      <DialogBody>
       <p>当前所有配置（包括已保存配置）、文件夹结构及未保存草稿，退出后都会丢失。</p>
-      <div className="dialog-actions">
+      </DialogBody><DialogFooter>
         <button onClick={cancel}>取消退出</button>
         <button onClick={() => void closeWorkbenchWindow()}>放弃并退出</button>
-      </div>
-    </dialog>
+      </DialogFooter>
+    </WorkbenchDialog>
   );
 }
 
@@ -882,11 +890,19 @@ function InspectorPanel() {
   const { store, selected, open } = useWorkbench();
   const [search, setSearch] = useState("");
   const [scope,setScope]=useState("unit");
+  const [modelChange,setModelChange]=useState<{endpoint:string;unit:string;model:string}|null>(null);
   const inspector=useRef<HTMLElement>(null);
   const endpoint =
     selected?.kind === "endpoint" ? store.endpoint(selected.id) : undefined;
   const unit = currentUnit(store, endpoint);
   const catalog = store.view?.catalog;
+  useEffect(()=>setModelChange(null),[endpoint?.id,unit?.id]);
+  const changeModel=(endpointId:string,unitId:string,model:string)=>{
+    const current=store.endpoint(endpointId);
+    if(!current || !current.units.some(item=>item.id===unitId))return;
+    store.unitDrafts.delete(unitId);
+    store.edit({...current,units:current.units.map(item=>item.id===unitId?{...item,model:{id:model},overrides:emptyOverrides()}:item)});
+  };
   useEffect(()=>{
     const error=store.lastError;if(!error || error.endpointId!==endpoint?.id)return;
     setSearch("");
@@ -954,7 +970,7 @@ function InspectorPanel() {
       endpoint.units.length > 0
     );
   return (
-    <PropertyPanel ref={inspector} subject={endpoint
+    <><PropertyPanel ref={inspector} subject={endpoint
       ? `${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"}${unit ? ` / Unit ${unit.station}` : ""}`
       : (device?.name ?? "未选择对象")}
       status={endpoint && store.endpointDirty(endpoint.id) ? "未保存" : undefined}
@@ -967,7 +983,11 @@ function InspectorPanel() {
               <Property label="类型">{device.kind}</Property>
             </PropertyGroup>
           ) : (
-            <Empty>选择模拟器或设备查看属性。</Empty>
+            <div className="workspace-side-empty workspace-side-empty--inspector">
+              <WorkspaceIllustration kind="inspector"/>
+              <h2>查看设备属性</h2>
+              <p>在左侧选择模拟器或设备，<br/>查看端点、单元和点表属性。</p>
+            </div>
           )
         ) : (
           <>
@@ -1046,7 +1066,7 @@ function InspectorPanel() {
                   </Property>
                   <Property label="采集模型" field="model">
                     <PropertyActions>
-                      <EnumSelect label="采集模型" value={unit.model.id} onChange={v=>{if(overrideCount(unit.overrides)||store.unitDrafts.get(unit.id)?.dirty){if(!window.confirm("更换模型将丢弃当前 Unit 覆盖和点表草稿，是否继续？"))return;}store.unitDrafts.delete(unit.id);patch({model:{id:v},overrides:emptyOverrides()});}} options={latest.map(m=>[m.id,m.name] as const)} />
+                      <EnumSelect label="采集模型" value={unit.model.id} onChange={v=>{if(overrideCount(unit.overrides)||store.unitDrafts.get(unit.id)?.dirty)setModelChange({endpoint:endpoint.id,unit:unit.id,model:v});else changeModel(endpoint.id,unit.id,v);}} options={latest.map(m=>[m.id,m.name] as const)} />
                       <PropertyIconButton
                         label="打开采集模型"
                         onClick={() =>
@@ -1140,14 +1160,15 @@ function InspectorPanel() {
 
           </>
         )}
-      <PropertyHint>切换单元仅切换视图，不影响运行与草稿。</PropertyHint>
+      {endpoint && <PropertyHint>切换单元仅切换视图，不影响运行与草稿。</PropertyHint>}
     </PropertyPanel>
+    {modelChange && <ConfirmAction title="更换采集模型" message="更换模型将丢弃当前 Unit 覆盖和点表草稿，是否继续？" close={()=>setModelChange(null)} submit={async()=>changeModel(modelChange.endpoint,modelChange.unit,modelChange.model)}/>}</>
   );
 }
 function ProblemsPanel(){
  const {store,open}=useWorkbench();
  const issues=[...store.modelDrafts.values()].flatMap(draft=>(draft.preview?.errors??[]).map(issue=>({draft,issue})));
- return <div className="panel column observation-panel"><div className="observation-tools"><strong>问题</strong><span className="muted">{issues.length+(store.error?1:0)} 项</span><span className="spacer"/><span className="muted">来自实际校验结果</span></div><div className="problem-list">{store.error&&<div className="panel-note error">{store.error}</div>}{issues.map(({draft,issue},index)=><button className="problem-row" key={`${draft.id}:${index}`} onClick={()=>{open({kind:"model",id:draft.id});requestAnimationFrame(()=>store.focusModelIssue.get(draft.id)?.(issue));}}><span className="error">●</span><strong>{draft.name}</strong><span>{issue.message}</span></button>)}{!issues.length&&!store.error&&<Empty>当前没有校验问题</Empty>}</div></div>;
+ return <div className="panel column observation-panel"><div className="observation-tools"><strong>问题</strong><span className="muted">{issues.length+(store.error?1:0)} 项</span><span className="spacer"/><span className="muted">来自实际校验结果</span></div><div className="problem-list">{store.error&&<div className="panel-note error">{store.error}</div>}{issues.map(({draft,issue},index)=><button className="problem-row" key={`${draft.id}:${index}`} onClick={()=>{open({kind:"model",id:draft.id});requestAnimationFrame(()=>store.focusModelIssue.get(draft.id)?.(issue));}}><span className="error">●</span><strong>{draft.name}</strong><span>{issue.message}</span></button>)}{!issues.length&&!store.error&&<div className="observation-empty"><WorkspaceIllustration kind="inspector"/><span>当前没有校验问题</span></div>}</div></div>;
 }
 function Observations({params,api}:IDockviewPanelProps<{view?:string}>){
  const {store,selected,open}=useWorkbench();
@@ -1178,7 +1199,7 @@ function CreateDialog({
   useEffect(()=>{if(!modelId && models.length===1) setModelId(models[0].id);},[models,modelId]);
   useEffect(() => {
     store.error="";store.lastError=null;store.changed();
-    ref.current?.showModal();
+
   }, []);
   const title =
     kind === "model"
@@ -1232,9 +1253,9 @@ function CreateDialog({
     }
   }
   return (
-    <dialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!store.busy)close();}} aria-label={title}>
+    <WorkbenchDialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!store.busy)close();}} aria-label={title} title={<>{title}</>} busy={store.busy}>
       <form onSubmit={submit}>
-        <h2>{title}</h2>
+        <DialogBody>
         <label>
           名称
           <input
@@ -1312,17 +1333,17 @@ function CreateDialog({
             {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
           </p>
         )}
-        <div className="dialog-actions">
+        </DialogBody><DialogFooter>
           <button type="button" disabled={store.busy} onClick={close}>
             取消
           </button>
           <button className="primary" disabled={store.busy || !name.trim() || (kind === "endpoint" && (modelId==="__new__"?!newModelName.trim():(!modelId || !models.some(m=>m.id===modelId))))}>
             创建
           </button>
-        </div>
+        </DialogFooter>
       </form>
 
-    </dialog>
+    </WorkbenchDialog>
   );
 }
 function DocumentTab({
@@ -1375,6 +1396,9 @@ function ObservationTab({ api }: IDockviewPanelHeaderProps) {
 const tabComponents = { document: DocumentTab, observation: ObservationTab };
 function HeaderActions({ group }: IDockviewHeaderActionsProps) {
   const { dialog } = useWorkbench();
+  if (group.id === "observation-edge") {
+    return <Icon label="收起底部面板" onClick={() => group.api.collapse()}><ChevronRight size={14} style={{transform:"rotate(90deg)"}} /></Icon>;
+  }
   if (
     !group.panels.some(
       (panel) =>
@@ -1533,40 +1557,39 @@ export function App() {
   },[store.lastError]);
   const ready = ({ api: layout }: DockviewReadyEvent) => {
     api.current = layout;
+    const initial = initialWorkbenchLayout(layout.width || window.innerWidth, layout.height || window.innerHeight);
     layout.addPanel({ id: "welcome", component: "welcome", title: "工作台" });
+    // 左右边栏包围中央列，使底边输出区只占文档区宽度。
+    const navigation = layout.addEdgeGroup("left", {id:"navigation-edge",initialSize:initial.navigation,minimumSize:180});
     layout.addPanel({
       id: "project",
       component: "project",
       title: "导航",
-      position: { referencePanel: "welcome", direction: "left" },
-      initialWidth: 288,
+      position: { referenceGroup: navigation.id, direction: "within" },
     });
+    const inspector = layout.addEdgeGroup("right", {id:"inspector-edge",initialSize:initial.inspector,minimumSize:220});
     layout.addPanel({
       id: "inspector",
       component: "inspector",
       title: "属性",
-      position: { referencePanel: "welcome", direction: "right" },
-      initialWidth: 310,
+      position: { referenceGroup: inspector.id, direction: "within" },
     });
-    layout.addPanel({
-      id: "observations",
-      component: "observations",
-      title: "事件记录",
-      tabComponent: "observation",
-      position: { referencePanel: "welcome", direction: "below" },
-      initialHeight: 210,
+    // 保留原生 edge 的收起、展开与拖动高度，输出面板位于中央列下方。
+    const edge = layout.addEdgeGroup("bottom", {
+      id: "observation-edge", initialSize: initial.output, minimumSize: 120,
+      collapsedSize: 26, collapsed: false,
     });
-    layout.addPanel({
-      id: "messages",
-      component: "observations",
-      title: "通信报文",
-      tabComponent: "observation",
-      params: { view: "messages" },
-      inactive: true,
-      position: { referencePanel: "observations", direction: "within" },
-    });
-    layout.addPanel({id:"problems",component:"problems",title:"问题",tabComponent:"observation",inactive:true,position:{referencePanel:"observations",direction:"within"}});
-    layout.getPanel("observations")?.api.setActive();
+    edge.setHeaderPosition("bottom");
+    for (const [id, component, title, params] of [
+      ["observations", "observations", "事件记录", {view:"events"}],
+      ["messages", "observations", "通信报文", {view:"messages"}],
+      ["problems", "problems", "问题", {}],
+    ] as const) {
+      layout.addPanel({id, component, title, params, tabComponent:"observation",
+        inactive:true, position:{referenceGroup:edge.id, direction:"within"}});
+    }
+    layout.getPanel("messages")?.api.setActive();
+    layout.getPanel("welcome")?.api.setActive();
     // 使用Dockview的公开隐藏接口同步重算内容高度，避免只隐藏DOM留出空白标题行。
     for (const id of ["project", "inspector"]) {
       const panel = layout.getPanel(id);
@@ -1635,26 +1658,21 @@ export function App() {
               theme={workbenchTheme}
             />
           </main>
-          <footer>
-            <span className="footer-status">
-              <CircleCheck
-                size={17}
-                className={store.view ? "connected-icon" : "muted"}
-              />
-              {store.view ? "配置工作台已连接" : "核心未连接"}
+          <footer aria-label="工作台状态栏">
+            <span className="footer-status" title={store.view ? "已连接本次会话的配置服务" : "配置服务尚未连接"}>
+              <CircleCheck size={12} className={store.view ? "connected-icon" : "muted"}/>
+              {store.view ? "已连接" : "未连接"}
             </span>
-            <i />
-            <span className="footer-status">
-              <span className="status-dot" />
-              运行状态见端点运行栏
+            <span className="footer-status">端点 {store.view?.catalog.endpoints.length ?? 0}</span>
+            <span className="footer-status" title="已保存、尚未显式应用的端点">
+              待应用 {store.view?.catalog.endpoints.filter(e => !isEndpointApplied(store.view!.catalog,e,store.view!.applicationMatches)).length ?? 0}
             </span>
-            <i />
-            <span className="footer-status">
-              <Info size={17} />
-              录制失败将停止对应运行
-            </span>
-            <span className="spacer" />
-            <span className="muted">本次会话 · 配置退出即丢失</span>
+            <button className={`footer-status ${store.error ? "error" : ""}`} title="展开问题面板" onClick={()=>{
+              api.current?.getPanel("problems")?.api.setActive();
+              api.current?.getEdgeGroup("bottom")?.expand();
+            }}>问题 {[...store.modelDrafts.values()].reduce((n,d)=>n+(d.preview?.errors.length??0),store.error?1:0)}</button>
+            <span className="spacer"/>
+            <span className="footer-session" title="当前配置仅保留本次会话，退出即丢失">会话配置 · 退出不保留</span>
           </footer>
         </div>
         {closeRequest && (

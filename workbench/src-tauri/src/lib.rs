@@ -1,5 +1,6 @@
 //! 桌面组装：会话配置及真实TCP从站；核心模型不依赖Tauri。
 mod commands;
+mod initial_window;
 mod native_menu;
 use essim_infrastructure::workspace::WorkspaceEngine;
 use std::sync::Arc;
@@ -21,6 +22,13 @@ pub fn run() {
             let engine=Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
             app.manage(Arc::new(essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?));
             app.manage(engine);
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = initial_window::configure(&window) {
+                    // 系统不提供工作区信息时仍以配置尺寸显示，不让工作台停留在隐藏状态。
+                    eprintln!("无法调整首次窗口尺寸：{error}");
+                }
+                window.show()?;
+            }
             Ok(())
         })
         .manage(commands::subscriptions::Subscriptions::default())

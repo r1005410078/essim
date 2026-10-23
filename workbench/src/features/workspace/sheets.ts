@@ -22,6 +22,15 @@ export const readonlyTypes = {
 };
 export const sheetTheme = {
   ...denseGridTheme,
+  // 使用公开滚动条主题，与普通面板共用颜色；保留轨道宽度和最小滑块长度。
+  scrollbar: {
+    ...denseGridTheme.scrollbar,
+    trackColor: "var(--wb-scrollbar-track)",
+    trackBorderColor: "var(--wb-scrollbar-line)",
+    thumbColor: "var(--wb-scrollbar-thumb)",
+    thumbHoverColor: "var(--wb-scrollbar-thumb-hover)",
+    thumbInset: 4,
+  },
   metrics: {
     ...denseGridTheme.metrics,
     rowHeaderWidth: 38,

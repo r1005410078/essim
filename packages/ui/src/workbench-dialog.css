@@ -1,0 +1,46 @@
+.workbench-dialog {
+  position: fixed; inset: auto; margin: 0; padding: 0; box-sizing: border-box;
+  min-width: 0; max-width: none; max-height: none; overflow: visible;
+  border: 1px solid #dce1e7; border-radius: 5px; background: #fff;
+  color: #273244; box-shadow: 0 12px 36px #26324424;
+  font-size: 12px; line-height: 1.5;
+}
+.workbench-dialog::backdrop { background: #27344829; }
+.workbench-dialog-surface { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; border-radius: inherit; }
+.workbench-dialog-surface > form { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0; }
+.workbench-dialog-header { display: flex; flex: 0 0 34px; align-items: center; gap: 7px; padding: 0 8px 0 11px; border-bottom: 1px solid #e5e8ed; background: #f7f8fa; cursor: move; touch-action: none; user-select: none; }
+.workbench-dialog .workbench-dialog-header h2 { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.workbench-dialog-icon { color: #477fc4; flex-shrink: 0; }
+.workbench-dialog-header button { display: inline-flex; align-items: center; justify-content: center; width: 23px; height: 23px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #778191; cursor: pointer; }
+.workbench-dialog-header .workbench-dialog-move { cursor: move; color: #a0a8b3; }
+.workbench-dialog-header button:hover { color: #273244; background: #e8ecf2; }
+.workbench-dialog button:focus-visible, .workbench-dialog input:focus-visible, .workbench-dialog select:focus-visible { outline: 2px solid #7faaf0; outline-offset: 1px; }
+.workbench-dialog button:disabled { opacity: .45; cursor: default; }
+.workbench-dialog-body { flex: 1; min-height: 0; min-width: 0; padding: 12px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.workbench-dialog-body > p { margin: 0 0 9px; }
+.workbench-dialog-body > p:last-child { margin-bottom: 0; }
+.workbench-dialog-body > label, .workbench-dialog-body > fieldset > label { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 10px; margin: 0 0 7px; font-size: 12px; }
+.workbench-dialog-body > label:last-child { margin-bottom: 0; }
+.workbench-dialog-body input:not([type=checkbox]):not([type=radio]), .workbench-dialog-body select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 28px; border: 1px solid #d8dee7; border-radius: 3px; padding: 3px 7px; font: inherit; color: inherit; background: #fff; }
+.workbench-dialog-body input[type=checkbox], .workbench-dialog-body input[type=radio] { width: auto; accent-color: #3578d1; }
+.workbench-dialog-body label:has(> input[type=checkbox]) { display: flex; gap: 6px; }
+.workbench-dialog-body button[role=combobox] { min-width: 0; min-height: 28px; height: 28px; font-size: 12px; }
+.workbench-dialog-body fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.workbench-dialog-body .muted { font-size: 11px; color: #778191; }
+.workbench-dialog-body .error { margin-top: 7px; padding: 5px 7px; overflow-wrap: anywhere; }
+.workbench-dialog-footer { display: flex; flex: 0 0 auto; min-height: 42px; align-items: center; justify-content: flex-end; gap: 7px; margin: 0; padding: 7px 12px; border-top: 1px solid #e5e8ed; background: #f7f8fa; flex-wrap: wrap; }
+.workbench-dialog .workbench-dialog-footer button { display: inline-flex; align-items: center; justify-content: center; min-height: 27px; height: auto; padding: 3px 12px; border: 1px solid #d7dee8; border-radius: 3px; background: #fff; color: #465267; font-size: 12px; line-height: 19px; box-shadow: none; white-space: normal; }
+.workbench-dialog .workbench-dialog-footer button:last-child { border-color: #3578d1; color: #fff; background: #3578d1; }
+.workbench-dialog .workbench-dialog-footer button:hover:not(:disabled) { filter: brightness(.96); }
+.workbench-dialog-resize { position: absolute; z-index: 2; touch-action: none; }
+.workbench-dialog-resize-n, .workbench-dialog-resize-s { height: 6px; left: 6px; right: 6px; cursor: ns-resize; }
+.workbench-dialog-resize-n { top: -3px; } .workbench-dialog-resize-s { bottom: -3px; }
+.workbench-dialog-resize-e, .workbench-dialog-resize-w { width: 6px; top: 6px; bottom: 6px; cursor: ew-resize; }
+.workbench-dialog-resize-e { right: -3px; } .workbench-dialog-resize-w { left: -3px; }
+.workbench-dialog-resize-ne, .workbench-dialog-resize-nw, .workbench-dialog-resize-se, .workbench-dialog-resize-sw { width: 10px; height: 10px; }
+.workbench-dialog-resize-ne { top: -3px; right: -3px; cursor: nesw-resize; }
+.workbench-dialog-resize-nw { top: -3px; left: -3px; cursor: nwse-resize; }
+.workbench-dialog-resize-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
+.workbench-dialog-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
+.workbench-dialog-size-grip { position: absolute; z-index: 3; width: 10px; height: 10px; bottom: 1px; right: 1px; padding: 0; border: 0; background: repeating-linear-gradient(135deg, transparent 0 2px, #a7b1c0 2px 3px, transparent 3px 5px); clip-path: polygon(100% 0,100% 100%,0 100%); cursor: nwse-resize; touch-action: none; }
+@media (max-width: 380px) { .workbench-dialog-body > label, .workbench-dialog-body > fieldset > label { grid-template-columns: 76px minmax(0,1fr); gap: 6px; } }

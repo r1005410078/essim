@@ -1,9 +1,12 @@
+import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
 import {Button} from "@essim/ui/components/button";
 import {ActionMenu} from "./ActionMenu";
 import {resetRangePoints} from "./slaveQueryPoints";
 import {SlaveResponseGate} from "./slaveResponses";
 import {useEffect,useRef,useState,useSyncExternalStore} from "react";
-import {Play,Square,Check,RefreshCw} from "lucide-react";
+import {Play,Square,Check,RefreshCw,RotateCcw,Settings2,Network,ArrowDownUp,TriangleAlert,Timer,Database} from "lucide-react";
+import {ToolbarIcon} from "./ToolbarIcon";
+import {RuntimeToolbar,RuntimeHint,RuntimeError,type RuntimeToolbarSlots} from "./RuntimeToolbar";
 import type {Category,CollectionModel,EndpointConfig,RawValue,SlaveAction,SlaveView,UnitConfig} from "../../shared/api/contracts";
 import {WorkspaceStore,errorMessage} from "./model";
 import {SheetViews} from "./sheets";
@@ -11,8 +14,8 @@ import {slaveRaw} from "./slaveValues";
 import {EnumSelect} from "./EnumSelect";
 
 /** 查询只跟随当前可见行；提交从当前Unit的待修改草稿收集，与选区无关。 */
-export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,category,readVisiblePoints,onValues}:{
- visible:boolean;store:WorkspaceStore;sheets:SheetViews;endpoint:EndpointConfig;unit?:UnitConfig;model?:CollectionModel;category:Category;
+export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,category,readVisiblePoints,onValues,toolbar}:{
+ toolbar?:RuntimeToolbarSlots;visible:boolean;store:WorkspaceStore;sheets:SheetViews;endpoint:EndpointConfig;unit?:UnitConfig;model?:CollectionModel;category:Category;
  readVisiblePoints:()=>string[];onValues:(unit:string,values:Record<string,RawValue>|undefined)=>void;
 }){
  const [view,setView]=useState<SlaveView>();const [busy,setBusy]=useState(false);const [error,setError]=useState("");
@@ -78,22 +81,25 @@ export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,c
  const rtu=endpoint.transport.kind==="rtu";
  const labels={idle:"未启动",starting:"启动中",running:rtu?"串口应答中":"监听中",stopping:"停止中",stopped:"已停止",failed:"运行失败"};
  return <>
-  <div className="runtime-summary" aria-label={rtu?"RTU从站运行":"TCP从站运行"}>
-   <span className={`runtime-state ${running?"running":""}`}><span className="status-dot"/>{labels[view?.state??"idle"]}</span>
-   {view?.pendingRecording&&<span className="muted">等待可靠录制 · 显示最近可靠值</span>}
-   {!rtu&&<span>连接 {view?.clients??0}/{view?.maxClients??limit}</span>}<span>请求 {view?.requests??0}</span><span className={Number(view?.exceptions)>0?"error":""}>异常 {view?.exceptions??0}</span>
-   <span className="runtime-timing muted">最近处理 {view?.lastRequestMicros??"—"} μs</span><span className="spacer"/>
-   <Button size="sm" variant={running?"outline":"default"} disabled={busy||store.busy||!store.client.executeSlave||(!running&&!store.view?.catalog.applied.some(item=>item.id===endpoint.id))} title={running?"停止当前从站并释放资源":"使用已应用快照启动从站"} onClick={()=>void perform(running?{kind:"stop"}:{kind:"start",maxClients:limit})}>{running?<Square size={14}/>:<Play size={14}/>} {rtu?(running?"关闭串口":"打开串口"):(running?"停止":"启动")}</Button>
-  </div>
-  <div className="toolbar runtime-actions">
-   <Button size="sm" variant="ghost" disabled={busy||!unit||!ready} title="原子提交当前Unit所有待修改点，与选区无关" onClick={()=>void submit()}><Check size={15}/>提交修改（{edits.length}）</Button>
-   <ActionMenu label="恢复初值" disabled={busy||!unit||!ready} items={[{label:"指定地址范围…",action:()=>setReset("range")},{label:"复位当前 Unit…",action:()=>setReset("unit")}]}/>
-   <Button size="sm" variant="ghost" disabled={busy} title="刷新当前可见行的实际值" aria-label="刷新可见行" onClick={()=>void query().catch(e=>setError(errorMessage(e)))}><RefreshCw size={14}/></Button>
-   <span className="spacer"/>
-   {!rtu&&<ActionMenu label="运行设置" items={[{label:`连接上限 ${limit}…`,disabled:!!running||busy,action:()=>setConfiguring(true)}]}/>}
-  </div>
-  {(store.drafts.has(endpoint.id)||!store.view?.applicationMatches?.[endpoint.id]||Object.values(store.view.applicationMatches[endpoint.id]??{}).some(value=>!value))&&<div className="configuration-notice">配置尚未应用 · 启动使用已应用快照，请先保存并应用配置。</div>}
-  {(error||view?.error)&&<div className="panel-note error" role="alert">{error||view?.error}{view?.uncertain?"；存在未确认结果，请勿据此重复写入。":""}</div>}
+  <RuntimeToolbar label={rtu?"RTU从站运行":"TCP从站运行"} slots={toolbar}
+   actions={<>
+    <ToolbarIcon label={running?(rtu?"关闭串口并释放资源":"停止从站并释放资源"):(!store.view?.catalog.applied.some(item=>item.id===endpoint.id)?"启动从站：请先保存并应用配置":rtu?"使用已应用快照打开串口":"使用已应用快照启动从站")} className={running?"runtime-stop":"runtime-start"} disabled={busy||store.busy||!store.client.executeSlave||(!running&&!store.view?.catalog.applied.some(item=>item.id===endpoint.id))} onClick={()=>void perform(running?{kind:"stop"}:{kind:"start",maxClients:limit})}>{running?<Square size={15}/>:<Play size={15}/>}</ToolbarIcon>
+    <ToolbarIcon label={`提交当前 Unit 所有待修改点（${edits.length}），与选区无关`} disabled={busy||!unit||!ready} onClick={()=>void submit()}><Check size={15}/>{edits.length>0&&<span className="runtime-count">{edits.length}</span>}</ToolbarIcon>
+    <ActionMenu label="恢复已应用模型初值" disabled={busy||!unit||!ready} items={[{label:"指定地址范围…",action:()=>setReset("range")},{label:"复位当前 Unit…",action:()=>setReset("unit")}]}><RotateCcw size={15}/></ActionMenu>
+    <ToolbarIcon label="刷新当前可见行的实际值" disabled={busy} onClick={()=>void query().catch(e=>setError(errorMessage(e)))}><RefreshCw size={15}/></ToolbarIcon>
+   </>}
+   state={<>
+    <RuntimeHint label={labels[view?.state??"idle"]} className={`runtime-state ${running?"running":""} ${view?.state==="failed"?"failed":""}`}><span className="status-dot"/>{labels[view?.state??"idle"]}</RuntimeHint>
+    {view?.pendingRecording&&<RuntimeHint label="等待可靠录制 · 显示最近可靠值" className="runtime-recording"><Database size={13}/>等待录制</RuntimeHint>}
+   </>}
+   metrics={<div className="runtime-metrics">
+    {!rtu&&<RuntimeHint label={`主站连接 ${view?.clients??0} / 上限 ${view?.maxClients??limit}`}><Network size={13}/>{view?.clients??0}/{view?.maxClients??limit}</RuntimeHint>}
+    <RuntimeHint label={`请求 ${view?.requests??0}`}><ArrowDownUp size={13}/>{view?.requests??0}</RuntimeHint>
+    <RuntimeHint label={`协议异常 ${view?.exceptions??0}`} className={Number(view?.exceptions)>0?"runtime-exceptions":""}><TriangleAlert size={13}/>{view?.exceptions??0}</RuntimeHint>
+    <RuntimeHint label={`最近处理 ${view?.lastRequestMicros??"—"} μs`}><Timer size={13}/>{view?.lastRequestMicros??"—"} μs</RuntimeHint>
+   </div>}
+   settings={!rtu&&<ActionMenu label="运行设置" items={[{label:`连接上限 ${limit}…`,disabled:!!running||busy,action:()=>setConfiguring(true)}]}><Settings2 size={15}/></ActionMenu>}/>
+  <RuntimeError error={error} runtimeError={view?.error} uncertain={view?.uncertain}/>
   {configuring&&<ConnectionSettings limit={limit} close={()=>setConfiguring(false)} save={value=>{setLimit(value);setConfiguring(false);}}/>}
   {reset==="range"&&unit&&model&&<RangeReset model={model} busy={busy} cancel={()=>setReset(null)} confirm={async points=>{if(await perform({kind:"resetValues",unit:unit.id,points}))setReset(null);}}/>}
   {reset==="unit"&&unit&&<ResetConfirmation name={unit.name} busy={busy} cancel={()=>setReset(null)} confirm={()=>{setReset(null);void perform({kind:"resetValues",unit:unit.id,points:[]});}}/>}
@@ -102,32 +108,29 @@ export function SlaveRuntimeControls({visible,store,sheets,endpoint,unit,model,c
 
 function RangeReset({model,busy,cancel,confirm}:{model:CollectionModel;busy:boolean;cancel:()=>void;confirm:(points:string[])=>Promise<void>}){
  const dialog=useRef<HTMLDialogElement>(null);const [area,setArea]=useState("holding");const [start,setStart]=useState("");const [end,setEnd]=useState("");const [error,setError]=useState("");
- useEffect(()=>{dialog.current?.showModal();},[]);
- return <dialog ref={dialog} aria-label="恢复地址范围初值" onCancel={event=>{event.preventDefault();if(!busy)cancel();}}>
+ return <WorkbenchDialog ref={dialog} aria-label="恢复地址范围初值" onCancel={event=>{event.preventDefault();if(!busy)cancel();}} title={<>恢复地址范围初值</>} busy={busy}>
   <form onSubmit={event=>{event.preventDefault();try{
    if(!/^\d+$/.test(start)||!/^\d+$/.test(end))throw Error("请填写起止零基地址");
    const ids=resetRangePoints(model.points,area,Number(start),Number(end));setError("");void confirm(ids);
   }catch(e){setError(errorMessage(e));}}}>
-   <h2>恢复地址范围初值</h2><p>仅恢复当前Unit已应用模型中指定数据区的完整点；保留未提交草稿。</p>
+   <DialogBody><p>仅恢复当前Unit已应用模型中指定数据区的完整点；保留未提交草稿。</p>
    <label>数据区<EnumSelect label="恢复数据区" value={area} onChange={setArea} options={[["holding","holding"],["input","input"],["coil","coil"],["discrete","discrete"]]}/></label>
    <label>起始零基地址<input aria-label="恢复起始地址" required type="number" min={0} max={65535} value={start} onChange={e=>setStart(e.target.value)}/></label>
    <label>结束零基地址<input aria-label="恢复结束地址" required type="number" min={0} max={65535} value={end} onChange={e=>setEnd(e.target.value)}/></label>
    {error&&<p className="error">{error}</p>}
-   <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>取消</button><button type="submit" disabled={busy}>恢复范围初值</button></div>
+   </DialogBody><DialogFooter><button type="button" disabled={busy} onClick={cancel}>取消</button><button type="submit" disabled={busy}>恢复范围初值</button></DialogFooter>
   </form>
- </dialog>;
+ </WorkbenchDialog>;
 }
 function ResetConfirmation({name,busy,cancel,confirm}:{name:string;busy:boolean;cancel:()=>void;confirm:()=>void}) {
  const dialog=useRef<HTMLDialogElement>(null);
- useEffect(()=>{dialog.current?.showModal();},[]);
- return <dialog ref={dialog} aria-label="复位当前Unit" onCancel={event=>{event.preventDefault();if(!busy)cancel();}}>
-  <h2>复位当前Unit</h2><p>将 {name} 全部点恢复为已应用模型初始值，不影响其他Unit。</p>
-  <div className="dialog-actions"><button disabled={busy} onClick={cancel}>取消</button><button disabled={busy} onClick={confirm}>确认复位</button></div>
- </dialog>;
+ return <WorkbenchDialog ref={dialog} aria-label="复位当前Unit" onCancel={event=>{event.preventDefault();if(!busy)cancel();}} title={<>复位当前Unit</>} busy={busy}>
+  <DialogBody><p>将 {name} 全部点恢复为已应用模型初始值，不影响其他Unit。</p>
+  </DialogBody><DialogFooter><button disabled={busy} onClick={cancel}>取消</button><button disabled={busy} onClick={confirm}>确认复位</button></DialogFooter>
+ </WorkbenchDialog>;
 }
 
 function ConnectionSettings({limit,close,save}:{limit:number;close:()=>void;save:(value:number)=>void}){
  const dialog=useRef<HTMLDialogElement>(null);const [value,setValue]=useState(String(limit));
- useEffect(()=>{dialog.current?.showModal();},[]);
- return <dialog ref={dialog} aria-label="TCP运行设置" onCancel={close}><form onSubmit={event=>{event.preventDefault();const next=Number(value);if(Number.isInteger(next)&&next>=1&&next<=100)save(next);}}><h2>TCP 运行设置</h2><p>仅用于下一次启动，当前会话有效。</p><label>主站连接上限<input aria-label="TCP主站连接上限" type="number" required min={1} max={100} value={value} onChange={event=>setValue(event.target.value)}/></label><div className="dialog-actions"><Button type="button" variant="ghost" onClick={close}>取消</Button><Button type="submit">保存设置</Button></div></form></dialog>;
+ return <WorkbenchDialog ref={dialog} aria-label="TCP运行设置" onCancel={close} title={<>TCP 运行设置</>}><form onSubmit={event=>{event.preventDefault();const next=Number(value);if(Number.isInteger(next)&&next>=1&&next<=100)save(next);}}><DialogBody><p>仅用于下一次启动，当前会话有效。</p><label>主站连接上限<input aria-label="TCP主站连接上限" type="number" required min={1} max={100} value={value} onChange={event=>setValue(event.target.value)}/></label></DialogBody><DialogFooter><Button type="button" variant="ghost" onClick={close}>取消</Button><Button type="submit">保存设置</Button></DialogFooter></form></WorkbenchDialog>;
 }

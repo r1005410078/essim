@@ -37,6 +37,14 @@
 - 界面使用 **Dockview 停靠布局**，采用紧凑工程工作台风格，不回退到卡片式管理页面。设备维度使用点表库，以及设备 / 通讯 / 采集表引用文件树；策略维度使用脚本编辑与仿真。
 - 属性面板统一使用 `@essim/ui/components/property-panel`，新增字段和协议按[属性面板接入规范](docs/design/property-panel.md)组合扩展。布局与控件密度由共享组件维护，业务状态、校验、保存与应用留在应用层，不复制旧面板样式或另建同类表单框架。
 
+## 公共弹框使用规范
+
+- 正式客户端新增或修改业务弹框（包括确认、创建、编辑、导入和配置预览）必须统一使用 `@essim/ui/components/workbench-dialog` 导出的 `WorkbenchDialog`、`DialogBody`、`DialogFooter`，遵循[工程紧凑弹框规范](docs/design/workbench-dialog.md)。不得自行拼装原生 `<dialog>`、遮罩弹层，或使用 `window.alert`／`window.confirm`／`window.prompt` 替代业务弹框。系统文件选择、保存路径窗口保持操作系统提供的界面；菜单、下拉列表和提示使用各自组件。
+- 标题通过 `title` 传入，内容放在 `DialogBody`，操作按钮放在 `DialogFooter`，最后一个按钮为主操作。表单使用同一个 `<form onSubmit>` 包住内容与操作栏；取消按钮设为 `type="button"`，保留 Enter 提交与原生字段校验。
+- 由父级条件渲染控制打开和关闭，统一通过 `onCancel` 处理取消；业务层不再调用 `showModal()`。异步请求期间传入 `busy`，同时禁用取消／提交按钮，并保留任务取消、失效响应处理及资源清理。
+- 拖动、八方向缩放、复位、视口边界、焦点限制及亮色紧凑样式由公共组件维护。业务层仅按需设置 `initialWidth`，不得另加外层 padding、overflow、固定最大高度或复制同类弹框样式。弹框内下拉菜单的 portal 应挂到最近的原生 dialog，避免被滚动区裁切或落入背景层。
+- 新增或调整弹框后，按改动验证初始焦点、Tab／Shift+Tab、Esc、关闭后焦点恢复、表单校验、忙碌关闭保护，以及拖动／缩放和窄窗口下内容滚动、操作栏可见性。共享交互夹具为 `/dialogs.html`，窄视口夹具为 `/dialogs.html?small=1`；涉及 WebView 行为时在目标 Tauri 平台复核。
+
 ## 架构约束
 
 1. 设备类型、通信角色、协议实例分别建模；设备状态与协议映射分开，同一设备可暴露多种协议。

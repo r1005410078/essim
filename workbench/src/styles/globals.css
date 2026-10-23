@@ -8,6 +8,8 @@ body,
   margin: 0;
 }
 body {
+  background: #f3f4f6;
+  color-scheme: light;
   font-family:
     system-ui,
     -apple-system,
@@ -136,7 +138,7 @@ button:focus-visible {
 .tree-context-menu {position:fixed;min-width:180px;display:flex;flex-direction:column;padding:4px;background:#fff;border:1px solid #dce4ef;border-radius:6px;box-shadow:0 6px 20px #1b345c24;z-index:1000;font-size:12px;color:#26324a}
 .tree-context-menu button {padding:6px 12px;text-align:left;border-radius:3px}.tree-context-menu button:hover,.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
 .tree-menu-backdrop{position:fixed;inset:0;z-index:999}.root-tree-menu{position:absolute}
-.import-dialog {width:min(1000px,90vw);max-height:85vh;overflow:auto}.import-dialog>label{display:flex;gap:10px;align-items:center;margin:9px 0}.import-dialog input,.import-dialog select{border:1px solid #dce4ef;border-radius:4px;padding:4px 7px}.mapping-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0}.mapping-grid label{display:flex;flex-direction:column;gap:3px}.import-preview{max-height:220px;overflow:auto;border:1px solid #e3e9f1}.import-preview table{border-collapse:collapse;white-space:nowrap;font-size:11px}.import-preview th,.import-preview td{border:1px solid #e3e9f1;padding:4px 8px}.import-dialog pre{white-space:pre-wrap;font:inherit;max-height:130px;overflow:auto}
+.mapping-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0}.mapping-grid label{display:flex;flex-direction:column;gap:3px}.import-preview{max-height:220px;overflow:auto;border:1px solid #e3e9f1}.import-preview table{border-collapse:collapse;white-space:nowrap;font-size:11px}.import-preview th,.import-preview td{border:1px solid #e3e9f1;padding:4px 8px}.import-dialog pre{white-space:pre-wrap;font:inherit;max-height:130px;overflow:auto}
 .pending {
   color: #d39418;
 }
@@ -158,6 +160,24 @@ button:focus-visible {
   padding: 6px 12px;
   color: #4673b1;
 }
+/* 业务空态采用原创透明草图，独立于紧凑表格与运行操作。 */
+.workspace-welcome {height:100%;overflow:auto;display:flex;padding:24px 32px;box-sizing:border-box;}
+.workspace-welcome-content {display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;margin:auto;text-align:center;color:#7d899b;font-size:13px;}
+.workspace-illustration {display:block;max-width:100%;object-fit:contain;flex-shrink:0;user-select:none;pointer-events:none;}
+.workspace-welcome .workspace-illustration {width:500px;height:auto;aspect-ratio:3/2;max-height:clamp(160px,30vh,320px);}
+.workspace-welcome h2 {margin:2px 0 0;font-size:22px;line-height:1.35;font-weight:600;color:#35465f;}
+.workspace-welcome p {margin:0;line-height:1.7;}
+.workspace-welcome .welcome-actions {margin:2px 0 0;flex-wrap:wrap;justify-content:center;}
+.workspace-welcome .welcome-actions button {padding:7px 15px;background:#fff;}
+.workspace-welcome .workspace-welcome-note {font-size:11px;color:#919cac;}
+.workspace-side-empty {display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:0;padding:28px 16px 48px;text-align:center;box-sizing:border-box;color:#8b96a6;font-size:12px;}
+.workspace-side-empty .workspace-illustration {width:160px;aspect-ratio:1;}
+.workspace-side-empty h2 {margin:6px 0 0;font-size:14px;font-weight:500;color:#5c6d83;line-height:1.5;}
+.workspace-side-empty p {margin:0;line-height:1.8;}
+.property-panel:has(> .workspace-side-empty--inspector) {display:flex;flex-direction:column;}
+.property-panel:has(> .workspace-side-empty--inspector)>.property-panel-header,
+.property-panel:has(> .workspace-side-empty--inspector)>.property-panel-toolbar {flex-shrink:0;}
+.workspace-side-empty--inspector {min-height:360px;}
 .error-banner,
 .error {
   color: #b44236;
@@ -165,76 +185,29 @@ button:focus-visible {
   padding: 7px 12px;
   font-size: 12px;
 }
-dialog {
-  border: 1px solid #dce1e8;
-  border-radius: 9px;
-  padding: 23px;
-  width: 380px;
-  margin: auto;
-  box-shadow: 0 16px 60px #28334630;
-  color: #47505d;
-}
-dialog::backdrop {
-  background: #27344845;
-}
-dialog h2 {
-  margin: 0 0 20px;
-  font-size: 16px;
-  font-weight: 600;
-}
-dialog form > label {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 0;
-  font-size: 12px;
-}
-dialog input,
-dialog select {
-  border: 1px solid #d8dee7;
-  border-radius: 4px;
-  padding: 6px;
-  width: 100%;
-}
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-.dialog-actions button {
-  padding: 6px 17px;
-  border: 1px solid #d9e0e9;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.dialog-actions .primary {
-  background: #477fcb;
-  color: #fff;
-  border-color: #477fcb;
-}
-
-/* v15：冷白工程工作台，激活态用蓝线，圆角仅用于停靠区外框。 */
+/* 中性亮色工作台：外框、工具栏与内容区分别使用统一的实色层级。 */
 .workbench {
   --wb-ink: #26324a;
   --wb-muted: #858ea1;
-  --wb-line: #e4eaf1;
+  --wb-line: #dfe3e8;
+  --wb-background: #f3f4f6;
+  --wb-surface: #fff;
+  --wb-chrome: #f7f8fa;
   --wb-blue: #0669ff;
-  background: linear-gradient(115deg, #f1f5f8, #f7f9fb 50%, #edf3f7);
+  background: var(--wb-background);
   color: var(--wb-ink);
   font-size: 13px;
 }
 .workbench main {
-  padding: 3px 8px 7px;
+  padding: 10px 8px 7px;
 }
 .workbench .dockview-theme-light {
-  --dv-group-view-background-color: #fff;
-  --dv-tabs-and-actions-container-background-color: #f7f9fb;
-  --dv-activegroup-visiblepanel-tab-background-color: #fff;
-  --dv-inactivegroup-visiblepanel-tab-background-color: #fff;
-  --dv-activegroup-hiddenpanel-tab-background-color: #f7f9fb;
-  --dv-inactivegroup-hiddenpanel-tab-background-color: #f7f9fb;
+  --dv-group-view-background-color: var(--wb-surface);
+  --dv-tabs-and-actions-container-background-color: var(--wb-chrome);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--wb-surface);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--wb-surface);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--wb-chrome);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--wb-chrome);
   --dv-activegroup-visiblepanel-tab-color: #1f2940;
   --dv-activegroup-hiddenpanel-tab-color: #46516a;
   --dv-inactivegroup-visiblepanel-tab-color: #29344c;
@@ -245,14 +218,18 @@ dialog select {
   --dv-sash-color: transparent;
   --dv-background-color: transparent;
 }
+/* Dockview 根容器默认复用面板白底；间隙和圆角外侧应露出工作台底色。 */
+.workbench .dv-dockview {
+  background-color: var(--wb-background);
+}
 .workbench .dv-groupview {
   border: 1px solid var(--wb-line);
   border-radius: 10px;
-  box-shadow: 0 1px 2px #20355c02;
+  box-shadow: none;
 }
 .workbench .dv-tabs-and-actions-container {
   padding: 0;
-  background: linear-gradient(#fcfdfe, #f4f7fa);
+  background: var(--wb-chrome);
 }
 /* 导航、文档和输出面板共用紧凑 Tab；用内阴影标识选中，切换时不改变尺寸。 */
 .workbench .dv-tab {
@@ -268,7 +245,7 @@ dialog select {
 }
 .workbench .dv-tab.dv-active-tab {
   box-shadow: inset 0 2px var(--wb-blue);
-  background: #fff;
+  background: var(--wb-surface);
   color: #1a2338;
 }
 .workbench .dv-tab.dv-inactive-tab:hover {
@@ -468,30 +445,18 @@ dialog select {
   white-space: nowrap;
 }
 .workbench footer {
-  min-height: 32px;
-  border-top: 1px solid #e4eaf2;
-  background: #ffffffc9;
-  color: #36435d;
-  gap: 14px;
-  padding: 0 16px;
-  font-size: 12px;
+  height:22px;min-height:22px;max-height:22px;line-height:1;
+  border-top:1px solid var(--wb-line);background:var(--wb-chrome);color:#66748a;
+  gap:12px;padding:0 10px;font-size:11px;white-space:nowrap;overflow:hidden;
 }
-.footer-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.footer-status > svg {
-  color: #2879ed;
-}
-.footer-status .connected-icon {
-  color: #22b653;
-}
-.workbench footer > i {
-  height: 14px;
-  width: 1px;
-  background: #b5bfd0;
-}
+.footer-status {display:inline-flex;align-items:center;gap:4px;flex-shrink:0;}
+.footer-status .connected-icon {color:#279763;}
+button.footer-status {height:20px;padding:0 4px;border-radius:3px;font:inherit;}
+button.footer-status:hover {background:#e9eef5;color:#27334b;}
+.footer-session {overflow:hidden;text-overflow:ellipsis;}
+/* 边栏沿用工作台圆角；底边输出区收起时仅保留紧凑标签条。 */
+.workbench .dv-edge-group {overflow:hidden;--dv-tabs-and-actions-container-height:26px;}
+.workbench .observation-tab {font-size:11px;line-height:24px;}
 .observation-tab {
   display: flex;
   align-items: center;
@@ -574,10 +539,13 @@ dialog select {
 .observation-heading {position:sticky;top:0;background:#f7f9fc;z-index:1;color:#708099;font-weight:500;}
 .observation-row[tabindex]:hover {background:#f5f8fc;}.observation-row.selected {background:#eaf2fe;}
 .direction-RX {color:#2879b7;}.direction-TX {color:#218353;}
-.observation-empty {display:flex;min-height:55px;height:100%;align-items:center;justify-content:center;color:#8b98ac;font-size:12px;}
+.observation-table:has(>.observation-empty),.problem-list:has(>.observation-empty) {display:flex;flex-direction:column;}
+.observation-table:has(>.observation-empty)>.observation-heading {flex-shrink:0;}
+.observation-empty {display:flex;flex:1;min-height:88px;align-items:center;justify-content:center;gap:12px;padding:4px 12px;box-sizing:border-box;color:#8b98ac;font-size:12px;}
+.observation-empty .workspace-illustration {width:110px;height:74px;}
 .observation-detail {flex-shrink:0;max-height:75px;overflow:auto;padding:7px 12px;background:#f7f9fc;border-top:1px solid #e8edf4;font:11px/1.6 ui-monospace,monospace;word-break:break-all;}
 .observation-hint {font-size:10px;color:#8b96a7;padding:3px 10px;border-top:1px solid #edf1f5;flex-shrink:0;}
-.apply-dialog {width:min(760px,88vw);max-height:85vh;overflow:auto;}.apply-identity {display:flex;gap:12px;align-items:center;padding:10px 0;}.apply-identity code {font-size:12px;color:#69788e;}
+.apply-identity {display:flex;gap:12px;align-items:center;padding:10px 0;}.apply-identity code {font-size:12px;color:#69788e;}
 .migration-table {width:100%;border-collapse:collapse;margin:16px 0;font-size:12px;}.migration-table th,.migration-table td {text-align:left;padding:9px;border-bottom:1px solid #e5ebf3;}.migration-table th {color:#6a7890;font-weight:500;background:#f7f9fc;}.migration-details {font-size:12px;margin:8px 0;}.migration-details summary {cursor:pointer;color:#62738d;}.migration-details li {padding:4px 0;}
 @media(max-width:1100px){.runtime-timing {display:none;}.observation-hint {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
 .problem-list {flex:1;min-height:0;overflow:auto;}.problem-row {display:flex;gap:10px;text-align:left;align-items:baseline;padding:7px 12px;width:100%;border-bottom:1px solid #edf1f5;font-size:12px;}.problem-row:hover {background:#f4f7fb;}.problem-row strong {font-weight:500;white-space:nowrap;}.configuration-notice button {text-decoration:underline;}
@@ -629,7 +597,7 @@ dialog select {
 .serial-port-discovery > [data-slot="select-trigger"] { flex: 1; min-width: 0; }
 .serial-port-picker > input { width: 100%; min-width: 0; }
 .serial-port-picker > small { overflow-wrap: anywhere; font-size: 11px; }
-.partition-dialog { width: min(760px, 90vw); max-height: 90vh; overflow-y: auto; }
+
 .partition-preview { border: 1px solid var(--border); padding: 10px; max-height: 240px; overflow: auto; }
 .partition-preview li { margin-block: 8px; overflow-wrap: anywhere; }
 
@@ -646,7 +614,7 @@ dialog select {
 .override-selection,.override-diff {max-height:35vh;overflow:auto;padding:8px;background:#f7f9fc;border-radius:6px;font-size:12px;}
 .override-selection label {display:flex;align-items:center;gap:6px;}
 .override-selection input {width:auto;}
-.override-dialog {width:min(720px,90vw);}
+
 .model-picker {position:relative;}
 .model-picker-options {position:absolute;left:0;right:0;top:100%;z-index:5;max-height:220px;overflow:auto;background:white;border:1px solid #dce3ed;border-radius:7px;box-shadow:0 6px 20px #18243b20;padding:4px;}
 .model-picker-options button {display:block;width:100%;text-align:left;font-size:12px;padding:8px;overflow-wrap:anywhere;}
@@ -667,6 +635,23 @@ dialog select {
 .compact-point-toolbar .unit-view-tabs {flex-shrink:0;border-radius:4px;padding:2px;gap:1px;}
 .compact-point-toolbar .unit-view-tabs button {width:26px;height:22px;min-width:26px;padding:0;}
 .compact-point-toolbar .unit-view-tabs [aria-selected="true"] {background:#fff;}
+.runtime-toolbar {flex-shrink:0;white-space:nowrap;flex-wrap:nowrap;color:#66748a;font-size:11px;}
+.runtime-toolbar .runtime-hint {display:inline-flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;}
+.runtime-toolbar .runtime-hint:focus-visible {outline:2px solid #94b9ef;outline-offset:2px;border-radius:3px;}
+.runtime-toolbar .runtime-state {margin:0 4px;}
+.runtime-toolbar .status-dot {width:7px;height:7px;background:#aab3c2;}
+.runtime-toolbar .runtime-state.running .status-dot {background:#25a55c;}
+.runtime-toolbar .runtime-state.failed,.runtime-toolbar .runtime-exceptions {color:#c23b3b;}
+.runtime-toolbar .runtime-state.failed .status-dot {background:#c23b3b;}
+.runtime-toolbar .runtime-recording {color:#9a650b;}
+.runtime-toolbar .runtime-polling {font-size:10px;color:#8390a2;}
+.runtime-toolbar .runtime-metrics {display:flex;align-items:center;gap:12px;flex-shrink:0;margin:0 7px;font-size:10px;font-variant-numeric:tabular-nums;}
+.runtime-toolbar .point-toolbar-model {max-width:150px;}
+.runtime-toolbar .point-toolbar-address {flex-shrink:0;max-width:140px;}
+.runtime-toolbar .toolbar-icon-wrap>button {position:relative;}
+.runtime-toolbar .toolbar-icon-wrap>.runtime-start:not(:disabled) {color:#246bc6;background:#eaf2ff;}
+.runtime-toolbar .toolbar-icon-wrap>.runtime-stop:not(:disabled) {color:#c23b3b;background:#fff0ef;}
+.runtime-toolbar .runtime-count {position:absolute;right:-2px;top:-2px;min-width:12px;height:12px;padding:0 2px;border-radius:6px;background:#246bc6;color:white;font-size:8px;line-height:12px;}
 .override-details {flex-shrink:0;max-height:180px;overflow:auto;border-bottom:1px solid #e3e9f1;font-size:11px;}
 .override-details>summary {padding:5px 10px;cursor:pointer;color:#718198;}
 .unit-selector-trigger {display:flex;align-items:center;gap:6px;width:155px;max-width:100%;min-width:0;height:26px;padding:0 6px;flex-shrink:0;border:1px solid #ccd7e7;border-radius:3px;background:#fff;color:#344862;font-size:11px;}
@@ -688,3 +673,6 @@ dialog select {
 .unit-selector-empty {padding:15px 8px;text-align:center;color:#939faf;}
 .unit-selector-footer {display:flex;justify-content:space-between;padding:5px 6px 1px;margin-top:4px;border-top:1px solid #e8edf4;color:#96a2b3;font-size:10px;}
 .point-editor .toolbar.compact-point-toolbar .unit-selector-trigger {width:155px;min-width:90px;height:26px;justify-content:flex-start;gap:6px;padding:0 6px;border:1px solid #ccd7e7;background:#fff;}
+
+/* 宿主界面使用同一工具栏底色，独立属性组件的默认主题不受影响。 */
+.workbench .property-panel-header {background:var(--wb-chrome);}
