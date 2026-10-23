@@ -69,8 +69,8 @@ function ConnectionProperties({ address, onAddressChange }: {
 
 当前采用组合组件，不建立字段注册中心、协议插件系统或自动表单引擎。保存／应用、配置／运行值、稳定模型引用规则均保持原业务边界。
 
-## 预览与验证
+## 验证
 
-执行 `pnpm --filter @essim/workbench dev`，访问 `http://127.0.0.1:1430/property-panel.html`。独立样例展示 340px 和 280px 面板、长选择值、禁用按钮、复合字段、范围筛选、搜索和折叠。所有值明确为演示内容；该 HTML 不在正式生产入口中，不连接后端。
+执行 `pnpm --filter @essim/workbench dev:tauri`，在工作台选择对象后验证对应属性面板。覆盖 340px 和 280px 面板、长选择值、禁用按钮、复合字段、范围筛选、搜索和折叠。独立预览 HTML 入口已移除。
 
 已有接入包括端点／Unit／运行点／设备／文档属性和模型点编辑。验证证据与限制见 [本轮记录](../test-records/2026-10-22-property-panel.md)。

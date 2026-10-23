@@ -18,7 +18,7 @@
 - `pnpm --filter @essim/workbench test`：21个文件112项通过。
 - `pnpm --filter @essim/workbench build`：TypeScript与Vite生产构建通过，保留既有大于500kB包体提示。
 - `git diff --check`通过。
-- macOS Chrome独立开发入口`/point-editor.html`挂载真实`UnitPointEditor`、`UnitSelector`与NovaSheet，仅使用明确配置样例，不提供协议运行或伪造保存成功。
+- 当时在macOS Chrome独立预览夹具中挂载真实`UnitPointEditor`、`UnitSelector`与NovaSheet，仅使用明确配置样例，不提供协议运行或伪造保存成功。该预览 HTML 入口现已移除，此项保留为历史验证证据。
 - 实测工具栏38px，无字段说明条。确认默认`Unit 01`去重，搜索`02`并Enter切至自定义名称，列表保留当前勾选与已禁用标记；不存在搜索显示空态。
 - 新增点使24点变25点、显示未保存并启用撤销／删除。更多菜单保留全部操作，导出菜单含JSON／CSV／XLSX；导入按钮打开原有追加预览对话框。键盘聚焦“新增点”显示提示。
 

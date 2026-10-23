@@ -21,9 +21,9 @@
 
 滚动条通过NovaSheet公开的`Theme.scrollbar`接入共享亮色配色，颜色统一维护在`packages/ui/src/scrollbar.css`：未悬停时使用贴近背景的浅灰滑块，hover加深，按压拖动再加深。保留原轨道宽度及最小滑块长度，通过内缩收细可见部分；横向、纵向一致。普通面板、导航与公共弹框沿用同一配色，不修改第三方包或重写滚动行为。
 
-## 开发验证入口
+## 开发验证
 
-`pnpm --filter @essim/workbench dev`启动后，`/point-editor.html`展示真实`UnitPointEditor`、`UnitSelector`和NovaSheet组件，数据明确为独立配置样例；后端操作不可用，不模拟保存或真实运行成功，也不进入生产入口。
+执行`pnpm --filter @essim/workbench dev:tauri`，在工作台创建或打开模拟器，进入配置视图验证`UnitPointEditor`、`UnitSelector`和NovaSheet组件。独立预览 HTML 入口已移除。
 
 本轮验证见[实施记录](../test-records/2026-10-22-point-toolbar.md)。
 
@@ -37,4 +37,4 @@ TCP／RTU 主从站同样使用38px单行工具栏。`RuntimeToolbar`接收页�
 - 状态点和运行状态保留文字。可靠录制等待仍直接显示；`RuntimeError`将真实错误与未确认结果单独显示为`role="alert"`，不因工具栏压缩而隐藏。
 - 窄栏继续保持一行并横向滚动，键盘可聚焦末尾操作；模型名截断，地址保留可读宽度。
 
-开发入口`/runtime-toolbar.html`使用真实主从站控制器和明确标注的UI状态／命令响应夹具，无协议后端，不进入生产入口。验证见[运行工具栏实施记录](../test-records/2026-10-22-runtime-toolbar.md)。
+运行工具栏在工作台模拟器的运行视图中验证。独立预览 HTML 入口已移除；历史夹具验证见[运行工具栏实施记录](../test-records/2026-10-22-runtime-toolbar.md)，其中样例状态和命令回调不代表协议执行成功。

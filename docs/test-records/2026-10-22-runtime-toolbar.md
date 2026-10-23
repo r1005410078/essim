@@ -15,7 +15,7 @@
 - `pnpm --filter @essim/workbench test`：22个文件115项通过。新增3项覆盖首次应用／旧快照提示、保存与应用状态、模型未保存说明、真实错误／未确认结果及错误并存／去重。
 - `pnpm --filter @essim/workbench build`：TypeScript及Vite生产构建通过，保留既有大于500kB包体提示。
 - `git diff --check`通过。
-- macOS Chrome `/runtime-toolbar.html`挂载真实主从站控制器，共四种角色／传输组合。该入口明确标注独立UI夹具，无协议后端；状态与命令响应均为样例，不进入生产入口。
+- 当时在macOS Chrome独立预览夹具中挂载真实主从站控制器，共四种角色／传输组合。夹具无协议后端，状态与命令响应均为明确标注的样例，不进入生产入口。该预览 HTML 入口现已移除，此项保留为历史验证证据。
 - 四种运行栏实测均为38px。状态聚焦后展开未应用说明，页面没有未应用警报行；首次应用前从站启动和主站连接禁用。
 - 待应用且存在快照：从站启动图标启用，夹具命令记录为`start → stop`；主站依次记录`connect → startPolling → stopPolling → disconnect`，连接后不会自行开始采集。
 - 从站提交入口记录`setValues`并清除已提交数量徽标。主站手动读取菜单保留当前点／全Unit／地址范围；全Unit读取与下发记录`read`／`write`；当前Unit暂停后切为恢复图标；RTU串行诊断打开原有对话框。

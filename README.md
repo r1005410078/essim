@@ -43,13 +43,13 @@ cargo test --workspace --offline
 cargo doc --workspace --no-deps --offline
 ```
 
-业务弹框已统一为工程紧凑公共组件，支持标题栏拖动、八方向缩放、复位和固定操作栏。后续接入见[弹框规范](docs/design/workbench-dialog.md)，交互夹具为 `/dialogs.html`；[本轮验证](docs/test-records/2026-10-22-compact-dialogs.md)。
+业务弹框已统一为工程紧凑公共组件，支持标题栏拖动、八方向缩放、复位和固定操作栏。后续接入见[弹框规范](docs/design/workbench-dialog.md)；[本轮验证](docs/test-records/2026-10-22-compact-dialogs.md)。
 
 正式入口在 `workbench/`，共享UI在 `packages/ui/`。`prototype/`保留原有独立工具链，只表达原型业务交互，不是当前产品协议后端。学习资料见 [学习路线](docs/learning-roadmap.md)，其中教学SOC课程为历史实验。
 
-属性面板已统一接入共享组件，采用紧凑分类属性表；后续字段、协议与对象按[接入规范](docs/design/property-panel.md)扩展。开发服务的 `/property-panel.html` 提供独立组件样例，不连接协议后端。
+属性面板已统一接入共享组件，采用紧凑分类属性表；后续字段、协议与对象按[接入规范](docs/design/property-panel.md)扩展。
 
-点表配置页采用单行图标工具栏与可搜索Unit切换，表格恢复NovaSheet默认25px行高／表头，移除顶部字段说明。入口与扩展方式见[点表工具栏规范](docs/design/point-toolbar.md)；`/point-editor.html`提供独立真实组件预览。运行视图同样合并为38px单行图标工具栏，未应用说明进入状态提示，真实错误／未确认结果保留显式警报；`/runtime-toolbar.html`提供无协议后端的UI夹具，[验证记录](docs/test-records/2026-10-22-runtime-toolbar.md)。
+点表配置页采用单行图标工具栏与可搜索Unit切换，表格恢复NovaSheet默认25px行高／表头，移除顶部字段说明。入口与扩展方式见[点表工具栏规范](docs/design/point-toolbar.md)。运行视图同样合并为38px单行图标工具栏，未应用说明进入状态提示，真实错误／未确认结果保留显式警报；[验证记录](docs/test-records/2026-10-22-runtime-toolbar.md)。
 
 ## 通用 libmodbus 封装
 
