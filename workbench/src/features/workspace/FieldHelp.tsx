@@ -1,10 +1,4 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@essim/ui/components/tooltip";
+import { MarkdownTooltip } from "@essim/ui/components/markdown-tooltip";
 import content from "./point-fields.md?raw";
 import { labels } from "./pointDraft";
 const help = Object.fromEntries(
@@ -19,8 +13,7 @@ const help = Object.fromEntries(
 /** 表头和Details复用同一个Markdown字段注册表。 */
 export function FieldHelp({ field }: { field: string }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <MarkdownTooltip markdown={help[field] ?? labels[field] ?? field}>
         <button
           type="button"
           className="field-help"
@@ -28,12 +21,6 @@ export function FieldHelp({ field }: { field: string }) {
         >
           ?
         </button>
-      </TooltipTrigger>
-      <TooltipContent className="markdown-help">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>
-          {help[field] ?? labels[field] ?? field}
-        </ReactMarkdown>
-      </TooltipContent>
-    </Tooltip>
+    </MarkdownTooltip>
   );
 }

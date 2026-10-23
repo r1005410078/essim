@@ -31,10 +31,13 @@ function TooltipContent({
   className,
   sideOffset = 0,
   children,
+  portalContainer,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & {
+  portalContainer?: React.ComponentProps<typeof TooltipPrimitive.Portal>["container"];
+}) {
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={portalContainer}>
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}
@@ -45,7 +48,8 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground" />
+        {/* Arrow自身已由Radix按方向旋转，不再添加方块背景与二次旋转。 */}
+        <TooltipPrimitive.Arrow data-slot="tooltip-arrow" width={10} height={5} style={{ fill: "var(--tooltip-arrow-fill, var(--foreground))" }} />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

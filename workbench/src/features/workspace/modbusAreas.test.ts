@@ -11,7 +11,7 @@ it("中文展示不改变复制、粘贴及提交中的协议标识", async () =
   const schema = source.getSchema();
   const field = schema.fields.find(field => field.id === "area")!;
   const context = { field, locale: "zh-CN" };
-  expect(field.format).toEqual({ kind: "custom", formatterId: "modbusArea" });
+  expect(field.format).toEqual({ kind: "custom", formatterId: "pointOption" });
   expect(formatModbusArea(source.getCell(0, "area")!, context)).toBe("保持寄存器");
   expect(serializeRowsToTsv(source.getRows(0, 0), ["area"], schema)).toBe("holding");
   const col = schema.fields.indexOf(field);

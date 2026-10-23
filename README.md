@@ -21,6 +21,10 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 
 欢迎页、模拟器空态与未选对象的属性栏采用轻量工程线稿，以细灰轮廓、少量浅色和留白表达EMS联调、设备机柜与点表检查；底部事件／通信空态使用简洁通信符号，问题空态复用点表检查线稿。[插画与界面验证](docs/test-records/2026-10-23-light-illustrations.md)。
 
+类型、字节序与字序下拉直接显示原始标识（如 `f64`、`big`、`little`），保留 Markdown 帮助。底层保留协议标识；模型属性栏与配置表共用选项。[验证记录](docs/test-records/2026-10-23-point-select-options.md)。
+
+字段帮助与点表枚举说明统一复用公共 [MarkdownTooltip](docs/design/markdown-tooltip.md)，使用与提示框同色的原生三角箭头。
+
 点表数据区下拉显示中文名称、英文标识和位宽／访问属性，选中后单元格仅显示中文；悬停或键盘聚焦选项可查看 Markdown 协议说明。[验证记录](docs/test-records/2026-10-23-modbus-area-dropdown.md)。
 
 **当前配置仅保留本次会话，退出即丢失。** SQLite及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。

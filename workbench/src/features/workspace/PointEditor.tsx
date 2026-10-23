@@ -363,7 +363,7 @@ export function ModelDetails({
           fields.map((field) => (
             <PropertyRow key={field} label={labels[field]} help={<FieldHelp field={field}/>}>
                 {choices[field] ? (
-                  <EnumSelect label={labels[field]} value={selected[field]??""} options={choices[field]!.map(value=>[value,value] as const)} disabled={(selected.valueType==="bool"&&(field==="byteOrder"||field==="wordOrder"))||((widths[selected.valueType!]??1)===1&&field==="wordOrder")} onChange={value=>draft.change(state=>{state.rows.find(row=>row.id===selected.id)![field]=value;})}/>
+                  <EnumSelect field={field} label={labels[field]} value={selected[field]??""} options={choices[field]!.map(value=>[value,value] as const)} disabled={(selected.valueType==="bool"&&(field==="byteOrder"||field==="wordOrder"))||((widths[selected.valueType!]??1)===1&&field==="wordOrder")} onChange={value=>draft.change(state=>{state.rows.find(row=>row.id===selected.id)![field]=value;})}/>
 
                 ) : field === "initialEngineering" &&
                   selected.valueType === "bool" ? (

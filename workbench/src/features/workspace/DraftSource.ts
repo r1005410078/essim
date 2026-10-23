@@ -1,3 +1,4 @@
+import { hasPointSelectOptions } from "./pointSelectOptions";
 import { SnapshotDataSource } from "./SnapshotDataSource";
 import { type CellValue } from "@zhiguang/novasheet-core";
 import type { Category, DraftPreview } from "../../shared/api/contracts";
@@ -28,8 +29,8 @@ export class DraftSource extends SnapshotDataSource {
             id,
             name: labels[id]!,
             type: choices[id] ? "singleSelect" : "text",
-            width: id === "name" ? 150 : id === "note" ? 200 : 120,
-            format: id === "area" ? { kind: "custom" as const, formatterId: "modbusArea" } : undefined,
+            width: id === "name" ? 150 : id === "valueType" ? 160 : 120,
+            format: hasPointSelectOptions(id) ? { kind: "custom" as const, formatterId: "pointOption" } : undefined,
             options: choices[id] ? { choices: choices[id] } : undefined,
           })),
           { id: "width", name: labels.width!, type: "readonly", width: 80 },

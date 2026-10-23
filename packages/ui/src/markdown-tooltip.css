@@ -1,0 +1,25 @@
+/* 外层保持overflow可见，让Radix原生三角箭头完整显示；长文档只在内层滚动。 */
+[data-slot="tooltip-content"].markdown-tooltip {
+  --tooltip-arrow-fill: var(--popover);
+  z-index:60;
+  width:max-content;
+  max-width:min(340px,calc(100vw - 16px));
+  padding:12px 15px;
+  background:var(--popover);
+  color:var(--popover-foreground);
+  border:1px solid var(--border);
+  box-shadow:0 5px 22px #17325c22;
+  font-size:12px;
+  line-height:1.65;
+  text-wrap:pretty;
+  overflow:visible;
+}
+.markdown-tooltip-scroll {max-height:min(420px,calc(var(--radix-tooltip-content-available-height,100vh) - 28px));overflow:auto;overflow-wrap:anywhere}
+.markdown-tooltip-scroll h1,.markdown-tooltip-scroll h2,.markdown-tooltip-scroll h3 {font-size:13px;font-weight:600;margin:0 0 5px}
+.markdown-tooltip-scroll p {margin:5px 0}
+.markdown-tooltip-scroll ul {list-style:disc;padding-left:18px}
+.markdown-tooltip-scroll ol {list-style:decimal;padding-left:18px}
+.markdown-tooltip-scroll table {border-collapse:collapse;margin:7px 0}
+.markdown-tooltip-scroll td,.markdown-tooltip-scroll th {border:1px solid var(--border);padding:3px 7px;text-align:left}
+.markdown-tooltip-scroll code {background:var(--muted);border-radius:3px;padding:1px 3px}
+.markdown-tooltip-source {border-top:1px solid var(--border);margin-top:10px;padding-top:7px;color:var(--muted-foreground);font-size:11px}

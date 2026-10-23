@@ -37,7 +37,7 @@ it("排序后的写入仍指向稳定点身份，一次粘贴只产生一个草�
     (r) => r.id === "a",
   );
   sorted.updateCell?.(index, "name", "B");
-  sorted.updateCell?.(index, "note", "批量备注");
+  sorted.updateCell?.(index, "unit", "V");
   source.flush();
   expect(draft.rows[1]?.name).toBe("B");
   expect(draft.rows[0]?.name).toBe("Z");

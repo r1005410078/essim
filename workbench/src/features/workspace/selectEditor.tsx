@@ -1,11 +1,9 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@essim/ui/components/tooltip";
-import { areaHelp, modbusArea } from "./modbusAreas";
+import { PointSelectItem } from "./PointSelectItem";
+import { hasPointSelectOptions, pointSelectLabel } from "./pointSelectOptions";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { CellEditor, CellEditorOpenContext } from "@zhiguang/novasheet-core";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@essim/ui/components/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@essim/ui/components/select";
 
 function CellSelect({ ctx }: { ctx: CellEditorOpenContext }) {
   const [open, setOpen] = useState(true);
@@ -18,7 +16,7 @@ function CellSelect({ ctx }: { ctx: CellEditorOpenContext }) {
   // 非法旧值保留在末尾供识别；有效选项始终遵循字段定义的顺序。
   if (original && !options.includes(original)) options.push(original);
   return (
-    <TooltipProvider delayDuration={350}><Select open={open} value={original} onOpenChange={(next) => {
+    <Select open={open} value={original} onOpenChange={(next) => {
       setOpen(next);
       if (!next) ctx.cancel();
     }} onValueChange={(value) => {
@@ -26,12 +24,10 @@ function CellSelect({ ctx }: { ctx: CellEditorOpenContext }) {
       else ctx.commit(value);
     }}>
       <SelectTrigger aria-label={`${ctx.field.name}选项`} className="h-full min-h-0 rounded-none border-primary shadow-none">
-        <SelectValue placeholder="请选择">{ctx.field.id === "area" ? (modbusArea(original)?.name ?? original) || undefined : undefined}</SelectValue>
+        <SelectValue placeholder="请选择">{hasPointSelectOptions(ctx.field.id) ? pointSelectLabel(ctx.field.id, original) || undefined : undefined}</SelectValue>
       </SelectTrigger>
-      <SelectContent className={ctx.field.id === "area" ? "modbus-area-menu" : undefined} onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} onCloseAutoFocus={(event) => event.preventDefault()}>
-        {options.map((value) => {
-          const area = ctx.field.id === "area" ? modbusArea(value) : undefined;
-          const item = <SelectItem key={value} value={value} textValue={area?.name ?? value}
+      <SelectContent className={hasPointSelectOptions(ctx.field.id) ? "point-select-menu" : undefined} onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} onCloseAutoFocus={(event) => event.preventDefault()}>
+        {options.map((value) => <PointSelectItem key={value} field={ctx.field.id} value={value} textValue={value}
           onPointerUp={(event) => {
             // 在菜单关闭或焦点恢复前确认用户选项，避免WebView事件顺序吞掉提交。
             event.preventDefault();
@@ -49,11 +45,9 @@ function CellSelect({ ctx }: { ctx: CellEditorOpenContext }) {
             event.stopPropagation();
             ctx.commit(value);
           }}
-        >{area ? <span className="modbus-area-option"><span className="modbus-area-option-title"><span>{area.name}</span><code>{area.id}</code></span><span className="modbus-area-option-meta">{area.description}</span></span> : <>{value}{!values.includes(value) ? "（当前非法值）" : ""}</>}</SelectItem>;
-          return area ? <Tooltip key={value}><TooltipTrigger asChild>{item}</TooltipTrigger><TooltipContent side={window.innerWidth < 640 ? "bottom" : "right"} align="start" sideOffset={8} collisionPadding={8} className="markdown-help modbus-area-help"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>{areaHelp[value]}</ReactMarkdown><p className="modbus-area-help-source">功能码为十进制 · Modbus V1.1b3 §4.3、§6</p></TooltipContent></Tooltip> : item;
-        })}
+        >{value}{!values.includes(value) ? "（当前非法值）" : ""}</PointSelectItem>)}
       </SelectContent>
-    </Select></TooltipProvider>
+    </Select>
   );
 }
 

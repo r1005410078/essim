@@ -128,8 +128,6 @@ button:focus-visible {
   pointer-events: none;
 }
 .field-help {display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid #bac7da;font-size:10px;color:#5b739a;margin-left:4px;cursor:help}
-.markdown-help {max-width:440px;max-height:420px;overflow:auto;padding:12px 15px;background:#fff;color:#26324a;border:1px solid #dce4ef;box-shadow:0 5px 22px #17325c22;font-size:12px;line-height:1.65;text-wrap:pretty}
-.markdown-help p {margin:5px 0}.markdown-help ul {list-style:disc;padding-left:18px}.markdown-help table {border-collapse:collapse;margin:7px 0}.markdown-help td,.markdown-help th {border:1px solid #dce4ef;padding:3px 7px;text-align:left}.markdown-help code{background:#edf2f8;border-radius:3px;padding:1px 3px}
 .point-errors {max-height:90px;overflow:auto;padding:4px 9px;background:#fff5f2;border-bottom:1px solid #efcfc5;flex-shrink:0}
 .point-errors button{display:block;text-align:left;color:#ae3c2e;font-size:12px;padding:2px 0}
 .point-editor .toolbar button {display:flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:3px}.point-editor .toolbar button:hover{background:#edf2f8}
@@ -677,12 +675,9 @@ button.footer-status:hover {background:#e9eef5;color:#27334b;}
 /* 宿主界面使用同一工具栏底色，独立属性组件的默认主题不受影响。 */
 .workbench .property-panel-header {background:var(--wb-chrome);}
 
-/* 数据区下拉保持工程密度，英文标识与访问属性只在选项内展示。 */
-.modbus-area-menu {min-width:260px;max-width:calc(100vw - 16px)}
-.modbus-area-option {display:flex;flex-direction:column;gap:2px;padding:2px 0}
-.modbus-area-option-title {display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
-.modbus-area-option-title code {background:#edf2f8;color:#526179;border-radius:3px;padding:0 4px;font-size:12px}
-.modbus-area-option-meta {font-size:12px;color:#65748c}
-.modbus-area-help {z-index:60;max-width:min(340px,calc(100vw - 16px));max-height:var(--radix-tooltip-content-available-height,420px)}
-.modbus-area-help h3 {font-weight:600;font-size:13px;margin:0 0 5px}
-.modbus-area-help .modbus-area-help-source {border-top:1px solid #dce4ef;margin-top:10px;padding-top:7px;color:#65748c;font-size:11px}
+/* 点表枚举下拉保持工程密度，英文标识与属性只在选项内展示。 */
+.point-select-menu {min-width:260px;max-width:calc(100vw - 16px)}
+.point-select-option {display:flex;flex-direction:column;gap:2px;padding:2px 0}
+.point-select-option-title {display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
+.point-select-option-title code {background:#edf2f8;color:#526179;border-radius:3px;padding:0 4px;font-size:12px}
+.point-select-option-meta {font-size:12px;color:#65748c}
