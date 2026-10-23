@@ -5,7 +5,7 @@ import {
   ModelDraft,
   choices,
   defaultRow,
-  fields,
+  gridFields,
   labels,
   widths,
   type InputRow,
@@ -24,7 +24,7 @@ export class DraftSource extends SnapshotDataSource {
     super({
       schema: {
         fields: [
-          ...fields.map((id) => ({
+          ...gridFields.map((id) => ({
             id,
             name: labels[id]!,
             type: choices[id] ? "singleSelect" : "text",
@@ -77,7 +77,7 @@ export class DraftSource extends SnapshotDataSource {
     }
   }
   canEdit(index: number, field: string) {
-    if (!fields.includes(field as (typeof fields)[number])) return false;
+    if (!gridFields.includes(field as (typeof gridFields)[number])) return false;
     const visible = this.getRows(index, index)[0];
     if (!visible) return false;
     const row = this.pending.get(String(visible.id)) ?? visible;

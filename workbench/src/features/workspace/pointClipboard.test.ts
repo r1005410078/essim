@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { SortLayer } from "@zhiguang/novasheet-core";
-import { ModelDraft, defaultRow, fields } from "./pointDraft";
+import { ModelDraft, defaultRow, gridFields } from "./pointDraft";
 import { DraftSource } from "./DraftSource";
 import { pastePointText } from "./pointClipboard";
 const selection = (col = 0) => ({
@@ -27,7 +27,7 @@ it("系统TSV粘贴可扩展空表，500行一次撤销，64位文本不经Numbe
   await pastePointText(
     source,
     () => source,
-    selection(fields.indexOf("initialEngineering")),
+    selection(gridFields.indexOf("initialEngineering")),
     "18446744073709551615",
   );
   expect(draft.rows[0]!.initialEngineering).toBe("18446744073709551615");
@@ -57,9 +57,18 @@ it("排序键在粘贴中变化仍写入原目标身份，非适用字段跳过"
   const skipped = await pastePointText(
     source,
     () => source,
-    selection(fields.indexOf("wordOrder")),
+    selection(gridFields.indexOf("wordOrder")),
     "little",
   );
   expect(skipped).toBe(1);
   expect(draft.rows[0]!.wordOrder).toBe("big");
+});
+
+it("四遥分页粘贴按当前分类归属，点名后直接对应数据区", async () => {
+  for (const category of ["measurement", "indication", "control", "adjustment"] as const) {
+    const draft = new ModelDraft("m", "M", []);
+    const source = new DraftSource(draft, category);
+    await pastePointText(source, () => source, selection(), "测试点\tholding\t123");
+    expect(draft.rows[0]).toMatchObject({ name: "测试点", category, area: "holding", address: "123" });
+  }
 });

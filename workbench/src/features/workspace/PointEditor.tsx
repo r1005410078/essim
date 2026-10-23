@@ -36,6 +36,7 @@ import {
   choices,
   defaultRow,
   fields,
+  gridFields,
   labels,
   widths,
   type InputRow,
@@ -158,7 +159,7 @@ export function EditorBody({
         errorPage * 50 + 50,
       ) ?? []) {
         const row = positions.get(issue.pointId ?? "") ?? -1;
-        const col = fields.indexOf(issue.field as (typeof fields)[number]);
+        const col = gridFields.indexOf(issue.field as (typeof gridFields)[number]);
         if (row >= 0 && col >= 0) {
           api.setFillColor(
             { startRow: row, endRow: row, startCol: col, endCol: col },
@@ -216,7 +217,7 @@ export function EditorBody({
         (rows) => {
           if (grid.current !== api) return;
           const index = rows.findIndex((item) => item.id === row.id);
-          if (index >= 0) api.scrollToCell(index, issue.field ?? "name");
+          if (index >= 0) api.scrollToCell(index, issue.field === "category" ? "name" : issue.field ?? "name");
         },
       );
     });

@@ -52,8 +52,7 @@ it("修改分类后原位保留当前行，重新打开分类才重新过滤", (
   const next = defaultRow("measurement", "q");
   const draft = new ModelDraft("m", "M", [row, next]);
   const source = new DraftSource(draft, "measurement");
-  source.updateCell(0, "category", "indication");
-  source.flush();
+  draft.change(state => { state.rows[0]!.category = "indication"; });
   source.sync();
   expect(source.getRows(0, 1).map(r => r.id)).toEqual(["p", "q"]);
   expect(source.getRows(0, 0)[0]).toMatchObject({ ...row, category: "indication" });

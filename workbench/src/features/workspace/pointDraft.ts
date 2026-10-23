@@ -25,6 +25,7 @@ export const fields = [
   "masterPeriodMs",
   "note",
 ] as const;
+export const gridFields = fields.filter(field => field !== "category");
 export const labels: Record<string, string> = {
   name: "点名",
   category: "四遥分类",
