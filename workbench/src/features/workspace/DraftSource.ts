@@ -29,6 +29,7 @@ export class DraftSource extends SnapshotDataSource {
             name: labels[id]!,
             type: choices[id] ? "singleSelect" : "text",
             width: id === "name" ? 150 : id === "note" ? 200 : 120,
+            format: id === "area" ? { kind: "custom" as const, formatterId: "modbusArea" } : undefined,
             options: choices[id] ? { choices: choices[id] } : undefined,
           })),
           { id: "width", name: labels.width!, type: "readonly", width: 80 },

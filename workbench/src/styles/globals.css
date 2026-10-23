@@ -676,3 +676,13 @@ button.footer-status:hover {background:#e9eef5;color:#27334b;}
 
 /* 宿主界面使用同一工具栏底色，独立属性组件的默认主题不受影响。 */
 .workbench .property-panel-header {background:var(--wb-chrome);}
+
+/* 数据区下拉保持工程密度，英文标识与访问属性只在选项内展示。 */
+.modbus-area-menu {min-width:260px;max-width:calc(100vw - 16px)}
+.modbus-area-option {display:flex;flex-direction:column;gap:2px;padding:2px 0}
+.modbus-area-option-title {display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
+.modbus-area-option-title code {background:#edf2f8;color:#526179;border-radius:3px;padding:0 4px;font-size:12px}
+.modbus-area-option-meta {font-size:12px;color:#65748c}
+.modbus-area-help {z-index:60;max-width:min(340px,calc(100vw - 16px));max-height:var(--radix-tooltip-content-available-height,420px)}
+.modbus-area-help h3 {font-weight:600;font-size:13px;margin:0 0 5px}
+.modbus-area-help .modbus-area-help-source {border-top:1px solid #dce4ef;margin-top:10px;padding-top:7px;color:#65748c;font-size:11px}

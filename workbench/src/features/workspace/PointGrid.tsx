@@ -9,6 +9,7 @@ import { DraftSource } from "./DraftSource";
 import { widths } from "./pointDraft";
 import { readonlyTypes, sheetTheme } from "./sheets";
 import { pastePointText } from "./pointClipboard";
+import { formatModbusArea } from "./modbusAreas";
 import { createSelectEditor } from "./selectEditor";
 
 /** NovaSheet React 0.4.14未转发isCellEditable，故使用同一组件的公开Grid入口。
@@ -35,6 +36,7 @@ export function PointGrid({
       data: source,
       theme: sheetTheme,
       cellTypes: readonlyTypes,
+      formatters: { modbusArea: formatModbusArea },
       cellEditors: { singleSelect: createSelectEditor() },
       backend: canvas2dBackend(),
       excelHeaders: true,
