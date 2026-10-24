@@ -1,223 +1,148 @@
-# ESSim 项目目标与使用场景
+# ESSim
 
-## 项目定位
+面向真实 EMS 联调、储能设备协议学习和可复现实验的 Rust + Tauri + React 工作台。
 
-ESSim 是面向 EMS 的储能设备协议仿真与测试平台，用于真实协议联调、可重复的场景测试和协议学习，同时作为能够展示工程能力的个人作品。
+[项目目标](docs/project-goals.md) · [Modbus实现计划](docs/plans/modbus-simulator.md) · [架构](docs/architecture/workspace.md) · [流程图与代码对应](docs/design/modbus-event-storming.md) · [开发约束](AGENTS.md)
 
-本文记录产品方向与验收原则，不代表这些能力已经实现。
+顶部已接入[资源／命令检索](docs/design/command-center.md)、文档历史前进后退与面板开关；Tabs仍在中央内容区，拼音索引按需加载。浏览器交互已检查，macOS已检查原生检索、焦点恢复及缩放；最小化恢复、拖动位置与退出保护待补验，Windows/Linux尚未验收。[提案](openspec/changes/implement-workbench-command-center/proposal.md) · [实施记录](docs/test-records/2026-10-23-command-center-ui.md)。
 
-## 三个核心目标
+## 当前能力
 
-1. **测试真实 EMS**：模拟 BMS、PCS、电表等设备，通过真实协议连接 EMS，覆盖正常运行、异常恢复和多设备大规模数据场景，尽可能模拟真实环境。
-2. **学习并熟悉协议**：理解 Modbus、IEC 60870-5-104、IEC 61850 的报文、交互流程、数据模型和故障处理，能够解释和定位通信问题。
-3. **形成个人作品**：提供可演示、可复现、可验证的工程成果，用架构取舍、互操作记录、性能报告和故障案例体现能力，为面试提供依据。
+M01已完成约定的[基础模型与工作台提案](openspec/changes/establish-modbus-simulator-foundation/proposal.md)：
 
-## 典型使用流程
+- 具有稳定身份的设备、采集模型、TCP／RTU主从端点及逻辑单元。单元通过稳定ID引用当前模型，可选择关联设备。
+- 会话内配置目录、稳定模型引用与覆盖保存、保存与显式应用分离、全部单元校验后原子应用。
+- Dockview停靠工作台，`@pierre/trees`资源／模拟器树，NovaSheet点表，属性栏Unit切换和四遥导航。
+- 运行／录制失败门禁及隔离回放的核心契约与测试；当时尚无生产执行器；当前 TCP 从站及文件录制进展见下文，可用回放仍未接入。
 
-1. 创建场景，建立逻辑网络、通信端点和连接关系。
-2. 创建设备，选择常见或自定义设备类型，可选上传 3D 模型。PCS、BMS 等现场设备默认作为从站监听，供真实 EMS 连接；也可以创建 EMS，作为主站去连接模拟设备或真实设备。每条通讯引用一张采集表。采集表按协议映射保存，多台相同设备可以共用；每台设备保留自己的地址和运行值。设备身份与通信角色分别配置。
-3. 导入 Excel/CSV 点表，预览列映射和校验结果，通过已有 Excel 风格组件批量编辑。
-4. 配置初始值、变化曲线、控制响应和故障条件，启动多个设备。
-5. 将真实 EMS 接入模拟设备；也可用模拟主站主动连接真实设备或模拟从站。
-6. 修改运行值或应用点表配置，观察请求、响应、状态变化和告警。
-7. 根据预期结果验证采集、控制和恢复行为，保存配置快照、执行记录与测试结果。
+左侧导航采用亮色图标标签：服务器图标切换模拟器，叠层图标切换资源（采集模型、设备和文档）。右侧“＋”按当前分类新建，“更多”提供批量任务和运行资源；文件夹及业务图标按类别配色。[本轮验证](docs/test-records/2026-10-22-navigation-tabs.md)。
 
-## 产品范围
+事件记录／通信报文／问题现位于中央工作区下方的 Dockview 圆角面板，宽度与文档区对齐，默认展开并选中通信报文；状态栏压缩为22px，显示连接、端点、待应用和问题计数。[验证记录](docs/test-records/2026-10-22-bottom-edge.md)。
 
-### 协议与角色
+首开窗口目标为1280×800逻辑像素，按显示器可用区域缩小并居中；左右栏与底部按初始视口分配比例。[布局规则](docs/design/startup-layout.md) · [原生验证](docs/test-records/2026-10-22-startup-layout.md)。
 
-- Modbus：优先 TCP 客户端/服务端，后续按需求扩展 RTU。
-- IEC 104：控制站/被控站，总召、遥测遥信、事件上送、遥控、时标和重连。
-- IEC 61850：优先 MMS 客户端/服务端、模型、报告和控制；GOOSE/SV 是后续独立范围，不能宣称已支持整个标准族。
-- 支持同一场景混合运行多种设备和通信角色。
+欢迎页、模拟器空态与未选对象的属性栏采用轻量工程线稿，以细灰轮廓、少量浅色和留白表达EMS联调、设备机柜与点表检查；底部事件／通信空态使用简洁通信符号，问题空态复用点表检查线稿。[插画与界面验证](docs/test-records/2026-10-23-light-illustrations.md)。
 
-### 设备与点表
+类型、字节序与字序下拉直接显示原始标识（如 `f64`、`big`、`little`），保留 Markdown 帮助。底层保留协议标识；模型属性栏与配置表共用选项。[验证记录](docs/test-records/2026-10-23-point-select-options.md)。
 
-- 设备数据独立于协议映射，同一设备状态可通过多种协议暴露。
-- 使用稳定的点 ID，公共字段与协议专用字段分开；明确地址、类型、编码、倍率、单位和访问权限。
-- 复用已有 Excel 风格组件，支持批量粘贴、填充、撤销、导入校验和错误定位；组件位置与接口在接入前核实。
-- 区分“修改运行值”和“修改点定义”。配置保存与运行实例应用分别显示状态，结构变化按协议能力重建映射或重启实例。
-- IEC 61850 保留层级模型和 SCL 导入/交换能力，表格用于批量编辑，不能抹平模型关系。
+字段帮助与点表枚举说明统一复用公共 [MarkdownTooltip](docs/design/markdown-tooltip.md)，使用与提示框同色的原生三角箭头。
 
-### 设备行为与网络环境
+点表数据区下拉显示中文名称、英文标识和位宽／访问属性，选中后单元格仅显示中文；悬停或键盘聚焦选项可查看 Markdown 协议说明。[验证记录](docs/test-records/2026-10-23-modbus-area-dropdown.md)。
 
-- 从固定值逐步扩展到曲线、随机变化和状态机，例如功率斜率、SOC 更新、限功率、指令拒绝和告警恢复。
-- 简化模型必须说明假设、单位和限制，不把教学模型描述成真实设备的精确物理模型。
-- 先实现逻辑拓扑和实际端点通信，再按需求增加虚拟 IP、网段及系统级网络故障。
-- 应用级延迟、丢弃请求、丢弃响应和断连必须标明注入层次，不等同于 IP 层丢包。不得通过任意删除 TCP 字节伪装真实网络丢包。
-- GOOSE/SV 的二层网络与网卡需求单独设计。
+**当前配置仅保留本次会话，退出即丢失。** SQLite及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
 
-## 技术方向
+M02正在实施[点表管理提案](openspec/changes/implement-modbus-point-table-management/proposal.md)：已接入树右键CRUD、NovaSheet编辑、精确数值编码、模型引用、Markdown帮助和JSON／CSV／XLSX交换，自动化及主要原生流程已验证，下拉修改与属性同步已由用户确认，剩余快捷键／键盘帮助复核中。实际测试及限制见[实施记录](docs/test-records/2026-10-16-m02-progress.md)，未将实现中的功能标为整体验收完成。
 
-| 层次 | 选型方向 |
-| --- | --- |
-| 前端 | TypeScript + React + Vite，Turborepo；shadcn/ui + Tailwind CSS；复用已有点表组件 |
-| 桌面壳 | Tauri，管理窗口、文件操作及应用生命周期 |
-| 仿真核心 | Rust，与桌面界面解耦，支持后续无界面运行 |
-| 协议 | 优先评估 libmodbus、lib60870、libiec61850，通过 Rust 安全封装接入独立适配器 |
-| 桌面内部通信 | Tauri commands 执行操作，channels 批量推送；独立引擎进程或对外控制 API 的通信方式按需求确定 |
-| 配置存储 | SQLite；运行值在内存管理，历史和事件按需持久化 |
+旧固定 `demo-bms`／SOC TCP与RTU教学链路已退役，旧无界面示例和验证脚本不再提供。历史结果只证明当时实现，不能当作新工作台协议运行验收。清理映射与本轮验证见 [M01实施记录](docs/test-records/2026-10-15-m01-foundation.md)。真实运行由后续 M04/M05 接入。
 
-截至 2026-10-13，技术方案暂定为 Rust + Tauri + React。选择基于产品需求，不是因为已有 Rust 学习代码。协议层优先复用成熟 C 库，不要求全部协议纯 Rust 实现。该日期的选型不将学习代码自动视为产品核心。具体依赖版本、进程隔离和构建细节在实施时确定。
+## 开发
 
-Tauri 使用系统 WebView，需在目标平台验证已有表格的填充柄拖拽、序列/步长填充、边缘自动滚动、Excel 粘贴、撤销、中文输入和大表滚动。该验证是正式实施前的选型检查点。
+连接工作台TCP从站的Python示例见 [example](example/README.md)，默认只读保持寄存器，不修改运行值。
 
-协议库处理协议交互；设备模型、点表映射、场景调度、故障注入和测试验证由 ESSim 实现。接入前核实功能、平台支持和许可证；libmodbus 与另外两个库的许可条件不同，不能统一假定。成熟库无法满足的能力先记录差距，再决定扩展方案。
+```sh
+pnpm install
+pnpm --filter @essim/workbench dev:web    # 浏览器预览，无Rust后端
+pnpm --filter @essim/workbench dev:tauri  # 桌面工作台，自动启动Web开发服务
+pnpm --filter @essim/workbench test
+pnpm --filter @essim/workbench build
+cargo test --workspace --offline
+cargo doc --workspace --no-deps --offline
+```
 
-## 测试与验收
+业务弹框已统一为工程紧凑公共组件，支持标题栏拖动、八方向缩放、复位和固定操作栏。后续接入见[弹框规范](docs/design/workbench-dialog.md)；[本轮验证](docs/test-records/2026-10-22-compact-dialogs.md)。
 
-- **互操作**：用真实 EMS、独立工具或独立实现验证，不只用自己的客户端连接自己的服务端。
-- **行为正确性**：写入确认不等于动作完成；分别验证协议响应、设备状态变化及 EMS 观察结果。
-- **规模测试**：记录设备数、连接数、总点数、变化率、轮询/上送频率和事件突发量；测量延迟、吞吐、CPU、内存、错误和丢失数量。
-- **可复现**：保存配置快照、随机种子、执行参数和环境信息；故障场景可重复运行。
-- **界面性能**：前端按需订阅和批量刷新，仿真引擎不依赖页面打开；避免每个点每次变化都独立推送。
-- **证据边界**：没有实测，不承诺设备规模、性能、认证或完整标准符合性。
+正式入口在 `workbench/`，共享UI在 `packages/ui/`。`prototype/`保留原有独立工具链，只表达原型业务交互，不是当前产品协议后端。学习资料见 [学习路线](docs/learning-roadmap.md)，其中教学SOC课程为历史实验。
 
-## 建议实施顺序
+属性面板已统一接入共享组件，采用紧凑分类属性表；后续字段、协议与对象按[接入规范](docs/design/property-panel.md)扩展。
 
-1. Modbus TCP 闭环：多设备、点表导入编辑、运行值修改、真实 EMS 接入、报文与状态观察。
-2. 通用仿真：BMS/PCS 行为、场景启停、配置应用、应用级故障、预期结果验证。
-3. IEC 104：总召、事件上送、遥控、时标和断线恢复。
-4. IEC 61850 MMS：模型导入、报告、控制及独立互操作。
-5. 大规模基准与高级网络环境，按实际需要扩展 RTU、GOOSE/SV。
+点表配置页采用单行图标工具栏与可搜索Unit切换，表格恢复NovaSheet默认25px行高／表头，移除顶部字段说明。入口与扩展方式见[点表工具栏规范](docs/design/point-toolbar.md)。运行视图同样合并为38px单行图标工具栏，未应用说明进入状态提示，真实错误／未确认结果保留显式警报；[验证记录](docs/test-records/2026-10-22-runtime-toolbar.md)。
 
-主站能力逐协议增加。CAN、MQTT、SunSpec 等既有学习专题不自动成为产品交付范围。
+## 通用 libmodbus 封装
 
-## 个人作品交付物
+`crates/libmodbus/{libmodbus-src,libmodbus-sys,libmodbus-rs}`继续独立保留：官方固定源码构建、原始绑定和Rust安全封装。提供四区Mapping、TCP／RTU从站上下文、同步TCP／RTU主站四区读取及可写区单／多写。工作台 TCP 从站执行器已链接此库；TCP主站工作台本轮接入，RTU主站软件已接入，RTU从站工作台运行仍待接入。
 
-- 一键运行的示例场景、点表及演示步骤。
-- 协议学习笔记、报文解释与小范围教学实验。
-- 真实 EMS 或独立工具互操作记录。
-- 含环境、参数、测量方法和结果的性能报告。
-- 可复现的故障案例和定位过程。
-- 架构说明、选型理由、已知限制及实现状态。
+默认 vendored 静态链接；非vendored必须显式指定自行编译的动态前缀，不探测Homebrew或其他宿主库。构建方式及安全／协议边界见 [三包说明](crates/libmodbus/README.md)。
 
-## 首版原型用户故事
+```sh
+cargo test -p libmodbus-rs -p libmodbus-sys -p libmodbus-src --offline
+cargo build -p libmodbus-rs --example client_demo --offline
+# Python环境需要pymodbus==3.11.3、pyserial==3.5；示例会写入测试从站。
+python3 scripts/verify_modbus_master.py
+```
 
-详见 [设备与采集组原型](prototype-user-stories.md)。产品配置入口按“点表库中的采集表，以及设备 → 通讯 → 采集表引用”组织；3D 视图用于辅助认识设备，不参与协议运算。
+动态模式在相应命令前设置 `LIBMODBUS_DIR`，并传 `--no-default-features`。独立PyModbus TCP／PTY互操作不能替代真实EMS或真实RS-485硬件验收，也未证明Linux／Windows兼容、完整标准符合性或规模性能。
 
-## 工作台与策略方向
+历史证据：[TCP教学闭环](docs/test-records/2026-10-14-modbus-loop.md) · [三包静态／动态](docs/test-records/2026-10-15-libmodbus-workspace.md) · [动态Unit](docs/test-records/2026-10-15-dynamic-unit-id.md) · [RTU软件闭环](docs/test-records/2026-10-15-rtu.md) · [通用主站](docs/test-records/2026-10-15-modbus-master.md)。真实RS-485任务9.9仍待验。
 
-采用 Dockview 停靠工作台，设备维度为资源树与配置编辑，策略维度为脚本编辑、数据绑定和仿真结果分析，类似量化策略开发。首版脚本使用 JavaScript 做教学离线仿真；最终语言和生产级隔离机制仍需评估。
+配置现已取消版本管理：保存直接覆盖当前模型，单元只选择模型；复制和导出使用当前已保存内容。保存不自动应用，已应用数据使用独立快照。[简化记录](docs/test-records/2026-10-16-remove-config-versions.md)。
 
-## 项目文件组织方式（2026-10-14）
+M03模拟器配置已接入：默认Unit与模型、固定类型、复制／删除、文件夹、草稿关闭保护、核心应用差异和停止态Unit复位。39／41项任务完成，原生快捷键及编辑中保存等验收仍待收尾；详见[实施记录](docs/test-records/2026-10-17-m03-configuration.md)。M03阶段的保存仅限本次会话；后续TCP真实运行及文件录制进展见下文，SQLite仍未接入。
 
-用户可自定义文件夹结构，不再强制使用“设备 → 通讯 → 采集表”目录层级。文件夹只用于组织；Modbus 点表模型与 Modbus 模拟器为两种配置文件类型，模拟器通过稳定 ID 引用模型。主站和从站通过不同的新建入口确定。每种配置可独立导出，模拟器导出包含引用模型。底层设备、通讯和协议映射的分离原则保持不变；当前桌面原型仅表达本地配置业务流程，尚未实现配置文件导入和真实协议运行。
+2026-10-22 已接入[创建时新建模型与 Unit 单层覆盖](openspec/changes/add-unit-model-overrides/proposal.md)：创建时搜索或新建模型，在模拟器配置表保存局部差异，支持恢复、选择性回写、另存独立模型及确认值捕获。保存／回写不自动应用；配置仍仅保留本次会话，不增加配置版本或模型继承链。[使用说明](docs/unit-model-overrides.md) · [实施与验证](docs/test-records/2026-10-22-unit-model-overrides.md)。
 
-2026-10-14：按用户要求移除根目录 `src/` 旧 Rust 学习原型及其 Cargo 清单、锁文件。`prototype/` 保留界面原型，正式 Rust 仿真核心后续独立建立。
 
-## 正式工程启动（2026-10-14）
+配置架构已按CQRS／DDD职责拆分：[命令与处理器](crates/core/src/application/commands/mod.rs)、[查询／投影](crates/core/src/application/queries/mod.rs)、[具体配置事件](crates/core/src/application/events/mod.rs)、[聚合目录](crates/core/src/domain/aggregates/mod.rs)、[同步事件监听器](crates/core/src/application/event_handlers/mod.rs)。成功提交后返回具体事实，不将快照通知称为事件溯源。[重构提案](openspec/changes/refactor-workspace-cqrs-boundaries/proposal.md) · [验证记录](docs/test-records/2026-10-17-cqrs-boundaries.md)。
 
-正式工程采用 `workbench/` Tauri 桌面入口，pnpm/Turborepo 管理前端 workspace，Cargo workspace 管理 `crates/core`、`crates/infrastructure` 与 `workbench/src-tauri`。采用轻量 DDD；前端通过统一业务接口与 Tauri 适配器调用核心。以后可增加独立 HTTP/WebSocket 服务和远程适配器，当前不建立 Qt 或服务端工程，不开展策略模块。
 
-教学阶段曾建立工作台、基础 UI、类型配置，以及单实例 libmodbus TCP 教学闭环与真实状态订阅；通用点表管理、SQLite、多设备和其他协议均待实施。浏览器预览明确显示未连接后端，不返回假运行状态。原型 `prototype/` 保持独立。
+M04 TCP从站已接入真实监听、四区基础8功能码、多Unit／多客户端、原子置数／复位、启停保值和可靠文件录制。工作台运行栏通过独立运行命令／查询访问固定线程所有者；RTU诊断、配置数据库、历史查看及可用回放仍待实施。原生启停、置数、复位及独立主站读取已验证；1000端点典型亿点负载尚未完成验收，见[M04实施记录](docs/test-records/2026-10-18-m04-tcp-slave.md)及[提案任务](openspec/changes/implement-modbus-tcp-slave-runtime/tasks.md)。
 
-## libmodbus 首个实施提案
+无界面入口读取已应用快照数组JSON（Snapshot字段为endpoint及values），不依赖Tauri窗口：
 
-`integrate-libmodbus-tcp-loop` 规划一个 Modbus TCP 从站的教学 SOC 闭环，先完成安全封装、独立工具读取、工作台更新运行值和可中断停机。本提案不增加 RTU、通用点表或规模承诺；当前已在 macOS 完成 libmodbus 3.2.0 接入与 PyModbus 3.11.3 独立读回验证；这不代表真实 EMS、多设备或其他平台验收。详见 [提案](../openspec/changes/integrate-libmodbus-tcp-loop/proposal.md)。
+```bash
+cargo run -p essim-infrastructure --features tcp-runtime,vendored --example tcp_slave -- /absolute/path/snapshots.json /absolute/path/run-records
+# stdin输入quit后确认关闭全部监听与记录；测试快照及独立主站验证见下述脚本。
+python3 scripts/verify_tcp_slave_runtime.py --binary target/debug/examples/tcp_slave
+```
 
-## libmodbus 封装与源码构建计划（2026-10-15）
+独立验证脚本需PyModbus 3.11.3。运行记录目录与配置保存不是同一功能；JSONL格式为当前内部运行记录，不宣称已提供稳定的项目交换格式。
 
-用户确认三个包放在 `crates/libmodbus/` 归类目录，仍属于现有根 Cargo workspace，不建立嵌套 workspace。`libmodbus-src` 固定官方源码并提供构建能力；`libmodbus-sys` 提供原始绑定与链接选择；`libmodbus-rs` 提供通用安全 API，并转发 `vendored`。默认 vendored 编译内置源码并静态链接；非 vendored 显式链接自行编译的动态库，不自动使用宿主机 libmodbus。SOC、访问策略、worker 与界面业务继续属于 ESSim。三个包及两种模式已实施并在 macOS 完成闭环验证，详见 [验收记录](test-records/2026-10-15-libmodbus-workspace.md)；Linux/Windows、交叉编译、完整 API 和公开分发均不因此宣称完成。
+运行表刷新跟随当前可见行，与选区无关；编辑草稿后点击“提交修改（数量）”提交当前Unit各可编辑分类的全部改动。外部刷新保留未提交草稿，恢复初值通过指定数据区地址范围或整Unit复位。[交互验收](docs/test-records/2026-10-18-m04-tcp-slave.md#运行表交互修订)。
 
-## 动态 Unit ID（2026-10-15）
+工作台外围已按确认方案整理：项目树、配置／运行操作、上下文属性、应用迁移预览和真实通信／事件／问题面板。点表保留 NovaSheet 样式；报文可筛选、暂停展示和导出当前视图（有界最近窗口，不是完整抓包）。见[UI 实施与原生截图](docs/test-records/2026-10-18-workbench-ui-v2.md)。M07历史查看与离线回放延期至最后，当前没有产品历史／回放入口。
 
-正式工作台已支持同一 TCP 端点下在停止或监听状态动态新增 Unit ID（本阶段产品范围 1–247），各单元有独立教学 SOC 映射和值，并可在界面切换。配置及运行值仅在本次应用会话内保留，停止/启动不会清空。该能力不代表多端点、多客户端、通用点表或规模能力已完成。范围与实测见 [验收记录](test-records/2026-10-15-dynamic-unit-id.md)。
+通信报文字节现支持点击／Enter打开字段解析，覆盖基础8功能码的TCP请求、响应及异常；读响应仅在唯一匹配请求时补地址。“详细”进入Dockview中的[Modbus指南](workbench/src/resources/protocols/modbus/guide.md)，项目树“文档资源”与采集模型平级，按协议分类、离线Markdown渲染。见[本轮记录](docs/test-records/2026-10-18-modbus-reference.md)与[解析边界](docs/test-records/2026-10-18-message-hover.md)。
 
-## RTU 串口从站首阶段（2026-10-15）
 
-已接入单串口单从站的软件路径：libmodbus-rs 的独立 RTU 上下文与四区映射、无界面入口、工作台串口配置及 SOC 读取/内部更新。TCP 多 Unit ID 与 RTU 单站分开管理。当前验收基于 macOS PTY 和独立 PyModbus 客户端；真实串口/RS-485 的电气、方向控制、驱动和时序仍待硬件验证，不因此宣布 RTU 课程、全部串口参数、多平台或多站总线能力完成。任务 9.9 保留待验，详见 [RTU 验收记录](test-records/2026-10-15-rtu.md)。
+M05 TCP主站：单目标共享连接、多Unit独立结果、四区手动／周期读取、遥控／遥调显式下发及回验、质量／更新时间、采集中自动重连和真实字节观测。默认连接／请求／重连为3000／1000／3000ms，过期倍数3；主站设置进入配置草稿，保存并应用后生效。应用会断开并保持断开；待写草稿需明确丢弃。首版最多32个主站所有者槽，单批手动写入最多1024点（先整批校验，再按功能码上限拆请求），非主站规模性能承诺。RTU主站按独立提案接入软件运行；[实施与验收边界](docs/test-records/2026-10-19-m05-tcp-master.md)。
 
+```sh
+cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_master --offline
+# 需要PyModbus 3.11.3；只访问脚本自己启动的回环从站。
+python3 scripts/verify_tcp_master_runtime.py
+```
 
-## 通用 Modbus 主站库（2026-10-15）
 
-按“继续主站”指示，libmodbus-rs 增加 TCP/RTU 同步主站子集，提供主动连接、四区读取、可写区单/多写与目标切换，仍独立于 ESSim/Tauri。此阶段不增加工作台主站入口、轮询采集或设备业务。验证使用独立 PyModbus TCP/PTY RTU 从站，不能替代真实设备、EMS 或物理 RS-485 验收。实际状态与限制见 [主站记录](test-records/2026-10-15-modbus-master.md)。
+串口路径支持系统设备下拉、刷新和手动输入，显示系统提供的设备名称与USB标识；发现使用 serialport 4.10.1，实际通信仍由 libmodbus 管理。刷新不会替换已有配置或打开串口。
 
+M05 RTU主站软件已接入，复用主站调度和工作台，支持多目标共享独占串口、基础8功能码、手动受限串行诊断、CRC／短帧观测、有界迟到数据隔离和原路径自动重开。软件证据来自独立PyModbus PTY；原生与真实RS-485待验范围见[RTU主站记录](docs/test-records/2026-10-19-m05-rtu-master.md)。M04 RTU从站首批软件状态见下文；PTY不代替硬件验收。
 
-## 正式 Modbus 模拟器规划入口（2026-10-15）
+```sh
+cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_master --offline
+# Python需pymodbus==3.11.3、pyserial==3.5；仅操作脚本创建的PTY。
+python3 scripts/verify_rtu_master_runtime.py
+```
 
-已确认增加完整仿真事件历史、历史查看与离线状态回放，以一次仿真运行为记录和状态重建边界，采用 CQRS 分离操作与查询。首版回放使用独立状态，不打开真实连接、不重发请求、不覆盖实时实例；不要求所有配置 CRUD 全部采用事件溯源。录制采用完整性优先策略：建立运行记录成功后才启动，录制失败停止受影响的仿真运行；保留最后可靠记录位置并明确不完整或不确定范围，不因停止而虚称补齐历史。可靠落盘、停止和恢复细节及版本兼容待提案细化，当前尚未实现，跟踪入口为上述实现计划的 M01、M07、M08 和 M09。
 
-后续正式能力按[Modbus 模拟器实现计划](plans/modbus-simulator.md)分十类逐条讨论、提案、实现和验收，分别维护完成勾选。教学SOC接入曾作为验证基线，现已按M01清单退役，不保留固定业务兼容入口；通用库与历史证据继续保留。点表／模拟器 CRUD、多实例运行以及场景、拓扑与3D联动均为待讨论和交付的规划，不能因已有库封装或原型而标记完成。
+M04 RTU从站首批软件已接入正式运行入口：单串口单站、基础8功能码、外部写权限、合法广播写入静默、置数／恢复初值、停启保值与实际RTU字节记录。工作台应用配置后点击“打开串口”，停止时点击“关闭串口”。仅08/0000回送及11标识诊断已支持，其他诊断返回01；实际RS485时序与方向仍待硬件验证。[验收边界](docs/test-records/2026-10-19-m04-rtu-slave.md)。
 
+```sh
+cargo build -p essim-infrastructure --features tcp-runtime,vendored --example tcp_slave --offline
+# 需要pymodbus==3.11.3、pyserial==3.5；只使用脚本创建的PTY。
+python scripts/verify_rtu_slave_runtime.py
+```
 
-### M01 基础实施（2026-10-15，已验收约定范围）
+独立PyModbus串口交互工具：[modbus_rtu_client.py](example/modbus_rtu_client.py)，支持串口选择／刷新／手动路径、四区读取及yk／yt单点／范围写入；参数与操作见[example说明](example/README.md#rtu-串口交互测试)。
 
-已形成[基础模型、CQRS契约与工作台骨架提案](../openspec/changes/establish-modbus-simulator-foundation/proposal.md)，以 v15 概念稿表达端点Tab、属性栏Unit切换、纯图标工具栏和底部四遥导航。提案当时明确设备可选关联、模型版本／状态所有权（现由下文配置简化取代）、按端点记录运行，以及固定教学链路的清理清单。M01仅实施基础模型、契约、最小配置闭环和真实空态骨架；完整点表编辑、多实例通信、可靠录制与可用回放仍由后续提案实施。教学代码的实际退役情况以本节末实施状态更新及验收记录为准，不能把规划工件通过校验写成产品完成。
 
-M01实施状态更新：正式工作台已切换为基础配置与真实空目录，固定SOC教学worker／IPC／示例已退役。设备树采用`@pierre/trees`，点表继续复用NovaSheet。当前可创建会话内模型／设备／端点、添加单元并保存及显式应用；完整点表编辑、正式通信执行器、可靠历史与可用回放尚未交付。上述早期教学能力及其证据保留为历史边界，不能按旧启动命令运行。实施和剩余验证见[M01记录](test-records/2026-10-15-m01-foundation.md)。
+M06已接入点位分组原子创建、固定范围的批量应用／启停、取消后续项、安全重试、Dockview任务与资源页、统一资源账本及有界可靠录制。导航与模型内容按需读取；关闭任务Tab不取消后台操作。配置仍仅保存当前内容，不提供历史版本或跨进程任务恢复。
 
-### M02 点表管理（2026-10-16，实现接入、验收收尾）
+[交付与验收记录](docs/test-records/2026-10-20-m06-delivery.md)保留容量边界：10端点×1Unit×100点完成30分钟10／5／1秒分阶段扫描，共7800请求、零错误／漏轮；1000个小表端点未达到1秒扫描；10000连接探测存在大量超时；典型一亿点组合被暂存预算预检拒绝，未运行。单Unit 100000点读取有独立短探测，不能外推组合容量。真实RS-485继续待硬件验证，不自动配置虚拟IP。
 
-已逐条确认模型CRUD／引用保护、主从共用点定义、四遥视图与操作边界、类型／字序／倍率、草稿和版本、迁移及文件交换，并实施[M02提案](../openspec/changes/implement-modbus-point-table-management/proposal.md)。范围包括树右键菜单、NovaSheet编辑、Markdown字段帮助和JSON／CSV／XLSX导入导出；保存继续为会话内保存，验收进度见[实施记录](test-records/2026-10-16-m02-progress.md)。真实协议运行、控制响应、可靠录制／回放和SQLite仍由后续阶段交付。
+```sh
+# 独立并发短探测，完整录制开启；结果COMPLETED仅表示测量结束，须检查错误和漏轮。
+python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave --endpoints 10 --units 1 --points 100 --clients 1 --periods 10 5 1 --duration 10 --output /tmp/essim-scale.json
+# 各阶段600秒，共30分钟；自行选择与本机预算相符的负载。
+python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave --endpoints 10 --units 1 --points 100 --clients 1 --periods 10 5 1 --duration 600 --faults --output /tmp/essim-sustained.json
+```
 
-## 配置简化（2026-10-16）
-
-2026-10-16 用户要求移除配置版本管理：每个模型只保存一份当前配置，单元只引用稳定模型ID；保存覆盖当前内容，不保留历史版本，不提供选版、升级或expectedRevision。保存与应用仍分开，已应用模型按完整快照保存，待下次显式应用才改变；运行记录以后使用自包含配置快照，不依赖模型历史版本。通知序号与文件格式标记仅用于内部传输／解析，不是用户配置版本功能。此前版本管理约定由本条取代，历史验收记录保持原证据边界。
-
-### 创建时新建模型与 Unit 单层覆盖（2026-10-22，已实现并完成软件验证）
-
-用户确认创建模拟器时可选择现有采集模型，也可输入名称显式新建并绑定，避免先去资源页建立模型。模型、模拟器及首个 Unit 一起校验并原子创建，随后在模拟器内完善点表。
-
-Unit 继续引用稳定模型 ID，并保存自己的单层配置差异；支持保存实例修改、恢复模型配置、选择性回写共享模型、另存为独立模型并绑定。点定义和默认初值可覆盖，通信参数与设备关联仍归实例，实时值不自动写入模型。共享回写需展示影响并校验；运行仍按完整端点显式应用，已应用快照和值保持独立。
-
-不建立模型间继承、配置历史版本或隐式远端写入；会话内保存限制不变，M08 后续承接覆盖存储。该目标修订原 M03“不提供 Unit 初值覆盖”的后续范围，旧实现与验收记录不变。见[提案](../openspec/changes/add-unit-model-overrides/proposal.md)、[设计](../openspec/changes/add-unit-model-overrides/design.md)及[实施任务](../openspec/changes/add-unit-model-overrides/tasks.md)。已接入并完成核心／前端、独立 TCP／PTY 主从及 macOS 原生流程验证，范围及未验项见[实施记录](test-records/2026-10-22-unit-model-overrides.md)。
-
-### M03 模拟器配置管理（2026-10-17，实施接入、原生验收收尾）
-
-已逐项确认默认Unit创建、固定TCP／RTU主从类型、复制与删除、展示信息和协议应用分离、独立运行值、文件夹、草稿保护及错误定位，并形成[M03提案](../openspec/changes/implement-modbus-simulator-configuration/proposal.md)与实施任务。历史首版采用稳定模型ID与覆盖保存，不引入配置版本管理；Unit初值覆盖由上方2026-10-22单层覆盖增量接入。首阶段实施目标为会话内配置闭环和可控生命周期契约；真实启停与通信归M04／M05，SQLite及项目持久化归M08。已接入默认Unit与模型创建、复制／删除、文件夹、草稿保护、核心差异查询和受控释放边界；39／41项任务完成，系统快捷键及编辑中保存等原生复测仍保留，见[实施记录](test-records/2026-10-17-m03-configuration.md)。M03大类未完成验收，M02遗留验收不因此完成。
-
-
-### 配置架构职责整理（2026-10-17）
-
-按用户要求将命令、查询、提交事件、端口、协调服务及领域规则拆为明确模块，配置成功后提供具体业务事实，保持现有IPC、保存／应用边界和会话内存储。该调整落实轻量CQRS与DDD职责分离，不增加事件溯源、消息总线、持久化或生产执行器；M02／M03遗留验收仍保留。详见[提案](../openspec/changes/refactor-workspace-cqrs-boundaries/proposal.md)及[实施证据](test-records/2026-10-17-cqrs-boundaries.md)。
-
-### M04／M06规模目标（2026-10-18，讨论中）
-
-用户确认目标为约1000个TCP端点同时运行，每端点约10个Unit，并允许多个主站连接；每端点默认连接上限10，允许配置，达到上限时拒绝新连接并保持现有连接。这是后续设计及压测目标，尚未实现或验证；每Unit约1000～100000个点，多数约10000个点，按10000个Unit估算典型规划总量约1亿个点；最大点数与最大Unit数是否同时出现尚未确认。大量Unit复用少数几套模型，模型定义可共享，各Unit运行值独立。请求频率、延迟与全局资源边界仍待确定，详见[实现计划](plans/modbus-simulator.md#已确认tcp规模与客户端连接上限2026-10-18)。
-
-M04交付顺序已确认先TCP从站、后RTU从站，分别形成子提案；RTU仍属于M04，不能仅凭TCP完成勾选整个阶段。TCP优先验证多端点、多Unit、多主站连接及约定规模，RTU保留单串口单站、资源独占及软件／硬件验证边界。
-
-RTU从站规划增加串行线路诊断，用于外部主站排障：异常状态、诊断及通信统计、事件日志、服务器标识。具体子功能、计数可观测性和通信模式恢复在RTU提案中确定；TCP工作台观测独立设计，不将串行专用功能直接宣称为TCP标准能力。
-
-### M04 TCP从站首次接入（2026-10-18，实施与验收中）
-
-已接入独立运行命令／事件／查询、真实TCP监听、基础四区8功能码、多个Unit和客户端、原子置数／初值恢复、启停保值、资源释放及可靠运行文件记录。配置仍为会话内保存；文件录制不代表SQLite配置数据库或可用历史回放。正式运行通过新的TCP所有者执行，既有泛型RunCoordinator保持通用契约测试。
-
-独立PyModbus软件互操作与分层规模探测见[M04记录](test-records/2026-10-18-m04-tcp-slave.md)。解锁后已验证原生启停、单／批量置数、草稿保护、复位、连接上限及保存／应用快照边界；典型亿点负载、10000客户端持续负载、RTU及串行诊断仍待验／待实施，不能将小点表的端点数量验证当作完整规模达成。
-
-2026-10-18运行表交互约定：选区不决定通信范围；自动刷新跟随可见行，提交修改按当前Unit待修改点归集，恢复初值通过显式地址范围或整Unit操作。外部值刷新保留未提交草稿。
-
-2026-10-18工作台整理：用户确认保留 NovaSheet 表格样式与交互，统一外围项目树、操作栏、上下文属性及应用预览。真实 TCP 最近报文／事件、校验问题、筛选、暂停展示和当前视图导出已接入；这不代表完整历史查看、回放或配置持久化已交付。见[实施边界](test-records/2026-10-18-workbench-ui-v2.md)。
-
-2026-10-18最近TCP报文字节已增加悬停／聚焦字段解析，覆盖基础8功能码及异常；这属于协议排障展示，不增加协议执行范围。读响应缺少唯一对应请求时不推测地址，详见[验证边界](test-records/2026-10-18-message-hover.md)。
-
-2026-10-18文档资源：报文解析入口调整为点击，增加“详细”跳转到Dockview Markdown参考资料；内置资源按协议分类，与采集模型平级。资料解释标准及项目边界，不增加协议执行能力或评级功能。见[实施记录](test-records/2026-10-18-modbus-reference.md)。
-
-
-### M05 TCP主站（2026-10-19，首批软件与核心原生流程已验证）
-
-用户逐项确认单目标共享连接多Unit、周期分组、质量与三倍过期、显式批量写入及回验、失败停批、不自动重发、采集中断线恢复、手动优先及显式应用边界，并授权实施。TCP先行，RTU主站仍归M05后续子提案。代码接入主站独立所有者、真实通信与工作台控制；实际验证及未验项见[M05记录](test-records/2026-10-19-m05-tcp-master.md)，不把从站千端点／亿点目标转为主站性能声明。配置继续为会话内覆盖保存，无历史版本管理。
-
-
-### M05 RTU主站软件接入（2026-10-19）
-
-用户确认独占串口多目标、故障及迟到响应隔离、只读诊断与回送、显式应用释放及软件／硬件分开验收，并授权实施。RTU传输复用现有主站所有者，基础8功能码继续由libmodbus执行；受限原始诊断在安全封装中补充响应校验，不建设新的工业协议栈。独立PTY软件验证及原生工作台打开／采集／诊断／报文解析／文档定位／关闭流程已验证，真实RS-485方向／拔插／时序保留待验。详见[记录](test-records/2026-10-19-m05-rtu-master.md)；M05整类及M04 RTU不因此完成。
-
-
-### M04 RTU从站首批正式运行（2026-10-19）
-
-用户要求补齐RTU从站启动，沿用单串口单站及独占要求。复用正式所有者、通用点表、运行值、原子置数和可靠录制，首批基础8功能码及08/0000、11诊断已接入软件路径。07、其他08及0B/0C暂拒绝，统计／日志后续细化，不将M05主站可发送诊断等同于从站已提供全部服务。独立PTY与真实RS485证据分开，M04总体及完整规模验收仍未完成。见[提案](../openspec/changes/implement-modbus-rtu-slave-runtime/proposal.md)与[记录](test-records/2026-10-19-m04-rtu-slave.md)。
-
-
-### M06 多实例编排（2026-10-20）
-
-已接入按完整采集点数量分组（默认1000点／组）、保留地址、递增已有本机IPv4、独立分组模型与单Unit、整批原子创建。批量任务固定端点范围、默认4并发（1～8）、单活动任务，支持逐项结果、安全取消及失败项重新预览。应用／启停与保存分开，超时未确认项保留槽位和端点门；模型无配置版本管理。
-
-统一资源账本覆盖配置暂存、任务、运行映射、连接及控制／录制字节；定义共享、值独立。固定可靠录制资源保留每文件sync_data和因果屏障，不用提前成功或丢记录换吞吐。任务与资源通过Dockview展示，导航与完整内容按需查询。详细流程和证据见[交付报告](test-records/2026-10-20-m06-delivery.md)。
-
-规模目标继续以实测为准：本次10端点小表完成30分钟、10／5／1秒分阶段扫描；1000小表端点的1秒目标未达，10000连接有大量超时，典型1000端点×10Unit×10000点组合被预算预检拒绝、未运行。软件任务完成不代表典型一亿点能力达标。自动配置虚拟IP、扩大32主站所有者上限、真实RS485及M04／M05其他遗留范围保持独立。
-
-### 推进顺序调整（2026-10-20）
-
-用户决定撤回本轮M07历史与离线回放实现及提案，代码、专属测试和提案已移除。M07移至实施顺序最后，后续重新讨论；下一项为M08配置存储与交换。既有实时观测和可靠录制保持原有范围。
+M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
