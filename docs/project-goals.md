@@ -150,3 +150,8 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 已验收的工作台组织能力（2026-10-24）
 
 支持用主题图标及颜色组织多级文件夹，按右键目录上下文新建资源，多选拖拽调整所属层级；中央Dockview支持Tab分屏及树资源按停靠位置打开，分屏共享同一业务状态。只组织当前可编辑模型／模拟器，协议主题图标不表示对应协议已实现。详见[提案](../openspec/changes/organize-resource-tree-and-docking/proposal.md)与[任务](../openspec/changes/organize-resource-tree-and-docking/tasks.md)。当前已接入代码并通过核心／前端自动检查及macOS原生拖放、分屏、菜单键盘与弹框矩阵验收（26/26）；Windows/Linux未验，见[实施记录](test-records/2026-10-24-resource-tree-docking.md)；保持会话配置、稳定身份及保存／应用分离，不引入配置版本管理。
+
+
+### 工程持久化方向（2026-10-24，提案中）
+
+已确认采用工程模式，以 `project.workspace` 为工程入口及 JSON 清单；模型、模拟器、文档等静态资源独立文件存储，虚拟文件夹、显示名称、图标颜色和稳定 ID 映射由清单维护。执行记录使用独立 SQLite，通信录制文件保留；本机布局和草稿恢复独立保存，启动恢复最近工程但不自动启动通信。继续保持保存／显式应用分离，不增加配置历史版本。当前尚未实现，仍为会话内配置。详见[工程存储提案](../openspec/changes/persist-project-files-and-runtime-data/proposal.md)及[设计](../openspec/changes/persist-project-files-and-runtime-data/design.md)。

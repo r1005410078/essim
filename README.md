@@ -160,3 +160,6 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 资源树组织与文档停靠
 
 已接入多级文件夹、48款主题图标／颜色、目录内原子创建、多源换层级和中央Dockview文档拖放定位。中央文档空白已修复，核心与前端自动检查通过；用户已确认macOS原生树内多选换层级、循环拒绝及标签四向分屏／合并正常。原生树拖入中央分屏也已由用户确认，树归属和Tab唯一性保持；业务菜单键盘、弹框焦点／校验／忙碌保护及900×600原生滚动已验，鼠标八向缩放、窗口边界和复位补验通过，提案26/26项完成。见[接入说明](docs/design/resource-tree-docking.md)和[实施记录](docs/test-records/2026-10-24-resource-tree-docking.md)。
+
+
+工程持久化已完成[方案提案](openspec/changes/persist-project-files-and-runtime-data/proposal.md)：使用通用 `project.workspace` 清单、独立静态资源文件和运行 SQLite，启动恢复最近工程但不自动运行；尚未实现，当前配置仍限本次会话。

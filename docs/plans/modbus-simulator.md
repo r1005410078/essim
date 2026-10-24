@@ -165,3 +165,13 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 - [x] 完成[提案与行为规格](../../openspec/changes/organize-resource-tree-and-docking/proposal.md)，48款[图标选型参考](../../openspec/changes/organize-resource-tree-and-docking/assets/icon-concepts.png)；只代表设计与计划。
 - [x] 实现与集成收尾：核心／前端代码已接入，原生修复及验收过程见[实施记录](../test-records/2026-10-24-resource-tree-docking.md)，按[任务清单](../../openspec/changes/organize-resource-tree-and-docking/tasks.md)实施原子导航事务、SVG预设和拖放集成。
 - [x] 验收：核心测试、前端检查及macOS Tauri创建／菜单键盘／多选移动／分屏／弹框鼠标矩阵完成，见实施记录。Windows/Linux未验，不替代协议阶段验收。
+
+
+### M08：工程配置存储与执行数据（2026-10-24）
+
+- [x] 讨论并确认工程目录、通用入口 `project.workspace`、资源文件、虚拟树映射清单和启动恢复最近工程。
+- [x] [提案与验收任务](../../openspec/changes/persist-project-files-and-runtime-data/proposal.md)：静态配置文件与运行 SQLite 分离，保存／应用边界不变。
+- [ ] 实现工程读写、可靠提交、最近工程和草稿恢复、执行记录存储。
+- [ ] 完成冷启动、故障恢复、原生流程及明确规模测量验收。
+
+本轮只完成提案，不宣称持久化已交付，不包含 M07 历史查看／回放。
