@@ -23,7 +23,7 @@ export function MasterRuntimeControls({visible,store,sheets,endpoint,unit,model,
   const ticket=generation.current;const current=latest.current;const sequence=store.view?.sequence;
   const known=new Set(current.model?.points.map(p=>p.id));const ids=[...new Set(current.readVisiblePoints())].filter(id=>known.has(id)).slice(0,1024);
   const next=await store.client.queryMaster?.({endpoint:endpoint.id,unit:current.unit?.id??null,points:ids});
-  if(next&&ticket===generation.current&&sequence===store.view?.sequence){setView(next);if(current.unit)current.onPoints(current.unit.id,next.points);
+  if(next&&ticket===generation.current&&sequence===store.view?.sequence){setView(next);if(current.unit){current.onPoints(current.unit.id,next.points);store.recordUnitQuality(current.unit.id,next.points);}
     if(sent.current&&next.operation===sent.current.id&&!next.busy){
       // 只清除回验一致的草稿；拒绝／不确定／未执行仍留待用户核对。
       const job=sent.current;sent.current=undefined;

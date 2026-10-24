@@ -1,3 +1,6 @@
+import {CategoryTabs} from "./CategoryTabs";
+import {PointToolbar} from "./PointToolbar";
+import type {InspectorScope} from "./inspectorTabs";
 import { ToolbarIcon } from "./ToolbarIcon";
 import type { ActionMenuItem } from "./ActionMenu";
 import { PropertyPanel, PropertyGroup, PropertyRow, PropertyHint } from "@essim/ui/components/property-panel";
@@ -35,13 +38,12 @@ import {
   ModelDraft,
   choices,
   defaultRow,
-  fields,
   gridFields,
   labels,
   widths,
   type InputRow,
 } from "./pointDraft";
-import { categories, readonlyTypes, sheetTheme } from "./sheets";
+import { readonlyTypes, sheetTheme } from "./sheets";
 import { FieldHelp } from "./FieldHelp";
 import { ImportPoints } from "./ImportPoints";
 
@@ -240,7 +242,7 @@ export function EditorBody({
 
       }}
     >
-      <div className="toolbar document-actions model-actions compact-point-toolbar">
+      <PointToolbar className="document-actions model-actions">
         {toolbar?.start}
         <ToolbarIcon label={owner?"保存实例修改（本次会话）":"保存模型（⌘S / Ctrl+S，本次会话）"}
           data-save-document={owner?`endpoint:${owner.endpoint}`:`model:${draft.id}`} disabled={busy} onClick={()=>void save()}><Save size={16}/></ToolbarIcon>
@@ -258,7 +260,7 @@ export function EditorBody({
         <ActionMenu label="导出模型" disabled={!draft.persisted} items={["json","csv","xlsx"].map(format=>({label:format.toUpperCase(),action:()=>void task(async()=>{const done=owner?await store.client.exportUnitPoints?.(owner.endpoint,owner.unit,format):await store.client.exportPointFile?.(draft.id,format);if(done===undefined)throw Error("文件服务未接入");})}))}><FileOutput size={16}/></ActionMenu>
         {!!toolbar?.menu?.length&&<ActionMenu label="更多点表操作" items={toolbar.menu}><MoreHorizontal size={16}/></ActionMenu>}
         {toolbar?.end}
-      </div>
+      </PointToolbar>
       {extra}
       {error && (
         <div role="alert" className="error panel-note">
@@ -289,24 +291,9 @@ export function EditorBody({
           }}
         />
       </div>
-      <div className="category-tabs" role="tablist" aria-label="模型四遥分类">
-        {categories.map(([value, label]) => (
-          <button
-            key={value}
-            role="tab"
-            aria-selected={value === category}
-            className={value === category ? "active" : ""}
-            onClick={() => {
-              source.flush();
-              setCategory(value);
-            }}
-          >
-            {label}
-          </button>
-        ))}
-        <span className="spacer" />
-        <span className="muted">{draft.rows.length} 点 · 本次会话</span>
-      </div>
+      <CategoryTabs value={category} label="模型四遥分类" onChange={value=>{source.flush();setCategory(value);}}>
+        {draft.rows.length} 点 · 本次会话
+      </CategoryTabs>
       {importing && (
         <ImportPoints
           store={store}
@@ -322,45 +309,19 @@ export function ModelDetails({
   store,
   id,
   open,
+  scope = "point",
 }: {
   store: WorkspaceStore;
   id: string;
+  scope?: InspectorScope;
   open: (target: { kind: "endpoint"; id: string; unit: string }) => void;
 }) {
   const draft = store.modelDraft(id);
   if (!draft) return null;
   const selected = draft.rows.find((r) => r.id === draft.selected);
-  const references = [
-    ...(store.view?.catalog.endpoints ?? []).flatMap((e) =>
-      e.units
-        .filter((u) => u.model.id === id)
-        .map((u) => ({ endpoint: e, unit: u, applied: false })),
-    ),
-    ...(store.view?.catalog.applied ?? []).flatMap((e) =>
-      e.units
-        .filter((u) => u.model.id === id)
-        .map((u) => ({ endpoint: e, unit: u, applied: true })),
-    ),
-  ];
-  return (
-    <PropertyPanel subject={draft.name}>
-      <PropertyGroup title="模型">
-        <PropertyRow label="名称">
-          <input
-            aria-label="模型名称"
-            value={draft.name}
-            onChange={(e) =>
-              draft.change((s) => {
-                s.name = e.target.value;
-              })
-            }
-          />
-        </PropertyRow>
-        <PropertyHint>保存仅限本次会话，不自动应用。</PropertyHint>
-      </PropertyGroup>
-      <PropertyGroup title="选中点">
-        {selected ? (
-          fields.map((field) => (
+  const renderField = (field: (typeof gridFields)[number]) => {
+    if(!selected)return null;
+    return (
             <PropertyRow key={field} label={labels[field]} help={<FieldHelp field={field}/>}>
                 {choices[field] ? (
                   <EnumSelect field={field} label={labels[field]} value={selected[field]??""} options={choices[field]!.map(value=>[value,value] as const)} disabled={(selected.valueType==="bool"&&(field==="byteOrder"||field==="wordOrder"))||((widths[selected.valueType!]??1)===1&&field==="wordOrder")} onChange={value=>draft.change(state=>{state.rows.find(row=>row.id===selected.id)![field]=value;})}/>
@@ -398,13 +359,55 @@ export function ModelDetails({
                   />
                 )}
             </PropertyRow>
-          ))
-        ) : (
-          <PropertyHint>选择点表行以编辑属性。</PropertyHint>
-        )}
+    );
+  };
+  const references = [
+    ...(store.view?.catalog.endpoints ?? []).flatMap((e) =>
+      e.units
+        .filter((u) => u.model.id === id)
+        .map((u) => ({ endpoint: e, unit: u, applied: false })),
+    ),
+    ...(store.view?.catalog.applied ?? []).flatMap((e) =>
+      e.units
+        .filter((u) => u.model.id === id)
+        .map((u) => ({ endpoint: e, unit: u, applied: true })),
+    ),
+  ];
+  if(scope!=="point"){
+    const current=references.filter(ref=>!ref.applied);
+    const targets=scope==="unit"?current:current.filter((ref,index)=>current.findIndex(item=>item.endpoint.id===ref.endpoint.id)===index);
+    const label=scope==="unit"?"Unit":"端点";
+    return <PropertyPanel density="compact" subject={draft.name}>
+      <PropertyGroup title={`关联${scope==="unit"?" ":""}${label}`}>
+        {targets.length?<div className="model-references">{targets.map(ref=><button type="button" key={scope==="unit"?ref.unit.id:ref.endpoint.id} onClick={()=>open({kind:"endpoint",id:ref.endpoint.id,unit:ref.unit.id})}>
+          {scope==="unit"?`${ref.endpoint.name} → ${ref.unit.name} / Unit ${ref.unit.station}`:ref.endpoint.name}
+        </button>)}</div>:<PropertyHint>{`当前模型没有关联${scope==="unit"?" ":""}${label}。请先在模拟器中引用此模型。`}</PropertyHint>}
       </PropertyGroup>
+    </PropertyPanel>;
+  }
+  return (
+    <PropertyPanel density="compact" subject={draft.name}>
+      <PropertyGroup title="模型">
+        <PropertyRow label="名称">
+          <input
+            aria-label="模型名称"
+            value={draft.name}
+            onChange={(e) =>
+              draft.change((s) => {
+                s.name = e.target.value;
+              })
+            }
+          />
+        </PropertyRow>
+        <PropertyHint>保存仅限本次会话，不自动应用。</PropertyHint>
+      </PropertyGroup>
+      {selected ? <>{[
+        {title:"点定义",fields:["name","area","address","valueType"]},
+        {title:"数值解释",fields:["byteOrder","wordOrder","scale","unit","initialEngineering"]},
+        {title:"访问与采集",fields:["slaveWritable","masterPeriodMs"]},
+      ].map(group=><PropertyGroup key={group.title} title={group.title}>{group.fields.map(field=>renderField(field as (typeof gridFields)[number]))}</PropertyGroup>)}</> : <PropertyGroup title="点定义"><PropertyHint>选择点表行以编辑属性。</PropertyHint></PropertyGroup>}
       {selected && (
-        <PropertyGroup title="编码预览">
+        <PropertyGroup title="编码预览" defaultOpen={false}>
           <PropertyHint>
             原始值：
             {String(

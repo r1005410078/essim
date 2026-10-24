@@ -6,16 +6,20 @@ type Props = Omit<DialogHTMLAttributes<HTMLDialogElement>, 'title' | 'open'> & {
   title: ReactNode;
   busy?: boolean;
   initialWidth?: number;
+  variant?: "standard" | "command";
 };
 const viewport = () => ({ width: document.documentElement.clientWidth, height: window.innerHeight });
 const edges: DialogEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 /** 紧凑工作台弹框。原生 modal 保留焦点限制、背景 inert 与表单语义。 */
-export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function WorkbenchDialog({ title, busy = false, initialWidth = 472, children, className = '', onCancel, onKeyDown, style, ...props }, forwardedRef) {
+export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function WorkbenchDialog({ title, busy = false, initialWidth = 472, variant = "standard", children, className = '', onCancel, onKeyDown, onPointerDown, onPointerUp, onPointerCancel, style, ...props }, forwardedRef) {
   const ref = useRef<HTMLDialogElement>(null);
+  // 在子输入框autoFocus提交之前记住触发元素，不能等showModal的effect才读取。
+  const initialFocus = useRef<HTMLElement | null>(typeof document !== 'undefined' && document.activeElement instanceof HTMLElement ? document.activeElement : null);
   useImperativeHandle(forwardedRef, () => ref.current!, []);
   const titleId = useId();
   const [rect, setRect] = useState<DialogRect | null>(null);
   const manual = useRef(false);
+  const outsidePointer = useRef<number | null>(null);
   const fitRef = useRef<() => void>(() => {});
   const interaction = useRef<{ pointer: number; x: number; y: number; rect: DialogRect; edge?: DialogEdge } | null>(null);
   const fit = useCallback(() => {
@@ -31,14 +35,14 @@ export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function Wor
     dialog.style.height = oldHeight;
     dialog.style.width = oldWidth;
     const fitted = constrainDialog({ x: 0, y: 0, width: initialWidth, height }, view);
-    setRect({ ...fitted, x: Math.max(8, (view.width - fitted.width) / 2), y: Math.max(8, (view.height - fitted.height) / 2) });
-  }, [initialWidth]);
+    setRect({ ...fitted, x: Math.max(8, (view.width - fitted.width) / 2), y: variant === "command" ? Math.min(44, Math.max(8, view.height - fitted.height - 8)) : Math.max(8, (view.height - fitted.height) / 2) });
+  }, [initialWidth, variant]);
   fitRef.current = fit;
   const restore = () => { manual.current = false; fit(); };
   useLayoutEffect(() => { if (!manual.current) fit(); }, [fit]);
   useEffect(() => {
     const dialog = ref.current!;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous = initialFocus.current;
     if (!dialog.open) dialog.showModal();
     const frame = requestAnimationFrame(() => {
       if (!manual.current) fitRef.current();
@@ -97,7 +101,21 @@ export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function Wor
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   };
   const cancel = () => { if (!busy) ref.current?.dispatchEvent(new Event('cancel', { cancelable: true })); };
-  return <dialog {...props} onKeyDown={trapFocus} ref={ref} aria-labelledby={props['aria-label'] ? undefined : titleId} aria-busy={busy || undefined} className={`workbench-dialog ${className}`} style={{ ...style, width: Math.min(initialWidth, typeof window === 'undefined' ? initialWidth : viewport().width - 16), ...rect && { left: rect.x, top: rect.y, width: rect.width, height: rect.height } }} onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!busy) onCancel?.(event); }}>
+  const isBackdrop = (event: PointerEvent<HTMLDialogElement>) => {
+    if (event.target !== event.currentTarget) return false;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
+  };
+  return <dialog {...props} onPointerDown={event => {
+    onPointerDown?.(event);
+    outsidePointer.current = !event.defaultPrevented && variant === 'command' && !busy && event.button === 0 && isBackdrop(event) ? event.pointerId : null;
+  }} onPointerUp={event => {
+    onPointerUp?.(event);
+    const dismiss = !event.defaultPrevented && outsidePointer.current === event.pointerId && isBackdrop(event);
+    outsidePointer.current = null;
+    // 按下与释放都在外部才关闭，避免从内部选择文字或缩放时误关。
+    if (dismiss) cancel();
+  }} onPointerCancel={event => { outsidePointer.current = null; onPointerCancel?.(event); }} onKeyDown={trapFocus} ref={ref} aria-labelledby={props['aria-label'] ? undefined : titleId} aria-busy={busy || undefined} className={`workbench-dialog ${variant === "command" ? "workbench-dialog-command" : ""} ${className}`} style={{ ...style, width: Math.min(initialWidth, typeof window === 'undefined' ? initialWidth : viewport().width - 16), ...rect && { left: rect.x, top: rect.y, width: rect.width, height: rect.height } }} onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!busy) onCancel?.(event); }}>
     <div className="workbench-dialog-surface">
       <header className="workbench-dialog-header" onPointerDown={event => begin(event)} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} onDoubleClick={event => { if (!(event.target as HTMLElement).closest('button')) restore(); }}>
         <PanelsTopLeft size={14} aria-hidden="true" className="workbench-dialog-icon" />

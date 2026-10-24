@@ -1,6 +1,7 @@
 /* 紧凑属性面板；仅在 property-panel 命名空间内生效。 */
 .property-panel {
-  --property-label-width: 36%;
+  position: relative;
+  --property-label-width: 102px;
   --property-row-height: 28px;
   --property-control-height: 22px;
   --property-column-divider: #cfd5de;
@@ -123,7 +124,7 @@
   transform: rotate(45deg) translateY(-2px);
 }
 .property-panel-row {
-  --property-column-position: clamp(min(112px, 45%), var(--property-user-label-width, var(--property-label-width)), max(45%, calc(100% - 120px)));
+  --property-column-position: clamp(0px, var(--property-user-label-width, var(--property-label-width)), max(45%, calc(100% - 120px)));
   position: relative;
   display: grid;
   align-items: center;
@@ -249,7 +250,32 @@
 }
 .property-panel-column-handle::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; }
 .property-panel-column-handle:hover::after,
-.property-panel-column-handle:focus-visible::after,
-.property-panel[data-column-resizing="true"] .property-panel-column-handle::after { background: #4388df; }
+.property-panel-column-handle:focus-visible::after { background: #4388df; }
 .property-panel[data-column-resizing="true"] { cursor: col-resize; user-select: none; }
 .property-panel .property-panel-column-handle:focus-visible { outline: 1px solid #4388df; outline-offset: -1px; }
+
+/* 紧凑密度仍使用UE两列连续属性表，Blender参考仅用于外侧图标栏。 */
+.property-panel[data-density="compact"] {--property-row-height:22px;--property-control-height:20px;background:#f7f8fa;}
+.property-panel[data-density="compact"] > .property-panel-header {height:24px;min-height:24px;padding:0 4px;background:#f7f8fa;border-bottom:1px solid #dce0e5;gap:4px;}
+.property-panel[data-density="compact"] > .property-panel-toolbar {min-height:26px;padding:2px 4px;gap:4px;}
+.property-panel[data-density="compact"] .property-panel-search {height:22px;}
+.property-panel[data-density="compact"] .property-panel-group {margin:0;}
+.property-panel[data-density="compact"] .property-panel-group > summary {min-height:22px;padding:0 8px;line-height:20px;border-top:1px solid #dce0e5;border-bottom:1px solid #dce0e5;border-radius:0;gap:4px;}
+.property-panel[data-density="compact"] .property-panel-row {border-bottom:1px solid #e9ecf0;}
+.property-panel[data-density="compact"] .property-panel-row > span {padding:1px 8px 1px 12px;text-align:left;line-height:20px;}
+.property-panel[data-density="compact"] .property-panel-row > div {padding:1px 6px;border-left-color:var(--property-column-divider);line-height:20px;}
+.property-panel[data-density="compact"] .property-panel-row input:not([type="checkbox"]),
+.property-panel[data-density="compact"] .property-panel-row select,
+.property-panel[data-density="compact"] .property-panel-row [data-slot="select-trigger"] {background:#fff;line-height:18px;font-size:11px;}
+.property-panel[data-density="compact"] .property-panel-row input[type="checkbox"] {width:12px;height:12px;}
+.property-panel[data-density="compact"] .property-panel-hint {padding:3px 4px;line-height:14px;}
+.property-panel[data-density="compact"] .property-panel-column-handle:focus-visible::after,
+.property-panel[data-density="compact"] .property-panel-column-handle:hover::after {background:#4388df;}
+.property-panel[data-density="compact"] .property-panel-row input:disabled,
+.property-panel[data-density="compact"] .property-panel-row [data-slot="select-trigger"]:disabled {background:#e8ebef;color:#7b8594;}
+
+/* 拖动指示由面板绘制一条完整竖线，跨过行边框和分组间隔。 */
+.property-panel-column-guide {position:absolute;width:1px;background:#4388df;pointer-events:none;z-index:3;}
+.property-panel[data-column-resizing="true"] .property-panel-column-handle::after {background:transparent;}
+.property-panel-row > span {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.property-panel[data-column-resizing="true"] .property-panel-column-handle {outline:none;}

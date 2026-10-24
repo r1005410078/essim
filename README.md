@@ -4,6 +4,8 @@
 
 [项目目标](docs/project-goals.md) · [Modbus实现计划](docs/plans/modbus-simulator.md) · [架构](docs/architecture/workspace.md) · [流程图与代码对应](docs/design/modbus-event-storming.md) · [开发约束](AGENTS.md)
 
+顶部已接入[资源／命令检索](docs/design/command-center.md)、文档历史前进后退与面板开关；Tabs仍在中央内容区，拼音索引按需加载。浏览器交互已检查，macOS已检查原生检索、焦点恢复及缩放；最小化恢复、拖动位置与退出保护待补验，Windows/Linux尚未验收。[提案](openspec/changes/implement-workbench-command-center/proposal.md) · [实施记录](docs/test-records/2026-10-23-command-center-ui.md)。
+
 ## 当前能力
 
 M01已完成约定的[基础模型与工作台提案](openspec/changes/establish-modbus-simulator-foundation/proposal.md)：
@@ -14,6 +16,8 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 - 运行／录制失败门禁及隔离回放的核心契约与测试；当时尚无生产执行器；当前 TCP 从站及文件录制进展见下文，可用回放仍未接入。
 
 左侧导航采用亮色图标标签：服务器图标切换模拟器，叠层图标切换资源（采集模型、设备和文档）。右侧“＋”按当前分类新建，“更多”提供批量任务和运行资源；文件夹及业务图标按类别配色。[本轮验证](docs/test-records/2026-10-22-navigation-tabs.md)。
+
+树节点最右侧现显示彩色运行状态和独立配置图标，hover查看说明；状态来自现有真实运行查询，不从端点监听推导Unit在线。见[设计规范](docs/design/tree-status.md)、[提案](openspec/changes/show-resource-tree-status/proposal.md)及[原生验证](docs/test-records/2026-10-24-tree-status.md)。
 
 事件记录／通信报文／问题现位于中央工作区下方的 Dockview 圆角面板，宽度与文档区对齐，默认展开并选中通信报文；状态栏压缩为22px，显示连接、端点、待应用和问题计数。[验证记录](docs/test-records/2026-10-22-bottom-edge.md)。
 
@@ -144,3 +148,9 @@ python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave 
 ```
 
 M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
+
+右侧属性范围已迁移到 Dockview 右边缘的点／Unit／端点三个图标标签，默认 Unit；顶部开关完全隐藏／恢复，其他布局保留。[提案与实现边界](docs/test-records/2026-10-23-right-edge-inspector-tabs.md)。
+
+右侧属性区已应用 Blender 参考的紧凑密度：28px图标栏、选中与内容同色融合、22px常规字段行；其他布局不变。[验证与边界](docs/test-records/2026-10-23-compact-inspector.md)。
+
+中央文档Tabs使用28px的D融合样式，选中与内容连通，「＋」紧跟最后一个标签。[样式及验证](docs/design/document-tabs.md)。

@@ -3,11 +3,12 @@ import { expect, it } from "vitest";
 import { PropertyPanel, PropertyGroup, PropertyRow, PropertyActions, PropertyIconButton } from "@essim/ui/components/property-panel";
 import { propertyColumnRatio } from "@essim/ui/lib/property-columns";
 
-it("列宽限制保护名称和值，窄栏退让且不会出现负列宽", () => {
-  expect(propertyColumnRatio(10, 340) * 340).toBeCloseTo(112);
+it("名称列可缩至零且越界不产生负宽，值列继续保留可用宽度", () => {
+  expect(propertyColumnRatio(10, 340) * 340).toBeCloseTo(10);
+  expect(propertyColumnRatio(-80, 340)).toBe(0);
   expect(propertyColumnRatio(330, 340) * 340).toBeCloseTo(220);
   expect(propertyColumnRatio(150, 340) * 340).toBeCloseTo(150);
-  expect(propertyColumnRatio(0, 200)).toBeCloseTo(.45);
+  expect(propertyColumnRatio(0, 200)).toBe(0);
   expect(propertyColumnRatio(1000, 200)).toBeCloseTo(.45);
   expect(propertyColumnRatio(100, 0)).toBe(.36);
 });

@@ -33,6 +33,7 @@ export const sheetTheme = {
   },
   metrics: {
     ...denseGridTheme.metrics,
+    borderWidth: 1,
     rowHeaderWidth: 38,
     fontSize: 12,
     fontFamily:

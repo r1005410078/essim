@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
+  desktop: true,
+  minimize: vi.fn(), maximize: vi.fn(), close: vi.fn(), drag: vi.fn(),
   invoke: vi.fn(),
   windowHandler: null as
     | null
@@ -12,11 +14,12 @@ const mocks = vi.hoisted(() => ({
     | ((event: { payload: "undo" | "redo" | "selectAll" }) => void),
 }));
 vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => true,
+  isTauri: () => mocks.desktop,
   invoke: mocks.invoke,
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
+    minimize:mocks.minimize,toggleMaximize:mocks.maximize,close:mocks.close,startDragging:mocks.drag,
     onCloseRequested: async (handler: typeof mocks.windowHandler) => {
       mocks.windowHandler = handler;
       return mocks.cancelWindow;
@@ -31,7 +34,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   },
 }));
 import { armCloseGuard, closeWorkbenchWindow, armEditCommands } from "./window";
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {vi.clearAllMocks();mocks.desktop=true;});
 it("窗口关闭与macOS退出均保护整个会话，只有明确确认才退出", async () => {
   const request = vi.fn();
   const preventDefault = vi.fn();
@@ -74,4 +77,16 @@ it("弹窗关闭焦点落在body时原生撤销仍访问当前文档，普通输
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+
+it("浏览器不调用窗口API，桌面关闭仍走close-requested入口", async()=>{
+ const {operateWindow,windowPlatform}=await import("./window");
+ mocks.desktop=false;expect(windowPlatform()).toBe("browser");
+ for(const action of ["drag","minimize","maximize","close"] as const)await operateWindow(action);
+ expect(mocks.close).not.toHaveBeenCalled();expect(mocks.drag).not.toHaveBeenCalled();
+ mocks.desktop=true;
+ await operateWindow("close");expect(mocks.close).toHaveBeenCalledOnce();expect(mocks.invoke).not.toHaveBeenCalled();
+ await operateWindow("drag");await operateWindow("minimize");await operateWindow("maximize");
+ expect(mocks.drag).toHaveBeenCalledOnce();expect(mocks.minimize).toHaveBeenCalledOnce();expect(mocks.maximize).toHaveBeenCalledOnce();
 });

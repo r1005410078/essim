@@ -44,3 +44,9 @@
 .workbench-dialog-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
 .workbench-dialog-size-grip { position: absolute; z-index: 3; width: 10px; height: 10px; bottom: 1px; right: 1px; padding: 0; border: 0; background: repeating-linear-gradient(135deg, transparent 0 2px, #a7b1c0 2px 3px, transparent 3px 5px); clip-path: polygon(100% 0,100% 100%,0 100%); cursor: nwse-resize; touch-action: none; }
 @media (max-width: 380px) { .workbench-dialog-body > label, .workbench-dialog-body > fieldset > label { grid-template-columns: 76px minmax(0,1fr); gap: 6px; } }
+
+/* 顶部命令检索仍复用原生modal、焦点限制与几何边界，仅采用轻量外观。 */
+.workbench-dialog-command::backdrop {background:transparent;backdrop-filter:none}
+.workbench-dialog-command .workbench-dialog-header {display:none}
+.workbench-dialog-command .workbench-dialog-body {padding:10px}
+.workbench-dialog-command .workbench-dialog-footer {min-height:36px}

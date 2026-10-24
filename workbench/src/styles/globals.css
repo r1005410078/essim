@@ -267,9 +267,6 @@ button:focus-visible {
 }
 .workbench
   .dv-groupview:has(.navigation-panel)
-  > .dv-tabs-and-actions-container,
-.workbench
-  .dv-groupview:has(.property-panel)
   > .dv-tabs-and-actions-container {
   display: none;
 }
@@ -388,32 +385,56 @@ button:focus-visible {
   border-color: #e6a019;
 }
 .category-tabs {
-  height: 37px;
-  min-height: 37px;
-  background: linear-gradient(#fff, #f7f9fc);
-  border-top: 1px solid var(--wb-line);
-  padding: 0 9px;
-  gap: 12px;
+  box-sizing:border-box;
+  height:32px;
+  min-height:32px;
+  min-width:0;
+  background:var(--wb-chrome);
+  border:0;
+  box-shadow:inset 0 1px var(--wb-line);
+  padding:0;
+  gap:0;
 }
 .category-tabs > button {
-  border-bottom: 2px solid transparent;
-  height: 35px;
-  font-size: 13px;
-  min-width: 59px;
-  padding: 0 11px;
-  color: #78849a;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 68px;
+  width:68px;
+  min-width:68px;
+  position:relative;
+  height:100%;
+  margin:0;
+  border:0;
+  border-left:1px solid var(--wb-line);
+  border-radius:0;
+  padding:0 12px;
+  background:transparent;
+  font-size:12px;
+  line-height:1;
+  white-space:nowrap;
+  color:#78849a;
 }
+.category-tabs > button:last-of-type {border-right:1px solid var(--wb-line);}
+.category-tabs > button:hover {background:#edf2f8;}
 .category-tabs > button.active {
-  color: var(--wb-blue);
-  border-bottom-color: var(--wb-blue);
+  background:var(--wb-surface);
+  color:var(--wb-blue);
+  font-weight:600;
 }
-.category-tabs > button[aria-label] {
-  min-width: 17px;
-  padding: 0 1px;
-  color: #25324b;
-}
+.category-tabs > button.active::before {content:"";position:absolute;top:0;left:0;right:0;height:1px;background:var(--wb-surface);pointer-events:none;}
+.category-tab-navigation {display:flex;align-items:center;justify-content:center;flex:0 0 60px;height:100%;gap:2px;}
+.category-tab-navigation > button {display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:0;background:transparent;color:#66748a;}
+.category-tab-navigation > button:hover {background:#e7edf4;color:#25324b;}
+.category-tabs button:focus-visible {outline:1px solid var(--wb-blue);outline-offset:-3px;}
 .category-tabs .muted {
-  font-size: 10px;
+  min-width:0;
+  padding:0 8px;
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 /* 业务字段的复合布局；通用属性面板样式来自 @essim/ui。 */
 .property-panel .field-help { width: 12px; height: 12px; font-size: 9px; margin-left: 3px; }
@@ -452,7 +473,7 @@ button:focus-visible {
 button.footer-status {height:20px;padding:0 4px;border-radius:3px;font:inherit;}
 button.footer-status:hover {background:#e9eef5;color:#27334b;}
 .footer-session {overflow:hidden;text-overflow:ellipsis;}
-/* 边栏沿用工作台圆角；底边输出区收起时仅保留紧凑标签条。 */
+/* 边栏沿用工作台圆角；底边输出区收起时不保留标签条，通过顶部图标恢复。 */
 .workbench .dv-edge-group {overflow:hidden;--dv-tabs-and-actions-container-height:26px;}
 .workbench .observation-tab {font-size:11px;line-height:24px;}
 .observation-tab {
@@ -504,7 +525,7 @@ button.footer-status:hover {background:#e9eef5;color:#27334b;}
     padding-right: 10px;
   }
   .category-tabs {
-    gap: 3px;
+    gap: 0;
   }
   .workbench footer {
     font-size: 11px;
@@ -681,3 +702,57 @@ button.footer-status:hover {background:#e9eef5;color:#27334b;}
 .point-select-option-title {display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
 .point-select-option-title code {background:#edf2f8;color:#526179;border-radius:3px;padding:0 4px;font-size:12px}
 .point-select-option-meta {font-size:12px;color:#65748c}
+
+.workbench-titlebar {height:38px;flex:0 0 38px;display:grid;grid-template-columns:1fr minmax(220px, min(36vw,520px)) 1fr;align-items:center;gap:16px;padding:0 8px;background:#f3f4f6;user-select:none}
+.workbench-titlebar button {border:0;background:transparent;color:#42536c;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;padding:0 7px;flex-shrink:0}
+.workbench-titlebar button:hover {background:#e4eaf2}
+.workbench-titlebar button:disabled {color:#b4bfcd}
+.titlebar-left,.titlebar-right {display:flex;align-items:center;gap:2px;min-width:0}
+.titlebar-right {justify-content:flex-end}
+.platform-macos .titlebar-left {padding-left:76px}
+.workbench-titlebar .titlebar-search {border:1px solid #cdd8e7;background:#fff;justify-content:flex-start;gap:8px;min-width:0;width:100%;font-size:12px;color:#7c8da7}
+.titlebar-search span {overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.titlebar-search kbd {margin-left:auto;background:#edf1f7;border-radius:3px;font:11px system-ui;padding:1px 4px;white-space:nowrap}
+.workbench-titlebar .window-close:hover {background:#c93434;color:#fff}
+.command-input {width:100%;height:32px;border:1px solid #a9c8ee;border-radius:4px;padding:0 9px;font-size:13px}
+.command-results {margin-top:8px;max-height:300px;overflow:auto}
+.command-result {padding:7px 9px;border-radius:3px;cursor:pointer;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.command-result.selected {background:#e6f0ff}
+.command-result[aria-disabled=true] {color:#9ca8b8;cursor:not-allowed}
+.command-result small {color:#7c8ca2;font-size:11px;overflow-wrap:anywhere}
+.command-hint {font-size:11px;color:#7c8ca2;margin-right:auto}
+@media(max-width:720px){.workbench-titlebar{grid-template-columns:auto minmax(80px,1fr) auto;gap:6px}.titlebar-search kbd{display:none}.platform-macos .titlebar-left{padding-left:70px}}
+
+/* 原生 Dockview 属性标签在右侧组的左边，与紧凑属性内容融合。 */
+.workbench [data-testid="dv-edge-group-inspector-edge"] {--dv-tabs-and-actions-container-height:28px;--dv-activegroup-hiddenpanel-tab-background-color:#e8ebef;--dv-inactivegroup-hiddenpanel-tab-background-color:#e8ebef;--dv-activegroup-hiddenpanel-tab-color:#687487;--dv-inactivegroup-hiddenpanel-tab-color:#687487;--dv-activegroup-visiblepanel-tab-background-color:#f7f8fa;--dv-inactivegroup-visiblepanel-tab-background-color:#f7f8fa;--dv-activegroup-visiblepanel-tab-color:#26314b;--dv-inactivegroup-visiblepanel-tab-color:#26314b;}
+.workbench [data-testid="dv-edge-group-inspector-edge"] > .dv-tabs-and-actions-container {width:28px;min-width:28px;border:0;background:#e8ebef;}
+.workbench [data-testid="dv-edge-group-inspector-edge"] .dv-tab {width:28px;height:30px;min-height:30px;padding:0;border:0;border-radius:0;justify-content:center;box-shadow:none;}
+.workbench [data-testid="dv-edge-group-inspector-edge"] .dv-tab.dv-active-tab {background:#f7f8fa;color:#26314b;box-shadow:none;}
+.workbench [data-testid="dv-edge-group-inspector-edge"] .dv-tab.dv-inactive-tab {background:#e8ebef;color:#687487;}
+.workbench .inspector-edge-tab {display:flex;align-items:center;justify-content:center;width:28px;height:30px;}
+.workbench [data-testid="dv-edge-group-inspector-edge"] .dv-tabs-overflow-dropdown-default {display:none;}
+
+/* 文档标签 D：选中项与内容连通；只作用于具有新建文档操作的中央组。 */
+.workbench .dv-groupview:has(.document-new-action) {--dv-tabs-and-actions-container-height:28px;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .dv-tab {height:28px;padding:0 8px;border:1px solid transparent;border-bottom:0;border-radius:3px 3px 0 0;box-shadow:none;font-size:12px;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .dv-tab.dv-active-tab {border-color:var(--wb-line);border-bottom:0;box-shadow:none;background:var(--wb-surface);}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .dv-void-container {order:1;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .dv-right-actions-container {flex-shrink:0;}
+.workbench .document-new-action {display:flex;align-items:center;height:28px;padding:0 2px;}
+.workbench .document-new-action .icon {width:24px;height:24px;padding:4px;border-radius:3px;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .document-tab {gap:5px;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .document-tab button {width:16px;height:16px;margin-left:2px;padding:1px;}
+.workbench .dv-groupview:has(.document-new-action) > .dv-tabs-and-actions-container .dv-default-tab-action {width:16px;height:16px;}
+/* 外框只保留所属容器的一层线，不用负边距扩大表格布局。 */
+.workbench .sheet-area {min-width:0;margin-inline:0;}
+.workbench .compact-point-toolbar:has(+ .sheet-area) {border-bottom:0;}
+.workbench .category-tabs {min-width:0;margin:0;border:0;}
+/* 配置/运行共享一个固定工具栏，切换组不进入可滚动的模式操作区。 */
+.toolbar.endpoint-toolbar {height:38px;min-height:38px;overflow:visible;}
+.toolbar.endpoint-toolbar > .unit-selector-trigger {width:155px;min-width:90px;height:26px;justify-content:flex-start;gap:6px;padding:0 6px;flex-shrink:0;border:1px solid #ccd7e7;background:#fff;}
+.endpoint-toolbar-actions {display:flex;align-items:center;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;}
+.endpoint-toolbar .point-toolbar-actions-content {display:flex;align-items:center;flex:1;min-width:max-content;gap:4px;overflow:visible;white-space:nowrap;}
+.unit-view-switch {display:flex;align-items:center;flex:0 0 56px;width:56px;height:26px;padding:1px;gap:0;border:1px solid #dce3ed;border-radius:4px;background:#edf0f4;box-sizing:border-box;}
+.unit-view-switch > button {display:flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:22px;padding:0;border:0;border-radius:2px;box-sizing:border-box;color:#78849a;}
+.unit-view-switch > button[aria-selected="true"] {background:#fff;color:#25324b;}
+.unit-view-switch > button:focus-visible {outline:1px solid #4388df;outline-offset:-1px;}

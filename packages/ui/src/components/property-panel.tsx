@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useImperativeHandle, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useImperativeHandle, useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "../lib/utils";
 import { propertyColumnRatio } from "../lib/property-columns";
@@ -14,6 +14,7 @@ const ColumnContext = createContext<{
 export interface PropertyPanelProps extends Omit<ComponentProps<"section">, "title"> {
   title?: string;
   subject?: ReactNode;
+  density?: "standard" | "compact";
   icon?: ReactNode;
   status?: ReactNode;
   actions?: ReactNode;
@@ -22,27 +23,36 @@ export interface PropertyPanelProps extends Omit<ComponentProps<"section">, "tit
 }
 
 /** 通用属性面板外壳；只管理展示和按名称过滤，不读取业务状态。 */
-export function PropertyPanel({ title = "详细信息", subject, icon, status, actions, filters, search, className, children, style, ref, ...props }: PropertyPanelProps) {
+export function PropertyPanel({ title = "详细信息", density = "standard", subject, icon, status, actions, filters, search, className, children, style, ref, ...props }: PropertyPanelProps) {
   const [ratio, setRatio] = useState<number | null>(null);
   const [effectiveRatio, setEffectiveRatio] = useState(.36);
   const [dragging, setDragging] = useState(false);
+  const [guide,setGuide]=useState<{left:number;top:number;height:number}|null>(null);
   const panel = useRef<HTMLElement>(null);
   useImperativeHandle(ref, () => panel.current!, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = panel.current;
     if (!element) return;
     const measure = () => {
-      const row = Array.from(element.querySelectorAll<HTMLElement>(".property-panel-row")).find(row => row.getBoundingClientRect().width > 0);
-      if (!row) return;
+      const rows = Array.from(element.querySelectorAll<HTMLElement>(".property-panel-row")).filter(row => row.getBoundingClientRect().width > 0);
+      const row=rows[0];
+      if (!row) {setGuide(null);return;}
       const bounds = row.getBoundingClientRect();
-      setEffectiveRatio((row.children[1]!.getBoundingClientRect().left - bounds.left) / bounds.width);
+      const divider=row.children[1]!.getBoundingClientRect().left;
+      setEffectiveRatio((divider - bounds.left) / bounds.width);
+      if(dragging){
+        const panelBounds=element.getBoundingClientRect();
+        const next={left:divider-panelBounds.left+element.scrollLeft-element.clientLeft,top:bounds.top-panelBounds.top+element.scrollTop-element.clientTop,height:rows.at(-1)!.getBoundingClientRect().bottom-bounds.top};
+        setGuide(previous=>previous&&previous.left===next.left&&previous.top===next.top&&previous.height===next.height?previous:next);
+      }
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
-  }, [ratio, children, style]);
-  return <section ref={panel} className={cn("property-panel", className)} aria-label={title} data-searching={!!search?.value.trim()} data-column-resizing={dragging}
+    element.addEventListener('toggle',measure,true);
+    return () => {observer.disconnect();element.removeEventListener('toggle',measure,true);};
+  }, [ratio, children, style,dragging]);
+  return <section ref={panel} className={cn("property-panel", className)} aria-label={title} data-density={density} data-searching={!!search?.value.trim()} data-column-resizing={dragging}
     style={{...style, ...(ratio === null ? {} : {"--property-user-label-width": `${ratio * 100}%`})} as CSSProperties} {...props}>
     <header className="property-panel-header">
       {icon}<strong>{title}</strong>
@@ -60,6 +70,7 @@ export function PropertyPanel({ title = "详细信息", subject, icon, status, a
     <ColumnContext.Provider value={{ratio: effectiveRatio, resize: (pixels, width) => setRatio(propertyColumnRatio(pixels, width)), reset: () => setRatio(null), setDragging}}>
       <SearchContext.Provider value={search?.value.trim().toLocaleLowerCase() ?? ""}>{children}</SearchContext.Provider>
     </ColumnContext.Provider>
+    {dragging && guide && <div aria-hidden="true" className="property-panel-column-guide" style={guide}/>}
     {search?.value.trim() && <div className="property-panel-search-empty" role="status">没有匹配的属性</div>}
   </section>;
 }

@@ -118,6 +118,15 @@ export class WorkspaceStore {
   private changeCount = 0;
   readonly focusModelIssue=new Map<string,(issue:ApiError)=>void>();
   readonly runtimePoint=new Map<string,string>();
+  readonly observedUnitQuality=new Map<string,{sequence:string;quality:'stale'|'failed'|undefined}>();
+  recordUnitQuality(unit:string,points:Record<string,{quality:string}>){
+    const sequence=this.view?.sequence;if(sequence===undefined)return;
+    const values=Object.values(points);if(!values.length)return;
+    const quality=values.some(p=>p.quality==='failed')?'failed':values.some(p=>p.quality==='stale')?'stale':undefined;
+    const previous=this.observedUnitQuality.get(unit);
+    if(previous?.sequence===sequence&&previous.quality===quality)return;
+    this.observedUnitQuality.set(unit,{sequence,quality});this.changed();
+  }
   readonly draftMatches=new Map<string,Record<string,boolean>>();
   readonly drafts = new Map<string, EndpointConfig>();
   readonly modelDrafts = new Map<string, ModelDraft>();

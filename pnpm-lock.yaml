@@ -93,6 +93,9 @@ importers:
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@19.3.0)
+      pinyin-pro:
+        specifier: 3.29.5
+        version: 3.29.5
       react:
         specifier: ^19.0.0
         version: 19.3.0
@@ -3393,6 +3396,9 @@ packages:
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==, tarball: https://registry.npmmirror.com/zwitch/-/zwitch-2.0.4.tgz}
+
+  pinyin-pro@3.29.5:
+    resolution: {integrity: sha512-Fk5YoRmtdHqJWqAuzYVG/NzvzeCbaG+ZEwbY6Nbps3QAIrvQQEtcm49frcyCM8i2b5najnzPDtYqrHRYTTiuwQ==, tarball: https://registry.npmjs.org/pinyin-pro/-/pinyin-pro-3.29.5.tgz}
 
 snapshots:
 
@@ -6865,3 +6871,5 @@ snapshots:
   zod@3.25.76: {}
 
   zwitch@2.0.4: {}
+
+  pinyin-pro@3.29.5: {}

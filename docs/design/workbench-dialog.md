@@ -1,38 +1,24 @@
-# 工程紧凑公共弹框
+## Context
 
-正式客户端的业务弹框统一使用 `@essim/ui/components/workbench-dialog`，样式位于 `packages/ui/src/workbench-dialog.css`。系统文件选择、保存路径窗口仍由操作系统提供；菜单、下拉列表、提示和历史原型不属于业务弹框。
+用户确认浅灰底、白色圆角Dockview面板、紧凑控件与原线稿；Tabs不进入窗口栏。已有异步资源索引和六条命令基础。
 
-## 外观与布局
+## Goals / Non-Goals
 
-- 亮色实底，5px 圆角，细边框和轻阴影；标题栏34px、输入框28px、操作按钮27px、操作栏最小42px。
-- 默认宽472px；导入、迁移预览等可指定 `initialWidth`。默认高度随内容变化，上限为当前视口减16px。
-- `DialogBody` 独立滚动，`DialogFooter` 固定在内容下方；缩放后按钮保持可见。字段默认88px标签列、10px列间距、7px行距。
-- 关闭后重新打开恢复默认布局，不保存位置或大小。
+Goals：接入顶部资源／命令入口、会话内文档历史、右属性／左右／底部面板开关与平台窗口动作。
+Non-Goals：VS Code扩展宿主、任意磁盘全文搜索、配置持久化、跨会话浏览历史、协议执行器修改。
 
-## 交互
+## Decisions
 
-拖动标题栏或移动手柄改变位置；四边、四角和右下角手柄调整大小。所有操作限制在视口内。移动手柄的方向键每次移动8px；右下角手柄的方向键每次调整8px。Home、标题栏双击和复位按钮恢复自然尺寸与居中位置。
+- 顶部38px，macOS左侧为原生红绿灯预留空间；面板开关、历史箭头紧随其后，搜索框保持居中，空白区域单独允许窗口拖动。浏览器不伪造系统窗口按钮。
+- 搜索弹层复用WorkbenchDialog/Body/Footer的command变体，顶部44px展开、透明backdrop、隐藏普通标题栏，保留表单按钮和原生modal焦点限制，父级条件挂载，输入防抖并忽略失效响应；IME组合时不执行Enter，方向键仅改变选中项，禁用命令不执行。
+- 历史只存文档稳定身份（含Unit／锚点），上限100；显式打开与用户激活Tab记入，前进后退不追加，删除项过滤。布局面板不计入历史。
+- 窗口操作集中于通信适配层；macOS使用Overlay而不仿造红绿灯；Windows/Linux配置自绘控件，原生动作与权限独立。关闭走已有close-requested保护。
+- 命令面板沿用业务命令注册表，补布局开关与保存入口；资源选择调用既有open，保持工作台草稿。
 
-组件内部使用原生 `dialog.showModal()`，保留背景 inert、表单校验和顶层显示。初始焦点优先进入输入控件，Tab／Shift+Tab封住首尾，关闭后恢复焦点。Esc和关闭按钮走同一个 `onCancel`；`busy` 时禁止这两种关闭路径。业务方仍须按请求状态禁用取消／提交按钮，并保留原有异步任务清理。
+## Risks / Trade-offs
 
-下拉菜单应通过 portal 挂在最近的原生 dialog 上，以免被内容滚动区裁切或落到背景层。现有 `EnumSelect` 保持这一约定。
-
-## 接入示例
-
-```tsx
-<WorkbenchDialog title="新建采集模型" onCancel={close} busy={busy}>
-  <form onSubmit={submit}>
-    <DialogBody>
-      <label>名称<input autoFocus required value={name} onChange={event => setName(event.target.value)} /></label>
-    </DialogBody>
-    <DialogFooter>
-      <button type="button" disabled={busy} onClick={close}>取消</button>
-      <button type="submit" disabled={busy}>创建</button>
-    </DialogFooter>
-  </form>
-</WorkbenchDialog>
-```
-
-组件挂载即打开，由父级条件渲染控制关闭；不要再调用 `showModal()`，不要给外层另加 padding、overflow 或固定最大高度。保留完整 form 包住内容和操作栏，以支持 Enter 和原生约束校验。操作栏最后一个按钮为主操作。
-
-在工作台实际业务弹框中验证焦点、表单校验、忙碌关闭保护、拖动、缩放及窄窗口滚动。独立预览 HTML 入口已移除；历史验证见[实施记录](../test-records/2026-10-22-compact-dialogs.md)，其中夹具结果不代表协议能力。
+- Windows贴靠／Linux窗口管理器差异：保留各平台验收清单，当前平台之外不打验收勾。
+- 异步拼音加载造成迟到结果：请求序号与卸载清理屏蔽。
+- Dockview事件造成历史重复：稳定键去重，回放激活只同步当前项。
+- 搜索弹层在共享组件内集中提供command外观，避免业务侧复制遮罩、定位与焦点逻辑；标题栏设计不变。
+- command 变体支持点击弹框外部取消，只有主指针在外部按下并在外部释放才触发，内部点击和从内部拖到外部不关闭；busy 时仍禁止取消。标准业务弹框保持原来的关闭方式。

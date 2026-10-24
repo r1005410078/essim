@@ -1,3 +1,5 @@
+import {TreeStatusLayer} from "./TreeStatusLayer";
+import type {WorkspaceStore} from "./model";
 import { useEffect, useRef } from "react";
 import { FileTree, useFileTree, type FileTreeProps } from "@pierre/trees/react";
 import { Layers, Server } from "lucide-react";
@@ -57,11 +59,15 @@ const treeCSS = `
   [data-item-section="icon"] { order: 1; }
   [data-item-type="file"] > [data-item-section="icon"] { display: none; }
   [data-item-section="decoration"] { order: 2; flex: 0 0 16px; justify-content: center; }
-  [data-item-section="content"] { order: 3; flex: 1 1 auto; }
+  [data-item-section="content"] { order: 3; flex: 1 1 auto; min-width:0; }
+  .navigation-status { order:5; display:flex; align-items:center; gap:4px; flex:0 0 auto; margin-left:auto; padding-right:6px; }
+  .navigation-status:empty { display:none; }
   [data-item-section="action"] { order: 4; }
 `;
 
-export function NavigationTree({ input, catalog, section, open, ...props }: {
+export function NavigationTree({ input, catalog, section, open, store, active, ...props }: {
+  store: WorkspaceStore;
+  active: boolean;
   input: ReturnType<typeof projectNavigation>;
   catalog: Catalog | undefined;
   section: NavigationSection;
@@ -103,5 +109,5 @@ export function NavigationTree({ input, catalog, section, open, ...props }: {
     },
   });
   useEffect(() => { model.resetPaths(input.paths); }, [model, input]);
-  return <FileTree model={model} style={{ flex: 1, minHeight: 0 }} {...props} />;
+  return <><FileTree model={model} style={{ flex: 1, minHeight: 0 }} {...props} /><TreeStatusLayer model={model} input={input} catalog={catalog} store={store} active={active}/></>;
 }

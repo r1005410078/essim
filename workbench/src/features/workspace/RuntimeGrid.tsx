@@ -1,3 +1,4 @@
+import {RuntimeGridSource} from "./RuntimeGridSource";
 import {useEffect,useRef} from "react";
 import {Grid,type DataSource,type GridEngineFrameSource} from "@zhiguang/novasheet-core";
 import {canvas2dBackend} from "@zhiguang/novasheet-canvas2d";
@@ -12,6 +13,9 @@ export function RuntimeGrid({data,onReader,onPoint,onSelectionReader}:{onSelecti
  const callback=useRef(onReader);callback.current=onReader;
  useEffect(()=>{
   if(!host.current)return;
+  const displayData=new RuntimeGridSource(data);
+  const fit=()=>displayData.fitHeight(host.current?.clientHeight??0,sheetTheme.metrics.rowHeight??25,sheetTheme.metrics.headerHeight??25);
+  fit();
   let engine:GridEngineFrameSource|undefined;
   const backend=canvas2dBackend();
   const grid=new Grid(host.current,{
@@ -21,12 +25,14 @@ export function RuntimeGrid({data,onReader,onPoint,onSelectionReader}:{onSelecti
     const rows=underlying===undefined?undefined:data.getRows(underlying,underlying);
     pointCallback.current?.(Array.isArray(rows)&&rows[0]?.id!==undefined?String(rows[0].id):undefined);
    },
-   data,theme:sheetTheme,cellTypes:readonlyTypes,
+   data:displayData,theme:sheetTheme,cellTypes:readonlyTypes,
+   isCellEditable:cell=>(engine?.getData()??displayData).getCell(cell.rowIndex,"id")!==undefined && data.getSchema().fields.find(field=>field.id===cell.fieldId)?.type!=="readonly",
    backend:deps=>{engine=deps.engine;return backend(deps);},
    excelHeaders:true,excelWorkspace:true,rowHeaderCornerLabel:"",
    interactions:{contextMenu:false,reorder:false,resize:{rows:false,columns:true}},
   });
-  selectionCallback.current?.(()=>{const range=grid.getSelection().selectedRange;if(!range)return [];if(range.endRow-range.startRow>=1024)throw Error("一次最多捕获1024个点");const rows=grid.getViewPipeline().getComposed().getRows(range.startRow,range.endRow);return Array.isArray(rows)?rows.map(r=>String(r.id)):[];});
+  const resize=new ResizeObserver(fit);resize.observe(host.current);
+  selectionCallback.current?.(()=>{const range=grid.getSelection().selectedRange;if(!range)return [];if(range.endRow-range.startRow>=1024)throw Error("一次最多捕获1024个点");const rows=grid.getViewPipeline().getComposed().getRows(range.startRow,range.endRow);return Array.isArray(rows)?rows.filter(r=>r.id!==undefined).map(r=>String(r.id)):[];});
   callback.current(()=>{
    if(!engine)return [];
    const source=engine.getData();
@@ -35,7 +41,7 @@ export function RuntimeGrid({data,onReader,onPoint,onSelectionReader}:{onSelecti
     return Array.isArray(rows)&&rows[0]?.id!==undefined?String(rows[0].id):undefined;
    });
   });
-  return()=>{selectionCallback.current?.(undefined);callback.current(undefined);engine=undefined;grid.destroy();};
+  return()=>{resize.disconnect();selectionCallback.current?.(undefined);callback.current(undefined);engine=undefined;grid.destroy();};
  },[data]);
  return <div ref={host} className="h-full w-full"/>;
 }

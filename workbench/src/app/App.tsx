@@ -1,3 +1,13 @@
+import {CategoryTabs} from "../features/workspace/CategoryTabs";
+import {EndpointToolbarFrame,PointToolbar,UnitViewSwitch} from "../features/workspace/PointToolbar";
+import { InspectorTab } from "../features/workspace/InspectorTab";
+import {inspectorTabs,isInspectorPanel,inspectorScopeForError,type InspectorScope} from "../features/workspace/inspectorTabs";
+import { CommandPalette } from "../features/command-center/CommandPalette";
+import { WorkbenchTitlebar } from "../features/command-center/WorkbenchTitlebar";
+import { NavigationHistory } from "../features/command-center/history";
+import { windowPlatform, operateWindow } from "../shared/api/window";
+import { createWorkbenchCommands } from "../features/command-center/workbenchCommands";
+import type { ResourceSearchIndex, ResourceSearchResult } from "../features/command-center/resourceSearch";
 import { WorkbenchDialog, DialogBody, DialogFooter } from "@essim/ui/components/workbench-dialog";
 import { WorkspaceIllustration } from "../features/workspace/WorkspaceIllustration";
 import { initialWorkbenchLayout } from "../features/workspace/initialLayout";
@@ -7,7 +17,7 @@ import { ToolbarIcon } from "../features/workspace/ToolbarIcon";
 import {UnitPointEditor,CaptureInitialsDialog} from "../features/workspace/UnitPointEditor";
 import {ModelPicker} from "../features/workspace/ModelPicker";
 import {overrideCount,emptyOverrides} from "../features/workspace/unitOverrides";
-import { PropertyPanel, PropertyGroup, PropertyRow as Property, PropertyActions, PropertyIconButton, PropertyHint, PropertyScope } from "@essim/ui/components/property-panel";
+import { PropertyPanel, PropertyGroup, PropertyRow as Property, PropertyActions, PropertyIconButton, PropertyHint } from "@essim/ui/components/property-panel";
 import {ResourcePanel} from "../features/workspace/ResourcePanel";
 import { createPortal } from "react-dom";
 import {BatchPanel} from "../features/workspace/BatchPanel";
@@ -65,7 +75,6 @@ import {
   MoreHorizontal,
   Table2,
   Server,
-  ChevronLeft,
   ChevronRight,
   FolderOpen,
   X,
@@ -111,6 +120,9 @@ import {
 type DialogKind = "model" | "endpoint" | "device" | null;
 interface WorkbenchContext {
   store: WorkspaceStore;
+  searchResources: (query: string) => Promise<ResourceSearchResult[]>;
+  searchCommands: (query: string) => {id:string;title:string;category?:string;enabled:boolean}[];
+  executeCommand: (id: string) => Promise<unknown>;
   openTool:(tool:"batch"|"resources")=>void;
   sheets: SheetViews;
   open: (target: Target) => void;
@@ -263,7 +275,7 @@ function ProjectPanel() {
           id={`${navigationId}-${treeSection}-panel`} aria-labelledby={`${navigationId}-${treeSection}-tab`}
           hidden={section !== treeSection}>
       {input.paths.length ? (
-        <NavigationTree input={input} catalog={catalog} section={treeSection} open={open}
+        <NavigationTree input={input} catalog={catalog} section={treeSection} open={open} store={store} active={section===treeSection}
           renderContextMenu={(item, context) => {
             const target = input.targets.get(String(item.path));
             const section=treeSection === "resources" && String(item.path).split("/")[0] === "文档资源"?"documents":treeSection;
@@ -650,7 +662,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
   const selector=<UnitSelector units={endpoint.units} value={unit?.id??""} onChange={id=>{store.flushUnitEditors.get(key)?.();store.selectUnit(endpoint.id,id);}}/>;
   const application=<><ToolbarIcon label="应用配置" disabled={store.busy||!saved||store.endpointDirty(endpoint.id)||isEndpointApplied(store.view?.catalog,saved,store.view?.applicationMatches)} onClick={()=>setApplying(true)}><FileCheck2 size={16}/></ToolbarIcon>
     <ConfigurationStatus dirty={store.endpointDirty(endpoint.id)} applied={isEndpointApplied(store.view?.catalog,endpoint,store.view?.applicationMatches)} hasSnapshot={!!applied} master={endpoint.role==="master"} modelDirty={!!(unit&&store.modelDrafts.get(unit.model.id)?.dirty)}/></>;
-  const viewTabs=<div className="unit-view-tabs" role="tablist" aria-label="单元视图">{([['configuration','配置',SlidersHorizontal],['runtime','运行',Activity]] as const).map(([value,label,Icon])=><ToolbarIcon key={value} label={`${label}视图`} role="tab" aria-selected={mode===value} onClick={()=>{store.flushUnitEditors.get(key)?.();store.endpointModes.set(endpoint.id,value);store.changed();}}><Icon size={15}/></ToolbarIcon>)}</div>;
+  const viewTabs=<UnitViewSwitch value={mode} onChange={value=>{store.flushUnitEditors.get(key)?.();store.endpointModes.set(endpoint.id,value);store.changed();}}/>;
   const address=<span className="point-toolbar-address" title={endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}>{endpoint.transport.kind==="tcp"?`${endpoint.transport.address}:${endpoint.transport.port}`:endpoint.transport.path}</span>;
   const saveEndpoint={label:"保存端点配置",disabled:store.busy||!store.endpointDirty(endpoint.id),action:()=>attempt(store.saveEndpointDraft(endpoint.id))};
   const captureAction = <ToolbarIcon label="将所选确认值设为默认初始值" disabled={!unit} onClick={() => {
@@ -669,17 +681,17 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
     }
   }}><ListStart size={15}/></ToolbarIcon>;
   const runtimeToolbar={
-    start:<>{selector}<i className="toolbar-divider"/><ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}</>,
+    start:<><ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}</>,
     capture:captureAction,
     model:<span className="point-toolbar-model">{model?.name??"未绑定模型"}</span>,
-    end:<>{address}<i className="toolbar-divider"/>{viewTabs}</>,
+    end:address,
   };
   return (
-    <div className="panel column">
-      {(mode==="configuration"&&!unit)&&<div className="toolbar document-actions compact-point-toolbar">{selector}<i className="toolbar-divider"/>
+    <EndpointToolbarFrame mode={mode} start={<>{selector}<i className="toolbar-divider"/></>} end={viewTabs}>
+      {(mode==="configuration"&&!unit)&&<PointToolbar className="document-actions">
         <ToolbarIcon label="保存端点配置" data-save-document={`endpoint:${endpoint.id}`} disabled={saveEndpoint.disabled} onClick={saveEndpoint.action}><Save size={16}/></ToolbarIcon>{application}
-        <span className="point-toolbar-model">{model?.name??"未绑定模型"}</span><span className="spacer"/>{address}{viewTabs}
-      </div>}
+        <span className="point-toolbar-model">{model?.name??"未绑定模型"}</span><span className="spacer"/>{address}
+      </PointToolbar>}
       <div style={{display:mode==="runtime"?"contents":"none"}}>
       <SlaveRuntimeControls toolbar={runtimeToolbar} visible={visible&&mode==="runtime"} store={store} sheets={sheets} endpoint={endpoint} unit={unit}
         model={unit?(store.view?.catalog.values[unit.id]?.model??model):model} category={category}
@@ -704,7 +716,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
       {mode==="configuration" && unit && store.modelDrafts.get(unit.model.id)?.dirty && (
         <div className="panel-note">引用模型有未保存修改，请先保存模型；当前显示已保存点表。</div>
       )}
-      {mode==="configuration"&&unit&&<div className="sheet-area unit-configuration"><UnitPointEditor store={store} endpoint={endpoint.id} unit={unit.id} toolbar={{start:<>{selector}<i className="toolbar-divider"/></>,afterSave:application,context:address,end:<><i className="toolbar-divider"/>{viewTabs}</>,menu:[saveEndpoint]}}/></div>}
+      {mode==="configuration"&&unit&&<div className="sheet-area unit-configuration"><UnitPointEditor store={store} endpoint={endpoint.id} unit={unit.id} toolbar={{afterSave:application,context:address,menu:[saveEndpoint]}}/></div>}
       <div className="sheet-area" style={{display:mode==="runtime"?undefined:"none"}}>
         {!unit ? (
           <Empty>在右侧属性栏添加 Unit，并引用一个已保存的采集模型。</Empty>
@@ -720,7 +732,7 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
               const hasLive=liveValues[id]!==undefined;
               const viewModel=appliedValues?.model??resolvedModel;
               const viewValues=hasLive?{model:viewModel??null,raw:liveValues[id]!,stale:false}:appliedValues??resolvedValues;
-              return categories.map(([value, label]) => (
+              return categories.map(([value]) => (
                 <div
                   key={`${id}:${value}`}
                   className="sheet-slot"
@@ -742,55 +754,16 @@ function EndpointPanel({ params, api }: { params: { id: string }; api:IDockviewP
                       masterPoints[id],
                     )}
                   />
-                  {!viewModel?.points.some(
-                    (point) => point.category === value,
-                  ) && <div className="sheet-empty">暂无{label}点</div>}
                 </div>
               ));
             })}
           </>
         )}
       </div>
-      <div className="category-tabs" role="tablist" aria-label="四遥分类" style={{display:mode==="runtime"?undefined:"none"}}>
-        <button
-          aria-label="上一分类"
-          onClick={() =>
-            choose(
-              categories[
-                (categories.findIndex(([value]) => value === category) + 3) % 4
-              ]![0],
-            )
-          }
-        >
-          <ChevronLeft size={13} />
-        </button>
-        <button
-          aria-label="下一分类"
-          onClick={() =>
-            choose(
-              categories[
-                (categories.findIndex(([value]) => value === category) + 1) % 4
-              ]![0],
-            )
-          }
-        >
-          <ChevronRight size={13} />
-        </button>
-        {categories.map(([value, label]) => (
-          <button
-            role="tab"
-            aria-selected={category === value}
-            className={category === value ? "active" : ""}
-            key={value}
-            onClick={() => choose(value)}
-          >
-            {label}
-          </button>
-        ))}
-        <span className="spacer" />
-        <span className="muted">NovaSheet · 草稿不触发通信</span>
-      </div>
-    </div>
+      <CategoryTabs value={category} onChange={choose} hidden={mode!=="runtime"}>
+        NovaSheet · 草稿不触发通信
+      </CategoryTabs>
+    </EndpointToolbarFrame>
   );
 }
 function ModelPanel({ params }: { params: { id: string } }) {
@@ -886,10 +859,10 @@ function ExitDialog({ cancel }: { cancel: () => void }) {
   );
 }
 
-function InspectorPanel() {
+function InspectorPanel({params,api:panelApi}:IDockviewPanelProps<{scope:InspectorScope}>) {
+  const scope=params.scope;
   const { store, selected, open } = useWorkbench();
   const [search, setSearch] = useState("");
-  const [scope,setScope]=useState("unit");
   const [modelChange,setModelChange]=useState<{endpoint:string;unit:string;model:string}|null>(null);
   const inspector=useRef<HTMLElement>(null);
   const endpoint =
@@ -904,15 +877,16 @@ function InspectorPanel() {
     store.edit({...current,units:current.units.map(item=>item.id===unitId?{...item,model:{id:model},overrides:emptyOverrides()}:item)});
   };
   useEffect(()=>{
-    const error=store.lastError;if(!error || error.endpointId!==endpoint?.id)return;
+    const error=store.lastError;if(!error || error.endpointId!==endpoint?.id || inspectorScopeForError(error)!==scope)return;
     setSearch("");
     requestAnimationFrame(()=>{
+      if(!panelApi.isVisible)return;
       const target=inspector.current?.querySelector<HTMLElement>(`[data-config-field="${CSS.escape(error.unitId && error.field === "name" ? "unit.name" : error.field ?? "")}"]`);
       const details=target?.closest("details");if(details)details.open=true;
       target?.querySelector<HTMLElement>("input,button")?.focus({preventScroll:true});
       target?.scrollIntoView({block:"nearest"});
     });
-  },[store.lastError,endpoint?.id]);
+  },[store.lastError,endpoint?.id,scope,panelApi]);
   const device =
     selected?.kind === "device"
       ? catalog?.devices.find((device) => device.id === selected.id)
@@ -954,12 +928,12 @@ function InspectorPanel() {
     });
     store.selectUnit(endpoint.id, id);
   };
-  if(selected?.kind==="resource"){
+  if(selected?.kind==="resource" && scope==="point"){
     const resource=resources.find(resource=>resource.id===selected.id);
-    return <PropertyPanel title="文档资源" icon={<BookOpen size={14}/>} subject={resource?.title??"文档不存在"}><PropertyGroup title="资源信息"><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">内置 · 只读</Property></PropertyGroup></PropertyPanel>;
+    return <PropertyPanel density="compact" title="文档资源" icon={<BookOpen size={14}/>} subject={resource?.title??"文档不存在"}><PropertyGroup title="资源信息"><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">内置 · 只读</Property></PropertyGroup></PropertyPanel>;
   }
   if (selected?.kind === "model")
-    return <ModelDetails store={store} id={selected.id} open={open} />;
+    return <ModelDetails store={store} id={selected.id} scope={scope} open={open} />;
   const canAdd =
     !!endpoint &&
     latest.length > 0 &&
@@ -970,14 +944,13 @@ function InspectorPanel() {
       endpoint.units.length > 0
     );
   return (
-    <><PropertyPanel ref={inspector} subject={endpoint
+    <><PropertyPanel density="compact" ref={inspector} subject={endpoint
       ? `${endpoint.transport.kind.toUpperCase()} ${endpoint.role === "slave" ? "从站" : "主站"}${unit ? ` / Unit ${unit.station}` : ""}`
       : (device?.name ?? "未选择对象")}
       status={endpoint && store.endpointDirty(endpoint.id) ? "未保存" : undefined}
-      search={{ value: search, onChange: setSearch }}
-      filters={endpoint && <PropertyScope value={scope} onChange={setScope} options={[{value:"point",label:"点"},{value:"unit",label:"Unit"},{value:"endpoint",label:"端点"}]}/>}>
+      search={{ value: search, onChange: setSearch }}>
         {!endpoint ? (
-          device ? (
+          scope!=="point" ? <PropertyGroup title={scope==="unit"?"单元配置":"端点配置"}><PropertyHint>{scope==="unit"?"请选择模拟器中的 Unit 查看单元属性。":"请选择模拟器查看端点属性。"}</PropertyHint></PropertyGroup> : device ? (
             <PropertyGroup title="设备">
               <Property label="名称" field="unit.name">{device.name}</Property>
               <Property label="类型">{device.kind}</Property>
@@ -991,8 +964,8 @@ function InspectorPanel() {
           )
         ) : (
           <>
-            {scope==="point"&&!search&&<PropertyGroup title="当前点">{selectedPoint?<><Property label="点名">{selectedPoint.name}</Property><Property label="数据区">{selectedPoint.area}</Property><Property label="零基地址">{selectedPoint.address}</Property><Property label="类型">{selectedPoint.valueType}</Property><Property label="倍率">{selectedPoint.scale}</Property><Property label="单位">{selectedPoint.unit||"—"}</Property><Property label="允许外部写入">{selectedPoint.slaveWritable?"是":"否"}</Property><PropertyHint>选择仅用于查看属性，刷新与提交范围独立。</PropertyHint></>:<Empty>在运行表选择一个点查看属性。</Empty>}</PropertyGroup>}
-            <PropertyGroup title="单元配置" hidden={!search&&scope!=="unit"}>
+            {scope==="point"&&<PropertyGroup title="当前点">{selectedPoint?<><Property label="点名">{selectedPoint.name}</Property><Property label="数据区">{selectedPoint.area}</Property><Property label="零基地址">{selectedPoint.address}</Property><Property label="类型">{selectedPoint.valueType}</Property><Property label="倍率">{selectedPoint.scale}</Property><Property label="单位">{selectedPoint.unit||"—"}</Property><Property label="允许外部写入">{selectedPoint.slaveWritable?"是":"否"}</Property><PropertyHint>选择仅用于查看属性，刷新与提交范围独立。</PropertyHint></>:<Empty>在运行表选择一个点查看属性。</Empty>}</PropertyGroup>}
+            {scope==="unit" && <PropertyGroup title="单元配置">
               <Property label="当前单元" field="units">
                 <PropertyActions>
                   <UnitSelector units={endpoint.units} value={unit?.id??""} onChange={id=>{if(unit)store.flushUnitEditors.get(unit.id)?.();store.selectUnit(endpoint.id,id);}}/>
@@ -1079,8 +1052,8 @@ function InspectorPanel() {
                   </Property>
                 </>
               )}
-            </PropertyGroup>
-            <PropertyGroup title="端点配置" hidden={!search&&scope!=="endpoint"}>
+            </PropertyGroup>}
+            {scope==="endpoint" && <PropertyGroup title="端点配置">
               <Property label="模拟器备注"><input aria-label="模拟器备注" value={endpoint.note ?? ""} onChange={e=>edit({...endpoint,note:e.target.value})} /></Property>
               <Property label="角色">
                 {endpoint.role === "slave" ? "从站" : "主站"}
@@ -1156,7 +1129,7 @@ function InspectorPanel() {
                   {applicationStateLabel(store.view?.applicationStates?.[endpoint.id])}
                 </span>
               </Property>
-            </PropertyGroup>
+            </PropertyGroup>}
 
           </>
         )}
@@ -1393,11 +1366,11 @@ function DocumentTab({
 function ObservationTab({ api }: IDockviewPanelHeaderProps) {
   return <span className="observation-tab">{api.title}</span>;
 }
-const tabComponents = { document: DocumentTab, observation: ObservationTab };
+const tabComponents = { document: DocumentTab, observation: ObservationTab, inspector:InspectorTab };
 function HeaderActions({ group }: IDockviewHeaderActionsProps) {
-  const { dialog } = useWorkbench();
+  const { dialog, executeCommand } = useWorkbench();
   if (group.id === "observation-edge") {
-    return <Icon label="收起底部面板" onClick={() => group.api.collapse()}><ChevronRight size={14} style={{transform:"rotate(90deg)"}} /></Icon>;
+    return <Icon label="收起底部面板" onClick={() => { void executeCommand("workbench.layout.bottom"); }}><ChevronRight size={14} style={{transform:"rotate(90deg)"}} /></Icon>;
   }
   if (
     !group.panels.some(
@@ -1409,7 +1382,7 @@ function HeaderActions({ group }: IDockviewHeaderActionsProps) {
   )
     return null;
   return (
-    <Icon
+    <span className="document-new-action"><Icon
       label="新建文档"
       onClick={() =>
         dialog(
@@ -1417,8 +1390,8 @@ function HeaderActions({ group }: IDockviewHeaderActionsProps) {
         )
       }
     >
-      <Plus size={20} />
-    </Icon>
+      <Plus size={16} />
+    </Icon></span>
   );
 }
 export function App() {
@@ -1444,10 +1417,44 @@ export function App() {
   }, []);
   const store = useMemo(() => new WorkspaceStore(createWorkspaceClient()), []);
   const sheets = useMemo(() => new SheetViews(), []);
+  const commands = useMemo(createWorkbenchCommands, []);
+  const resourceSearch = useRef<Promise<ResourceSearchIndex> | null>(null);
   useSyncExternalStore(store.subscribe, store.snapshot);
   const api = useRef<DockviewApi | null>(null);
   const activeDocument = useRef<string | null>(null);
+  const saveAction = useRef<()=>void>(()=>{});
   const resourceNavigationCount=useRef(0);
+  const history = useMemo(() => new NavigationHistory<{panel:string;target?:Target}>(item=>JSON.stringify([item.panel,item.target?.kind,item.target?.id,item.target?.unit,item.target?.anchor])), []);
+  useSyncExternalStore(history.subscribe,history.snapshot);
+  const documentTargets = useRef(new Map<string,Target>());
+  const [palette,setPalette] = useState<string|null>(null);
+  const platform = windowPlatform();
+  const validHistory = (item:{panel:string;target?:Target}) => {
+    const target=item.target;if(!target)return !!api.current?.getPanel(item.panel);
+    const catalog=store.view?.catalog;
+    if(target.kind==="resource")return resources.some(resource=>resource.id===target.id);
+    if(target.kind==="model")return !!catalog?.models.some(model=>model.id===target.id);
+    if(target.kind==="endpoint")return !!catalog?.endpoints.some(endpoint=>endpoint.id===target.id&&(!target.unit||endpoint.units.some(unit=>unit.id===target.unit)));
+    return false;
+  };
+  const toggleEdge = (position:"left"|"right"|"bottom") => {
+    if((position === "bottom" || position === "right") && api.current){
+      api.current.setEdgeGroupVisible(position, !api.current.isEdgeGroupVisible(position));
+      return;
+    }
+    const edge=api.current?.getEdgeGroup(position);
+    if(edge){if(edge.isCollapsed())edge.expand();else edge.collapse();}
+  };
+  const searchResources = async (query:string) => {
+    resourceSearch.current ??= import("../features/command-center/resourceSearch").then(({ResourceSearchIndex})=>new ResourceSearchIndex()).catch(error=>{resourceSearch.current=null;throw error;});
+    const index=await resourceSearch.current;index.update(store.view?.catalog);return index.search(query);
+  };
+  useEffect(()=>{const handler=(event:KeyboardEvent)=>{
+    if(event.isComposing||event.repeat||hasOpenSaveDialog(document))return;
+    if(((event.metaKey||event.ctrlKey)&&!event.altKey&&(event.key.toLowerCase()==="k"||event.key.toLowerCase()==="p"))||event.key==="F1"){
+      event.preventDefault();setPalette(event.shiftKey||event.key==="F1"?">":"");
+    }
+  };window.addEventListener("keydown",handler,true);return()=>window.removeEventListener("keydown",handler,true);},[]);
   useEffect(() => {
     let active = true;
     let cancelNative: (() => void) | undefined;
@@ -1460,6 +1467,7 @@ export function App() {
       button.focus({ preventScroll: true });
       queueMicrotask(() => { if (active && button.isConnected) button.click(); });
     };
+    saveAction.current=save;
     const cancelKeys = bindSaveShortcut(window, save);
     void armSaveCommand(save).then(cancel => {
       if (active) cancelNative = cancel;
@@ -1529,6 +1537,8 @@ export function App() {
     if (target.kind === "device" || target.kind === "folder") return;
     if (target.unit) store.selectUnit(target.id, target.unit);
     const id = `${target.kind}:${target.id}`;
+    documentTargets.current.set(id,target);
+    history.visit({panel:id,target});
     const existing = api.current?.getPanel(id);
     if (existing) {
       if(target.kind==="resource")existing.api.updateParameters({id:target.id,anchor:target.anchor,navigation:++resourceNavigationCount.current});
@@ -1551,33 +1561,53 @@ export function App() {
       ),
     });
   };
+  const openTool = (tool: "batch" | "resources")=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:documentPosition(api.current?.panels.map(p=>p.id)??[])});};
+  const commandContext = {
+    get canCreate() { return !!store.view?.capabilities.configuration; },
+    get canSave() { return [...document.querySelectorAll<HTMLButtonElement>("button[data-save-document]")].some(button=>button.dataset.saveDocument===activeDocument.current&&!button.disabled); },
+    requestSave: () => {requestAnimationFrame(()=>saveAction.current());},
+    toggleLayout: toggleEdge,
+    create: (kind: "model" | "endpoint" | "device") => setDialog(kind),
+    openTool,
+    openGuide: () => open({kind:"resource",id:"modbus-guide"}),
+  };
+  const navigateHistory = (direction:-1|1) => {
+    const location=history.move(direction,validHistory);if(!location)return;
+    if(location.target)open(location.target);else api.current?.getPanel(location.panel)?.api.setActive();
+  };
+  const executeCommand = (id: string) => commands.execute(id, commandContext);
+  const dispatchCommand = (id: string) => { void executeCommand(id).catch(error => { store.error=errorMessage(error);store.changed(); }); };
   useEffect(()=>{
     const error=store.lastError;
-    if(error?.endpointId)open({kind:"endpoint",id:error.endpointId,unit:error.unitId});
+    if(error?.endpointId){
+      open({kind:"endpoint",id:error.endpointId,unit:error.unitId});
+      api.current?.setEdgeGroupVisible("right",true);
+      api.current?.getPanel(`inspector-${inspectorScopeForError(error)}`)?.api.setActive();
+    }
   },[store.lastError]);
   const ready = ({ api: layout }: DockviewReadyEvent) => {
     api.current = layout;
     const initial = initialWorkbenchLayout(layout.width || window.innerWidth, layout.height || window.innerHeight);
     layout.addPanel({ id: "welcome", component: "welcome", title: "工作台" });
     // 左右边栏包围中央列，使底边输出区只占文档区宽度。
-    const navigation = layout.addEdgeGroup("left", {id:"navigation-edge",initialSize:initial.navigation,minimumSize:180});
+    const navigation = layout.addEdgeGroup("left", {id:"navigation-edge",initialSize:initial.navigation,minimumSize:180,collapsedSize:0});
     layout.addPanel({
       id: "project",
       component: "project",
       title: "导航",
       position: { referenceGroup: navigation.id, direction: "within" },
     });
-    const inspector = layout.addEdgeGroup("right", {id:"inspector-edge",initialSize:initial.inspector,minimumSize:220});
-    layout.addPanel({
-      id: "inspector",
-      component: "inspector",
-      title: "属性",
-      position: { referenceGroup: inspector.id, direction: "within" },
-    });
+    const inspector = layout.addEdgeGroup("right", {id:"inspector-edge",initialSize:initial.inspector,minimumSize:220,collapsedSize:0});
+    inspector.setHeaderPosition("left");
+    for(const tab of inspectorTabs){
+      layout.addPanel({id:tab.id,component:"inspector",title:tab.title,params:{scope:tab.scope},tabComponent:"inspector",inactive:true,
+        position:{referenceGroup:inspector.id,direction:"within"}});
+    }
+    layout.getPanel("inspector-unit")?.api.setActive();
     // 保留原生 edge 的收起、展开与拖动高度，输出面板位于中央列下方。
     const edge = layout.addEdgeGroup("bottom", {
       id: "observation-edge", initialSize: initial.output, minimumSize: 120,
-      collapsedSize: 26, collapsed: false,
+      collapsedSize: 0, collapsed: false,
     });
     edge.setHeaderPosition("bottom");
     for (const [id, component, title, params] of [
@@ -1591,11 +1621,18 @@ export function App() {
     layout.getPanel("messages")?.api.setActive();
     layout.getPanel("welcome")?.api.setActive();
     // 使用Dockview的公开隐藏接口同步重算内容高度，避免只隐藏DOM留出空白标题行。
-    for (const id of ["project", "inspector"]) {
+    for (const id of ["project"]) {
       const panel = layout.getPanel(id);
       if (panel) panel.group.model.header.hidden = true;
     }
+    layout.onDidRemovePanel(panel=>documentTargets.current.delete(panel.id));
+    history.visit({panel:"welcome"});
     layout.onDidActivePanelChange(({ panel }) => {
+      if(panel && !isInspectorPanel(panel.id) && !["project","messages","observations","problems"].includes(panel.id)){
+        activeDocument.current=panel.id.startsWith("endpoint:")||panel.id.startsWith("model:")?panel.id:null;
+        const target=documentTargets.current.get(panel.id) ?? (panel.id.startsWith("model:")?{kind:"model" as const,id:panel.id.slice(6)}:panel.id.startsWith("endpoint:")?{kind:"endpoint" as const,id:panel.id.slice(9)}:panel.id.startsWith("resource:")?{kind:"resource" as const,id:panel.id.slice(9)}:undefined);
+        history.visit(target?{panel:panel.id,target}:{panel:panel.id});
+      }
       if (panel?.id.startsWith("endpoint:") || panel?.id.startsWith("model:")) activeDocument.current = panel.id;
       if(panel?.id.startsWith("resource:")){activeDocument.current=null;setSelected({kind:"resource",id:panel.id.slice(9)});}
       else if (panel?.id.startsWith("endpoint:"))
@@ -1628,11 +1665,14 @@ export function App() {
       <Context.Provider
         value={{
           store,
-          openTool:tool=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:documentPosition(api.current?.panels.map(p=>p.id)??[])});},
+          searchResources,
+          searchCommands: query => commands.list(commandContext, query),
+          executeCommand,
+          openTool: tool => dispatchCommand(`workbench.open.${tool}`),
           sheets,
           open,
           selected,
-          dialog: setDialog,
+          dialog: kind => {if(kind===null)setDialog(null);else dispatchCommand(`workbench.create.${kind}`);},
           closeDocument,
           removedEndpoint: (id) => {api.current?.getPanel(`endpoint:${id}`)?.api.close();setSelected(previous=>previous?.kind==="endpoint" && previous.id===id ? null : previous);},
           removedModel: (id) => {
@@ -1644,6 +1684,7 @@ export function App() {
         }}
       >
         <div className="workbench">
+          <WorkbenchTitlebar platform={platform} canBack={history.canMove(-1,validHistory)} canForward={history.canMove(1,validHistory)} back={()=>navigateHistory(-1)} forward={()=>navigateHistory(1)} toggle={toggleEdge} search={setPalette} operate={action=>{void operateWindow(action).catch(error=>{store.error=errorMessage(error);store.changed();});}}/>
           {store.error && (
             <div className="error-banner" role="alert">
               {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
@@ -1675,6 +1716,7 @@ export function App() {
             <span className="footer-session" title="当前配置仅保留本次会话，退出即丢失">会话配置 · 退出不保留</span>
           </footer>
         </div>
+        {palette!==null && <CommandPalette initial={palette} searchResources={searchResources} searchCommands={query=>commands.list(commandContext,query)} executeCommand={executeCommand} openResource={result=>open(result.target)} close={()=>setPalette(null)}/>}
         {closeRequest && (
           <CloseDraftDialog
             store={store}

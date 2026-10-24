@@ -62,3 +62,19 @@ export async function armSaveCommand(save: () => void): Promise<() => void> {
   if (!isTauri()) return () => {};
   return listen("workbench-save", save);
 }
+
+export type WindowPlatform = 'browser' | 'macos' | 'windows' | 'linux';
+/** 平台窗口能力仅由适配层暴露，浏览器不会调用桌面API。 */
+export function windowPlatform(): WindowPlatform {
+  if (!isTauri()) return 'browser';
+  const platform = navigator.platform.toLowerCase();
+  return platform.includes('mac') ? 'macos' : platform.includes('win') ? 'windows' : 'linux';
+}
+export async function operateWindow(action: 'drag' | 'minimize' | 'maximize' | 'close') {
+  if (!isTauri()) return;
+  const window = getCurrentWindow();
+  if (action === 'drag') await window.startDragging();
+  else if (action === 'minimize') await window.minimize();
+  else if (action === 'maximize') await window.toggleMaximize();
+  else await window.close(); // 继续触发onCloseRequested，不能绕过会话退出保护。
+}

@@ -1,3 +1,4 @@
+import {PointToolbar} from "./PointToolbar";
 import type { ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@essim/ui/components/tooltip";
 
@@ -17,10 +18,10 @@ export function RuntimeToolbar({ label, slots, actions, state, metrics, settings
   metrics: ReactNode;
   settings?: ReactNode;
 }) {
-  return <div className="toolbar compact-point-toolbar runtime-toolbar" role="toolbar" aria-label={label}>
+  return <PointToolbar mode="runtime" className="runtime-toolbar" label={label}>
     {slots?.start}<i className="toolbar-divider"/>{actions}{slots?.capture}{state}
     {slots?.model}<span className="spacer"/>{metrics}{settings}{slots?.end}
-  </div>;
+  </PointToolbar>;
 }
 
 /** 状态仍可直接阅读，补充说明通过 hover 和键盘聚焦展开。 */

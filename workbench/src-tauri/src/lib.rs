@@ -23,6 +23,9 @@ pub fn run() {
             app.manage(Arc::new(essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?));
             app.manage(engine);
             if let Some(window) = app.get_webview_window("main") {
+                // macOS保留原生红绿灯；其他桌面由工作台提供窗口操作按钮。
+                #[cfg(not(target_os = "macos"))]
+                window.set_decorations(false)?;
                 if let Err(error) = initial_window::configure(&window) {
                     // 系统不提供工作区信息时仍以配置尺寸显示，不让工作台停留在隐藏状态。
                     eprintln!("无法调整首次窗口尺寸：{error}");
