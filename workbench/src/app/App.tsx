@@ -33,6 +33,7 @@ import { MasterRuntimeControls } from "../features/workspace/MasterRuntimeContro
 import type {MasterPoint} from "../shared/api/contracts";
 import { SlaveRuntimeControls } from "../features/workspace/SlaveRuntimeControls";
 import type { RawValue } from "../shared/api/contracts";
+import { canAddUnit, simulatorActions, type SimulatorAction } from "../features/workspace/navigationActions";
 import { NavigationDialog, type NavigationRequest } from "../features/workspace/NavigationDialog";
 import { EnumSelect } from "../features/workspace/EnumSelect";
 import { bindSaveShortcut, hasOpenSaveDialog } from "../features/workspace/saveShortcut";
@@ -84,6 +85,17 @@ import {
   ListStart,
   FileSpreadsheet,
   BookOpen,
+  CircuitBoard,
+  Copy,
+  Pencil,
+  FolderInput,
+  FolderPlus,
+  Trash2,
+  FilePlus2,
+  FileInput,
+  Download,
+  Split,
+  Cpu,
 } from "lucide-react";
 import "dockview-react/dist/styles/dockview.css";
 import { createWorkspaceClient } from "../shared/api/workspace";
@@ -179,6 +191,18 @@ function Icon({
 function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
 }
+const simulatorMenu = {
+  newEndpoint: { label: "新建模拟器", icon: Server },
+  newFolder: { label: "新建文件夹", icon: FolderPlus },
+  newUnit: { label: "新增 Unit", icon: CircuitBoard },
+  copy: { label: "复制模拟器", icon: Copy },
+  rename: { label: "重命名", icon: Pencil },
+  move: { label: "移动到", icon: FolderInput },
+  delete: { label: "删除", icon: Trash2 },
+  renameUnit: { label: "重命名单元", icon: Pencil },
+  deleteUnit: { label: "删除单元", icon: Trash2 },
+} satisfies Record<SimulatorAction, { label: string; icon: typeof Server }>;
+
 function ProjectPanel() {
   const { store, open, dialog, removedModel, removedEndpoint, openTool } = useWorkbench();
   const navigationId = useId();
@@ -187,11 +211,15 @@ function ProjectPanel() {
   const draftResourceKey = JSON.stringify(
     [...store.modelDrafts.values()].map((d) => [d.id, d.name, d.persisted]),
   );
+  const draftEndpointKey = JSON.stringify([...store.drafts.values()].map(endpoint =>
+    [endpoint.id, endpoint.name, endpoint.units.map(unit => [unit.id, unit.name, unit.station, unit.device])],
+  ));
   const catalog = useMemo(
     () =>
       originalCatalog
         ? {
             ...originalCatalog,
+            endpoints: originalCatalog.endpoints.map(endpoint => store.endpoint(endpoint.id)!),
             models: [
               ...originalCatalog.models.map((model) => ({
                 ...model,
@@ -207,7 +235,7 @@ function ProjectPanel() {
             ],
           }
         : undefined,
-    [originalCatalog, draftResourceKey],
+    [originalCatalog, draftResourceKey, draftEndpointKey],
   );
   const [partitioning,setPartitioning]=useState(false);
   const [navigationAction,setNavigationAction]=useState<NavigationRequest|null>(null);
@@ -228,13 +256,13 @@ function ProjectPanel() {
     [catalog],
   );
   const newItems = section === "simulators" ? [
-    { label: "模拟器…", disabled: !store.view || store.busy, action: () => dialog("endpoint") },
-    { label: "模拟器文件夹…", disabled: !store.view || store.busy, action: () => setNavigationAction({ kind: "newFolder" }) },
-    { label: "按采集点分组创建…", disabled: !store.view?.catalog.models.length || store.busy, action: () => setPartitioning(true) },
+    { label: "模拟器", icon: <Server size={14}/>, disabled: !store.view || store.busy, action: () => dialog("endpoint") },
+    { label: "模拟器文件夹", icon: <FolderPlus size={14}/>, disabled: !store.view || store.busy, action: () => setNavigationAction({ kind: "newFolder" }) },
+    { label: "按采集点分组创建", icon: <Split size={14}/>, disabled: !store.view?.catalog.models.length || store.busy, action: () => setPartitioning(true) },
   ] : [
-    { label: "采集模型…", disabled: !store.view || store.busy, action: () => dialog("model") },
-    { label: "设备…", disabled: !store.view || store.busy, action: () => dialog("device") },
-    { label: "导入新模型…", disabled: !store.view || store.busy, action: () => setImporting(true) },
+    { label: "采集模型", icon: <FilePlus2 size={14}/>, disabled: !store.view || store.busy, action: () => dialog("model") },
+    { label: "设备", icon: <Cpu size={14}/>, disabled: !store.view || store.busy, action: () => dialog("device") },
+    { label: "导入新模型", icon: <FileInput size={14}/>, disabled: !store.view || store.busy, action: () => setImporting(true) },
   ];
   return (
     <div
@@ -275,7 +303,7 @@ function ProjectPanel() {
           id={`${navigationId}-${treeSection}-panel`} aria-labelledby={`${navigationId}-${treeSection}-tab`}
           hidden={section !== treeSection}>
       {input.paths.length ? (
-        <NavigationTree input={input} catalog={catalog} section={treeSection} open={open} store={store} active={section===treeSection}
+        <NavigationTree input={input} catalog={originalCatalog} section={treeSection} open={open} store={store} active={section===treeSection}
           renderContextMenu={(item, context) => {
             const target = input.targets.get(String(item.path));
             const section=treeSection === "resources" && String(item.path).split("/")[0] === "文档资源"?"documents":treeSection;
@@ -300,31 +328,34 @@ function ProjectPanel() {
                 }}
                 data-file-tree-context-menu-root="true"
               >
-                {section==="documents"&&<button role="menuitem" disabled={target?.kind!=="resource"} onClick={()=>target&&act(()=>open(target))}>打开文档</button>}
-                {section==="simulators" && <>
-                  <button role="menuitem" onClick={()=>act(()=>dialog("endpoint"))}>新建模拟器…</button>
-                  <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",target:target?.kind==="folder"?target:undefined}))}>新建文件夹…</button>
-                  {(target?.kind==="endpoint" || target?.kind==="folder") && <>
-                    {target.kind==="endpoint" && <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"copy",target}))}>复制模拟器…</button>}
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"rename",target}))}>重命名…</button>
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target}))}>移动到…</button>
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"delete",target}))}>删除…</button>
-                  </>}
-                </>}
-                {section==="resources" && <button
+                {section==="documents"&&<button role="menuitem" disabled={target?.kind!=="resource"} onClick={()=>target&&act(()=>open(target))}><BookOpen size={14} aria-hidden="true"/>打开文档</button>}
+                {(section === "simulators" || target?.kind === "endpoint") && simulatorActions(target).map(kind => {
+                  const { label, icon: MenuIcon } = simulatorMenu[kind];
+                  const endpoint = target?.kind === "endpoint" ? store.endpoint(target.id) : undefined;
+                  const disabled = store.busy || !store.view || (kind === "newUnit" && (!endpoint || !canAddUnit(endpoint) || !catalog?.models.length));
+                  return <button key={kind} role="menuitem" disabled={disabled}
+                    className={kind === "delete" || kind === "deleteUnit" ? "destructive" : undefined}
+                    onClick={() => act(() => {
+                      if (kind === "newEndpoint") dialog("endpoint");
+                      else {
+                        setNavigationAction({ kind, target: kind === "newFolder" && target?.kind !== "folder" ? undefined : target, restoreFocus: context.restoreFocus });
+                      }
+                    })}><MenuIcon size={14} aria-hidden="true"/>{label}</button>;
+                })}
+                {section==="resources" && target?.kind !== "endpoint" && <button
                   role="menuitem"
                   onClick={() => act(() => dialog("model"))}
                 >
-                  新建采集模型
+                  <FilePlus2 size={14} aria-hidden="true"/>新建采集模型
                 </button>}
-                {section === "resources" && <button role="menuitem" onClick={() => act(() => setImporting(true))}>导入新模型…</button>}
+                {section === "resources" && target?.kind !== "endpoint" && <button role="menuitem" onClick={() => act(() => setImporting(true))}><FileInput size={14} aria-hidden="true"/>导入新模型</button>}
                 {target?.kind === "model" && (
                   <>
                     <button
                       role="menuitem"
                       onClick={() => act(() => open(target))}
                     >
-                      打开
+                      <FolderOpen size={14} aria-hidden="true"/>打开
                     </button>
                     <button
                       role="menuitem"
@@ -335,7 +366,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      重命名…
+                      <Pencil size={14} aria-hidden="true"/>重命名
                     </button>
                     <button
                       role="menuitem"
@@ -345,7 +376,7 @@ function ProjectPanel() {
                         )
                       }
                     >
-                      复制模型…
+                      <Copy size={14} aria-hidden="true"/>复制模型
                     </button>
                     <button
                       role="menuitem"
@@ -356,7 +387,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      导入追加…
+                      <FileInput size={14} aria-hidden="true"/>导入追加
                     </button>
                     <button
                       role="menuitem"
@@ -367,7 +398,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      删除…
+                      <Trash2 size={14} aria-hidden="true"/>删除
                     </button>
                     {["json", "csv", "xlsx"].map((format) => (
                       <button
@@ -388,7 +419,7 @@ function ProjectPanel() {
                           })
                         }
                       >
-                        导出 {format.toUpperCase()}…
+                        <Download size={14} aria-hidden="true"/>导出 {format.toUpperCase()}
                       </button>
                     ))}
                   </>
@@ -408,7 +439,7 @@ function ProjectPanel() {
         </div>;
       })}
       {partitioning&&<PartitionDialog store={store} close={()=>setPartitioning(false)}/>}
-      {navigationAction && <NavigationDialog store={store} request={navigationAction} close={()=>setNavigationAction(null)} open={open} removed={removedEndpoint} />}
+      {navigationAction && <NavigationDialog store={store} request={navigationAction} close={() => setNavigationAction(null)} open={open} removed={removedEndpoint} />}
       <div className="navigation-note">会话配置 · 退出后不保留</div>
       {rootMenu && createPortal(
         <div
@@ -422,7 +453,7 @@ function ProjectPanel() {
             onPointerDown={(e) => e.stopPropagation()}
           >
             {newItems.map(item => <button key={item.label} role="menuitem" disabled={item.disabled}
-              onClick={() => { setRootMenu(null); item.action(); }}>{item.label}</button>)}
+              onClick={() => { setRootMenu(null); item.action(); }}>{item.icon}{item.label}</button>)}
           </div>
         </div>,
         document.body,

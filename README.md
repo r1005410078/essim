@@ -17,6 +17,8 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 
 左侧导航采用亮色图标标签：服务器图标切换模拟器，叠层图标切换资源（采集模型、设备和文档）。右侧“＋”按当前分类新建，“更多”提供批量任务和运行资源；文件夹及业务图标按类别配色。[本轮验证](docs/test-records/2026-10-22-navigation-tabs.md)。
 
+Unit 右键菜单按单元身份提供新增、重命名和删除；模拟器节点保留整机操作。单元修改即时反映到树，保留在配置草稿中，保存后需显式应用。菜单统一使用图标并移除文字末尾省略号。关闭弹框后按稳定身份恢复树焦点，macOS 已复核连续方向键及 Shift+F10。[修复与验证](docs/test-records/2026-10-24-unit-context-menu.md)。
+
 树节点最右侧现显示彩色运行状态和独立配置图标，hover查看说明；状态来自现有真实运行查询，不从端点监听推导Unit在线。见[设计规范](docs/design/tree-status.md)、[提案](openspec/changes/show-resource-tree-status/proposal.md)及[原生验证](docs/test-records/2026-10-24-tree-status.md)。
 
 事件记录／通信报文／问题现位于中央工作区下方的 Dockview 圆角面板，宽度与文档区对齐，默认展开并选中通信报文；状态栏压缩为22px，显示连接、端点、待应用和问题计数。[验证记录](docs/test-records/2026-10-22-bottom-edge.md)。

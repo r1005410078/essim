@@ -134,7 +134,11 @@ button:focus-visible {
 .point-editor .toolbar select{font-size:11px;background:transparent;border:1px solid #e0e7f0;border-radius:4px;padding:3px;max-width:130px}
 .model-references{padding:7px 13px;border-bottom:1px solid #edf1f6;font-size:12px}.model-references button{display:block;text-align:left;color:#086cff;font-size:11px;padding:4px 0}
 .tree-context-menu {position:fixed;min-width:180px;display:flex;flex-direction:column;padding:4px;background:#fff;border:1px solid #dce4ef;border-radius:6px;box-shadow:0 6px 20px #1b345c24;z-index:1000;font-size:12px;color:#26324a}
-.tree-context-menu button {padding:6px 12px;text-align:left;border-radius:3px}.tree-context-menu button:hover,.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
+.tree-context-menu button {display:flex;align-items:center;gap:8px;min-height:28px;padding:5px 8px;text-align:left;border-radius:3px;white-space:nowrap}
+.tree-context-menu button svg {flex-shrink:0;color:#6d7f98}
+.tree-context-menu button:hover:not(:disabled),.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
+.tree-context-menu button.destructive,.tree-context-menu button.destructive svg {color:#c64848}
+.tree-context-menu button:disabled {opacity:.45;cursor:default}
 .tree-menu-backdrop{position:fixed;inset:0;z-index:999}.root-tree-menu{position:absolute}
 .mapping-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0}.mapping-grid label{display:flex;flex-direction:column;gap:3px}.import-preview{max-height:220px;overflow:auto;border:1px solid #e3e9f1}.import-preview table{border-collapse:collapse;white-space:nowrap;font-size:11px}.import-preview th,.import-preview td{border:1px solid #e3e9f1;padding:4px 8px}.import-dialog pre{white-space:pre-wrap;font:inherit;max-height:130px;overflow:auto}
 .pending {
