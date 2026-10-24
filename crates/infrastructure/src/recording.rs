@@ -57,6 +57,7 @@ struct Entry {
 }
 struct FileQueue {
     sink: Option<Box<dyn DurableSink>>,
+    projection: Option<crate::project::RunWriter>,
     queue: VecDeque<Entry>,
     bytes: usize,
     busy: bool,
@@ -91,6 +92,7 @@ struct Shared {
     wake: Condvar,
     resources: ResourceManager,
     factory: Arc<dyn SinkFactory>,
+    project: Mutex<Option<(std::path::PathBuf, crate::project::RunRecorder)>>,
 }
 struct Pool {
     shared: Arc<Shared>,
@@ -105,6 +107,7 @@ pub struct RecordingPool {
 pub struct RecordStream {
     pool: RecordingPool,
     id: u64,
+    path: Option<std::path::PathBuf>,
 }
 /// 有界队列状态，不等待文件或sync_data。
 #[derive(Debug, serde::Serialize)]
@@ -147,6 +150,7 @@ impl RecordingPool {
             wake: Condvar::new(),
             resources,
             factory,
+            project: Mutex::new(None),
         });
         let mut workers = Vec::new();
         for i in 0..4 {
@@ -174,7 +178,32 @@ impl RecordingPool {
     /// # Errors
     /// 文件身份或池状态不可用。
     pub fn open(&self, path: std::path::PathBuf) -> Result<RecordStream, Error> {
-        self.stream(self.pool.shared.factory.create(path))
+        let projection = self
+            .pool
+            .shared
+            .project
+            .lock()
+            .map_err(|_| poisoned())?
+            .as_ref()
+            .map(|(root, recorder)| {
+                let id = path.file_stem().unwrap_or_default().to_string_lossy();
+                recorder.open(root, &id)
+            });
+        let actual = projection.as_ref().map(|p| p.path()).unwrap_or(path);
+        let mut stream = self.stream(self.pool.shared.factory.create(actual.clone()))?;
+        if let Some(file) = self
+            .pool
+            .shared
+            .state
+            .lock()
+            .map_err(|_| poisoned())?
+            .files
+            .get_mut(&stream.id)
+        {
+            file.projection = projection;
+        }
+        stream.path = Some(actual);
+        Ok(stream)
     }
     /// 注册独立文件；文件创建及起始快照由调用者通过首批次写入，不与其他文件共用可靠位置。
     /// # Errors
@@ -193,6 +222,7 @@ impl RecordingPool {
             id,
             FileQueue {
                 sink: Some(sink),
+                projection: None,
                 queue: VecDeque::new(),
                 bytes: 0,
                 busy: false,
@@ -206,7 +236,44 @@ impl RecordingPool {
         Ok(RecordStream {
             pool: self.clone(),
             id,
+            path: None,
         })
+    }
+    /// 切换后续录制的工程根目录；现有 stream 继续属于原运行。
+    /// # Errors
+    /// 数据库线程创建或状态锁失败。
+    pub fn set_project(&self, root: Option<std::path::PathBuf>) -> Result<(), Error> {
+        let next = root
+            .map(|root| crate::project::RunRecorder::new().map(|r| (root, r)))
+            .transpose()?;
+        *self.pool.shared.project.lock().map_err(|_| poisoned())? = next;
+        Ok(())
+    }
+    /// 等待已入队的 SQLite 投影落盘，不影响原有可靠 JSONL 确认。
+    /// # Errors
+    /// 队列积压或限时刷新未确认。
+    pub fn flush_project(&self) -> Result<(), Error> {
+        if let Some((_, r)) = self
+            .pool
+            .shared
+            .project
+            .lock()
+            .map_err(|_| poisoned())?
+            .as_ref()
+        {
+            r.flush()?;
+        }
+        Ok(())
+    }
+    /// SQLite 投影故障摘要；不等于协议或 JSONL 失败。
+    pub fn project_view(&self) -> Option<crate::project::RuntimeDataView> {
+        self.pool
+            .shared
+            .project
+            .lock()
+            .ok()?
+            .as_ref()
+            .map(|(_, r)| r.view())
     }
     /// 查询调度状态，不等待磁盘或文件锁。
     /// # Errors
@@ -230,6 +297,11 @@ impl RecordingPool {
     }
 }
 impl RecordStream {
+    /// 真实录制路径；注入测试 sink 时为空。
+    pub fn path(&self) -> Option<&std::path::Path> {
+        self.path.as_deref()
+    }
+
     /// 提交一批已经满足因果前置条件的连续JSONL记录。
     /// 批次内不得放入依赖尚未发生动作的完成事实；后续阶段必须等待本句柄确认。
     /// # Errors
@@ -389,6 +461,11 @@ fn worker(shared: Arc<Shared>) {
         file.started = None;
         file.sink = Some(sink);
         if result.is_ok() {
+            if let Some(projection) = &file.projection {
+                for entry in &batch {
+                    projection.append(&entry.bytes);
+                }
+            }
             file.reliable = batch.last().unwrap().sequence;
         } else {
             file.failed = result.clone().err();

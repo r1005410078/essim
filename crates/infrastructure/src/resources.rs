@@ -98,6 +98,8 @@ pub struct ResourceView {
     pub current: ResourceUsage,
     /// 共享录制池的实际积压与同步次数；未装配时为空。
     pub recording: Option<crate::recording::RecordingView>,
+    /// 独立 SQLite 运行数据投影，不影响原有可靠录制门禁。
+    pub runtime_data: Option<crate::project::RuntimeDataView>,
     /// 采样时间，Unix毫秒。
     pub sampled_ms: String,
     /// 当前进程RSS字节，无法采样时为空。
@@ -174,6 +176,7 @@ impl ResourceManager {
         Ok(ResourceView {
             current,
             recording:None,
+            runtime_data:None,
             sampled_ms: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().to_string(),
             process_rss_bytes: None,
             configured_endpoints: 0,
@@ -318,12 +321,25 @@ mod lifecycle_tests {
 /// 按 Unit 分别预留有效点定义与值迁移空间，不假定同 ModelId 内容相同。
 /// # Errors
 /// 端点／模型缺失或计数失败。
-pub(crate) fn effective_staging_memory(catalog: &essim_core::application::catalog::Catalog, id: &essim_core::domain::identity::EndpointId) -> Result<u64, Error> {
-    let endpoint=catalog.endpoints.iter().find(|e|&e.id==id).ok_or_else(||Error::new("NOT_FOUND","端点不存在"))?;
-    let mut bytes=0u64;
+pub(crate) fn effective_staging_memory(
+    catalog: &essim_core::application::catalog::Catalog,
+    id: &essim_core::domain::identity::EndpointId,
+) -> Result<u64, Error> {
+    let endpoint = catalog
+        .endpoints
+        .iter()
+        .find(|e| &e.id == id)
+        .ok_or_else(|| Error::new("NOT_FOUND", "端点不存在"))?;
+    let mut bytes = 0u64;
     for unit in &endpoint.units {
-        let model=catalog.models.iter().find(|m|m.id==unit.model.id).ok_or_else(||Error::new("MODEL_NOT_FOUND","模型不存在"))?;
-        bytes=bytes.saturating_add(serialized_size(model)?).saturating_add(serialized_size(&unit.overrides)?);
+        let model = catalog
+            .models
+            .iter()
+            .find(|m| m.id == unit.model.id)
+            .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "模型不存在"))?;
+        bytes = bytes
+            .saturating_add(serialized_size(model)?)
+            .saturating_add(serialized_size(&unit.overrides)?);
     }
     Ok(bytes.saturating_mul(8))
 }

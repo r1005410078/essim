@@ -503,7 +503,14 @@ impl TcpMasterRuntime {
     /// # Errors
     /// 释放失败或锁中毒。
     pub fn forget(&self, id: &EndpointId) -> Result<(), Error> {
-        self.disconnect_wait(id)?;
+        self.forget_permitted(id, None)
+    }
+    pub(crate) fn forget_permitted(
+        &self,
+        id: &EndpointId,
+        parent: Option<&OperationPermit>,
+    ) -> Result<(), Error> {
+        self.disconnect_wait_permitted(id, parent)?;
         let owner = self.owners.lock().map_err(failure)?.remove(id);
         if let Some(mut o) = owner {
             o.shutdown.store(true, Ordering::Release);

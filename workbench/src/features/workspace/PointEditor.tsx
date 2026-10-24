@@ -244,7 +244,7 @@ export function EditorBody({
     >
       <PointToolbar className="document-actions model-actions">
         {toolbar?.start}
-        <ToolbarIcon label={owner?"保存实例修改（本次会话）":"保存模型（⌘S / Ctrl+S，本次会话）"}
+        <ToolbarIcon label={owner?"保存实例修改":"保存模型（⌘S / Ctrl+S）"}
           data-save-document={owner?`endpoint:${owner.endpoint}`:`model:${draft.id}`} disabled={busy} onClick={()=>void save()}><Save size={16}/></ToolbarIcon>
         {toolbar?.afterSave}
         <i className="toolbar-divider"/>
@@ -292,7 +292,7 @@ export function EditorBody({
         />
       </div>
       <CategoryTabs value={category} label="模型四遥分类" onChange={value=>{source.flush();setCategory(value);}}>
-        {draft.rows.length} 点 · 本次会话
+        {draft.rows.length} 点 · 当前配置
       </CategoryTabs>
       {importing && (
         <ImportPoints
@@ -399,7 +399,7 @@ export function ModelDetails({
             }
           />
         </PropertyRow>
-        <PropertyHint>保存仅限本次会话，不自动应用。</PropertyHint>
+        <PropertyHint>保存不自动应用；工程模式下写入资源文件。</PropertyHint>
       </PropertyGroup>
       {selected ? <>{[
         {title:"点定义",fields:["name","area","address","valueType"]},

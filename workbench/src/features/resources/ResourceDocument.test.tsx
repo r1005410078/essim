@@ -12,3 +12,7 @@ it("真实资源正文由Markdown渲染出章节、表格和代码，注册锚�
 it("不存在的资源显示明确空态",()=>{
  expect(renderToStaticMarkup(<ResourceDocument id="missing"/>)).toContain("文档资源不存在");
 });
+it('工程文档复用同一 Markdown 渲染且不显示内部文件后缀',()=>{
+ const html=renderToStaticMarkup(<ResourceDocument id="project-document:d" document={{id:'d',title:'接入说明',folders:['工程文档'],source:'',content:'# 接入说明\n\n## 接线\n\n工程正文'}}/>);
+ expect(html).toContain('工程 · 只读');expect(html).toContain('工程正文');expect(html).toContain('接入说明');expect(html).not.toContain('.json');
+});

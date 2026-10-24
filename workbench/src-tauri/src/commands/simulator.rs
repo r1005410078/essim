@@ -10,13 +10,18 @@ pub(crate) async fn exit_workbench(
     app: tauri::AppHandle,
     permission: State<'_, crate::ExitPermission>,
     engine: State<'_, Engine>,
-    batches: State<'_,super::batch::Batches>,
+    batches: State<'_, super::batch::Batches>,
 ) -> Result<(), ErrorDto> {
-    let batches=batches.inner().clone();
+    let batches = batches.inner().clone();
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {let _=batches.request_shutdown();batches.wait_idle();engine.shutdown_slave();})
-        .await
-        .map_err(|_| ErrorDto::new("SHUTDOWN_FAILED", "运行资源回收任务失败"))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = batches.request_shutdown();
+        batches.wait_idle();
+        engine.shutdown_slave();
+        engine.flush_project_records()
+    })
+    .await
+    .map_err(|_| ErrorDto::new("SHUTDOWN_FAILED", "运行资源回收任务失败"))??;
     permission
         .confirmed
         .store(true, std::sync::atomic::Ordering::Release);
@@ -75,10 +80,36 @@ pub fn inspect_endpoint(
 
 /// 按需读取完整保存模型。
 #[tauri::command]
-pub async fn load_model(id:String,engine:State<'_,Engine>)->Result<essim_core::domain::model::CollectionModel,ErrorDto>{let e=engine.inner().clone();tauri::async_runtime::spawn_blocking(move||e.load_model(&essim_core::domain::identity::ModelId(id))).await.map_err(|_|ErrorDto::new("MODEL_QUERY_FAILED","模型读取失败"))?}
+pub async fn load_model(
+    id: String,
+    engine: State<'_, Engine>,
+) -> Result<essim_core::domain::model::CollectionModel, ErrorDto> {
+    let e = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        e.load_model(&essim_core::domain::identity::ModelId(id))
+    })
+    .await
+    .map_err(|_| ErrorDto::new("MODEL_QUERY_FAILED", "模型读取失败"))?
+}
 /// 按需读取目标端点已应用模型和值。
 #[tauri::command]
-pub async fn load_endpoint_values(id:String,engine:State<'_,Engine>)->Result<std::collections::BTreeMap<essim_core::domain::identity::UnitId,essim_core::domain::values::UnitValues>,ErrorDto>{let e=engine.inner().clone();tauri::async_runtime::spawn_blocking(move||e.load_endpoint_values(&essim_core::domain::identity::EndpointId(id))).await.map_err(|_|ErrorDto::new("ENDPOINT_QUERY_FAILED","端点读取失败"))?}
+pub async fn load_endpoint_values(
+    id: String,
+    engine: State<'_, Engine>,
+) -> Result<
+    std::collections::BTreeMap<
+        essim_core::domain::identity::UnitId,
+        essim_core::domain::values::UnitValues,
+    >,
+    ErrorDto,
+> {
+    let e = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        e.load_endpoint_values(&essim_core::domain::identity::EndpointId(id))
+    })
+    .await
+    .map_err(|_| ErrorDto::new("ENDPOINT_QUERY_FAILED", "端点读取失败"))?
+}
 
 /// 校验并解析单元覆盖草稿，不保存。
 /// # Errors

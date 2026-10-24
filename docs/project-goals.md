@@ -29,7 +29,7 @@ M01已完成约定的[基础模型与工作台提案](openspec/changes/establish
 
 点表数据区下拉显示中文名称、英文标识和位宽／访问属性，选中后单元格仅显示中文；悬停或键盘聚焦选项可查看 Markdown 协议说明。[验证记录](docs/test-records/2026-10-23-modbus-area-dropdown.md)。
 
-**当前配置仅保留本次会话，退出即丢失。** SQLite及场景／拓扑／3D均未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
+**已接入工程持久化：静态资源文件、运行 SQLite、最近工程与草稿恢复；未打开工程的临时会话退出即丢失。** 场景／拓扑／3D未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
 
 M02正在实施[点表管理提案](openspec/changes/implement-modbus-point-table-management/proposal.md)：已接入树右键CRUD、NovaSheet编辑、精确数值编码、模型引用、Markdown帮助和JSON／CSV／XLSX交换，自动化及主要原生流程已验证，下拉修改与属性同步已由用户确认，剩余快捷键／键盘帮助复核中。实际测试及限制见[实施记录](docs/test-records/2026-10-16-m02-progress.md)，未将实现中的功能标为整体验收完成。
 
@@ -76,9 +76,9 @@ python3 scripts/verify_modbus_master.py
 
 配置现已取消版本管理：保存直接覆盖当前模型，单元只选择模型；复制和导出使用当前已保存内容。保存不自动应用，已应用数据使用独立快照。[简化记录](docs/test-records/2026-10-16-remove-config-versions.md)。
 
-M03模拟器配置已接入：默认Unit与模型、固定类型、复制／删除、文件夹、草稿关闭保护、核心应用差异和停止态Unit复位。39／41项任务完成，原生快捷键及编辑中保存等验收仍待收尾；详见[实施记录](docs/test-records/2026-10-17-m03-configuration.md)。M03阶段的保存仅限本次会话；后续TCP真实运行及文件录制进展见下文，SQLite仍未接入。
+M03模拟器配置已接入：默认Unit与模型、固定类型、复制／删除、文件夹、草稿关闭保护、核心应用差异和停止态Unit复位。39／41项任务完成，原生快捷键及编辑中保存等验收仍待收尾；详见[实施记录](docs/test-records/2026-10-17-m03-configuration.md)。M03阶段的保存仅限本次会话；后续TCP真实运行及文件录制进展见下文，该阶段尚未接入 SQLite；当前工程存储进展见 M08。
 
-2026-10-22 已接入[创建时新建模型与 Unit 单层覆盖](openspec/changes/add-unit-model-overrides/proposal.md)：创建时搜索或新建模型，在模拟器配置表保存局部差异，支持恢复、选择性回写、另存独立模型及确认值捕获。保存／回写不自动应用；配置仍仅保留本次会话，不增加配置版本或模型继承链。[使用说明](docs/unit-model-overrides.md) · [实施与验证](docs/test-records/2026-10-22-unit-model-overrides.md)。
+2026-10-22 已接入[创建时新建模型与 Unit 单层覆盖](openspec/changes/add-unit-model-overrides/proposal.md)：创建时搜索或新建模型，在模拟器配置表保存局部差异，支持恢复、选择性回写、另存独立模型及确认值捕获。保存／回写不自动应用；该阶段仅会话内保存；当前工程模式见 M08，不增加配置版本或模型继承链。[使用说明](docs/unit-model-overrides.md) · [实施与验证](docs/test-records/2026-10-22-unit-model-overrides.md)。
 
 
 配置架构已按CQRS／DDD职责拆分：[命令与处理器](crates/core/src/application/commands/mod.rs)、[查询／投影](crates/core/src/application/queries/mod.rs)、[具体配置事件](crates/core/src/application/events/mod.rs)、[聚合目录](crates/core/src/domain/aggregates/mod.rs)、[同步事件监听器](crates/core/src/application/event_handlers/mod.rs)。成功提交后返回具体事实，不将快照通知称为事件溯源。[重构提案](openspec/changes/refactor-workspace-cqrs-boundaries/proposal.md) · [验证记录](docs/test-records/2026-10-17-cqrs-boundaries.md)。
@@ -150,3 +150,8 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 已验收的工作台组织能力（2026-10-24）
 
 支持用主题图标及颜色组织多级文件夹，按右键目录上下文新建资源，多选拖拽调整所属层级；中央Dockview支持Tab分屏及树资源按停靠位置打开，分屏共享同一业务状态。只组织当前可编辑模型／模拟器，协议主题图标不表示对应协议已实现。详见[提案](../openspec/changes/organize-resource-tree-and-docking/proposal.md)与[任务](../openspec/changes/organize-resource-tree-and-docking/tasks.md)。当前已接入代码并通过核心／前端自动检查及macOS原生拖放、分屏、菜单键盘与弹框矩阵验收（26/26）；Windows/Linux未验，见[实施记录](test-records/2026-10-24-resource-tree-docking.md)；保持会话配置、稳定身份及保存／应用分离，不引入配置版本管理。
+
+
+### 工程持久化（2026-10-24）
+
+已确认采用工程模式，以 `project.workspace` 为工程入口及 JSON 清单；模型、模拟器、文档等静态资源独立文件存储，虚拟文件夹、显示名称、图标颜色和稳定 ID 映射由清单维护。执行记录使用独立 SQLite，通信录制文件保留；本机布局和草稿恢复独立保存，启动恢复最近工程但不自动启动通信。继续保持保存／显式应用分离，不增加配置历史版本。已接入工程读写、可靠提交、草稿及布局恢复、运行数据投影并完成 macOS 验证；临时会话仍保留退出丢失语义。详见[工程存储提案](../openspec/changes/persist-project-files-and-runtime-data/proposal.md)及[设计](../openspec/changes/persist-project-files-and-runtime-data/design.md)。

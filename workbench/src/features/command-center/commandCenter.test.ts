@@ -59,3 +59,6 @@ it('保存与布局命令检查能力并复用既有入口',async()=>{
  context.canSave=true;await registry.execute('workbench.save',context);expect(context.requestSave).toHaveBeenCalledOnce();
  await registry.execute('workbench.layout.right',context);expect(context.toggleLayout).toHaveBeenCalledWith('right');
 });
+it('工程文档参与拼音检索，切换工程后旧文档不残留',()=>{
+ const index=new ResourceSearchIndex();index.update(undefined,[{id:'doc',name:'接入说明'}]);expect(index.search('jrsm')[0]?.target).toEqual({kind:'resource',id:'project-document:doc'});index.update(undefined,[]);expect(index.search('jrsm')).toEqual([]);
+});
