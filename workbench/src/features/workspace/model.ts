@@ -96,10 +96,11 @@ export function navigation(
 }
 export type NavigationSection = "simulators" | "resources";
 /** 按标签投影导航，路径只用于展示，设备引用和Unit仍指向稳定业务身份。 */
-export function projectNavigation(catalog: Catalog | undefined, section: NavigationSection) {
+export function projectNavigation(catalog: Catalog | undefined, section: NavigationSection, userDocuments:readonly import("../../shared/api/project").ProjectDocumentInfo[] = []) {
   const tree = catalog ? navigation(catalog, section) : { paths: [], targets: new Map<string, Target>() };
   if (section === "simulators") return tree;
   const documents = resourceNavigation();
+  for(const doc of userDocuments){const path=`文档资源/工程文档/${doc.name.replaceAll('/','∕')} · ${encodeURIComponent(doc.id)}`;documents.paths.push(path);documents.targets.set(path,{kind:'resource',id:`project-document:${doc.id}`});}
   return {
     paths: ["采集模型/", "设备/", ...tree.paths, ...documents.paths],
     targets: new Map([...tree.targets, ...documents.targets]),
@@ -111,10 +112,12 @@ export function errorMessage(error: unknown): string {
 }
 /** 后端快照与界面草稿分离；切换单元只更新选择。 */
 export class WorkspaceStore {
+  project: import("../../shared/api/project").ProjectInfo | null = null;
   view: WorkspaceView | null = null;
   error = "";
   lastError: ApiError | null = null;
   busy = false;
+  projectBusy=false;
   private listeners = new Set<() => void>();
   private changeCount = 0;
   readonly focusModelIssue=new Map<string,(issue:ApiError)=>void>();
@@ -129,13 +132,14 @@ export class WorkspaceStore {
     this.observedUnitQuality.set(unit,{sequence,quality});this.changed();
   }
   readonly draftMatches=new Map<string,Record<string,boolean>>();
+  readonly draftBaselines=new Map<string,string>();
   readonly drafts = new Map<string, EndpointConfig>();
   readonly modelDrafts = new Map<string, ModelDraft>();
   readonly unitDrafts=new Map<string,UnitPointDraft>();
   readonly flushUnitEditors=new Map<string,()=>void>();
   readonly endpointModes=new Map<string,"configuration"|"runtime">();
   endpointDirty(id:string){return this.drafts.has(id)||[...this.unitDrafts.values()].some(d=>d.endpointId===id&&d.dirty);}
-  discardEndpoint(id:string){this.drafts.delete(id);this.draftMatches.delete(id);for(const [key,d] of this.unitDrafts)if(d.endpointId===id)this.unitDrafts.delete(key);this.changed();}
+  discardEndpoint(id:string){this.draftBaselines.delete(id);this.drafts.delete(id);this.draftMatches.delete(id);for(const [key,d] of this.unitDrafts)if(d.endpointId===id)this.unitDrafts.delete(key);this.changed();}
   unitDraft(endpointId:string,unitId:string){
     const unit=this.endpoint(endpointId)?.units.find(u=>u.id===unitId);if(!unit)return;
     if(this.client.loadModel&&!this.loadedModels.has(unit.model.id)){void this.loadTarget("model",unit.model.id).catch(e=>{this.error=errorMessage(e);this.changed();});return;}
@@ -173,6 +177,7 @@ export class WorkspaceStore {
       unit.overrides=buildOverrides(d.base,d.sourceUnit.overrides,preview.model,inherited);submitted.set(unit.id,{draft:d,content});
     }
     if(JSON.stringify(this.endpoint(id))!==original)throw Error("校验期间配置又有修改，请再次保存，输入已保留。");
+    if(!this.draftBaselines.has(id))this.draftBaselines.set(id,JSON.stringify(this.view?.catalog.endpoints.find(e=>e.id===id)));
     this.drafts.set(id,endpoint);
     const receipt=await this.execute({kind:"saveEndpoint",endpoint});
     for(const [id,{draft,content}] of submitted){draft.sourceUnit.overrides=structuredClone(endpoint.units.find(u=>u.id===id)?.overrides);draft.saved(content);if(draft.content()===content)this.unitDrafts.delete(id);}
@@ -310,6 +315,7 @@ export class WorkspaceStore {
   }
   private inspectDrafts() {for(const endpoint of this.drafts.values())this.inspectDraft(endpoint);}
   edit(endpoint: EndpointConfig) {
+    if(!this.draftBaselines.has(endpoint.id))this.draftBaselines.set(endpoint.id,JSON.stringify(this.view?.catalog.endpoints.find(e=>e.id===endpoint.id)));
     const snapshot=structuredClone(endpoint);this.drafts.set(endpoint.id,snapshot);
     this.inspectDraft(snapshot);this.changed();
   }
@@ -318,7 +324,7 @@ export class WorkspaceStore {
     this.changed();
   }
   async execute(action: Action) {
-    if (this.busy)
+    if (this.busy||this.projectBusy)
       throw { code: "COMMAND_PENDING", message: "请等待当前配置操作完成" };
     const submitted =
       action.kind === "saveEndpoint" ? JSON.stringify(action.endpoint) : null;
@@ -339,11 +345,11 @@ export class WorkspaceStore {
       if (action.kind === "saveEndpoint") {
         const current = this.drafts.get(action.endpoint.id);
         if (!current || JSON.stringify(current) === submitted) {
-          this.drafts.delete(action.endpoint.id);this.draftMatches.delete(action.endpoint.id);
+          this.drafts.delete(action.endpoint.id);this.draftBaselines.delete(action.endpoint.id);this.draftMatches.delete(action.endpoint.id);
         }
       }
       if (action.kind === "deleteEndpoint") {
-        this.drafts.delete(action.id); this.draftMatches.delete(action.id); this.selectedUnits.delete(action.id);
+        this.drafts.delete(action.id);this.draftBaselines.delete(action.id); this.draftMatches.delete(action.id); this.selectedUnits.delete(action.id);
       }
       return result;
     } catch (error) {

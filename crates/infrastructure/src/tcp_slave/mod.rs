@@ -126,6 +126,22 @@ impl TcpSlaveRuntime {
             crate::resources::ResourceManager::default(),
         )
     }
+    /// 令后续运行记录归入指定工程；不移动已存在的录制。
+    /// # Errors
+    /// 运行数据线程或状态不可用。
+    pub fn set_project_recording(&self, root: Option<PathBuf>) -> Result<(), Error> {
+        self.recording.set_project(root)
+    }
+    /// 等待工程数据库投影完成。
+    /// # Errors
+    /// 刷新超时或队列不可用。
+    pub fn flush_project_recording(&self) -> Result<(), Error> {
+        self.recording.flush_project()
+    }
+    /// 运行数据库的独立故障与积压摘要。
+    pub fn project_recording_view(&self) -> Option<crate::project::RuntimeDataView> {
+        self.recording.project_view()
+    }
     /// 共享会话资源准入，手动与批量启动使用相同预算。
     /// # Errors
     /// 工作线程或系统轮询器创建失败。

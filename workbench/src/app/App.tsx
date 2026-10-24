@@ -1,3 +1,5 @@
+import {ProjectResourceDocument} from "../features/resources/ProjectResourceDocument";
+import {useProjectPersistence} from "../features/workspace/useProjectPersistence";
 import {TreeContextMenu} from "../features/workspace/TreeContextMenu";
 import {installDocumentDocking,defaultDocumentPosition,dockingPosition,relocateDocument,prepareDocumentDrop,liveDocumentLocation,isDocument,type DocumentLocation} from '../features/workspace/documentDocking';
 import {CategoryTabs} from "../features/workspace/CategoryTabs";
@@ -254,9 +256,9 @@ function ProjectPanel() {
   const inputs = useMemo(
     () => ({
       simulators: projectNavigation(catalog, "simulators"),
-      resources: projectNavigation(catalog, "resources"),
+      resources: projectNavigation(catalog, "resources",store.project?.documents??[]),
     }),
-    [catalog],
+    [catalog,store.project],
   );
   const newItems = section === "simulators" ? [
     { label: "模拟器", icon: <Server size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>dialog("endpoint")) },
@@ -445,7 +447,7 @@ function ProjectPanel() {
       })}
       {partitioning&&<PartitionDialog store={store} close={()=>setPartitioning(false)}/>}
       {navigationAction && <NavigationDialog store={store} request={navigationAction} close={() => setNavigationAction(null)} open={open} removed={removedEndpoint} />}
-      <div className="navigation-note">会话配置 · 退出后不保留</div>
+      <div className="navigation-note">{store.project?`工程 · ${store.project.name}`:"临时会话 · 退出后不保留"}</div>
       {rootMenu && createPortal(
         <div
           className="tree-menu-backdrop"
@@ -832,7 +834,7 @@ function CloseDraftDialog({
   return (
     <WorkbenchDialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)cancel();}} title={<>{endpointId ? "模拟器" : "模型"}有未保存修改</>} busy={busy}>
       <DialogBody>
-      <p>保存仅保留本次会话。请选择如何关闭。</p>
+      <p>{store.project?"存在未保存修改，请选择如何关闭。":"保存仅保留本次会话。请选择如何关闭。"}</p>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -882,15 +884,18 @@ function CloseDraftDialog({
     </WorkbenchDialog>
   );
 }
-function ExitDialog({ cancel }: { cancel: () => void }) {
+function ExitDialog({ cancel,project,flush }: { cancel: () => void;project:boolean;flush:()=>Promise<void> }) {
+  const {store}=useWorkbench();
+  const [busy,setBusy]=useState(false);
+  const exit=async()=>{setBusy(true);try{await flush();await closeWorkbenchWindow();}catch(e){store.error=errorMessage(e);store.changed();setBusy(false);}};
   const ref = useRef<HTMLDialogElement>(null);
   return (
-    <WorkbenchDialog ref={ref} onCancel={cancel} title={<>退出本次会话？</>}>
+    <WorkbenchDialog ref={ref} busy={busy} onCancel={cancel} title={project?"退出工程？":"退出本次会话？"}>
       <DialogBody>
-      <p>当前所有配置（包括已保存配置）、文件夹结构及未保存草稿，退出后都会丢失。</p>
+      <p>{project?"已保存内容保留在工程中，未保存草稿暂存到恢复区；退出时停止通信。":"当前所有配置（包括已保存配置）、文件夹结构及未保存草稿，退出后都会丢失。"}</p>
       </DialogBody><DialogFooter>
-        <button onClick={cancel}>取消退出</button>
-        <button onClick={() => void closeWorkbenchWindow()}>放弃并退出</button>
+        <button type="button" disabled={busy} onClick={cancel}>取消退出</button>
+        <button type="button" disabled={busy} onClick={()=>void exit()}>{project?"退出并保留草稿":"放弃并退出"}</button>
       </DialogFooter>
     </WorkbenchDialog>
   );
@@ -966,8 +971,9 @@ function InspectorPanel({params,api:panelApi}:IDockviewPanelProps<{scope:Inspect
     store.selectUnit(endpoint.id, id);
   };
   if(selected?.kind==="resource" && scope==="point"){
-    const resource=resources.find(resource=>resource.id===selected.id);
-    return <PropertyPanel density="compact" title="文档资源" icon={<BookOpen size={14}/>} subject={resource?.title??"文档不存在"}><PropertyGroup title="资源信息"><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">内置 · 只读</Property></PropertyGroup></PropertyPanel>;
+    const projectDoc=store.project?.documents?.find(d=>`project-document:${d.id}`===selected.id);
+    const resource=resources.find(resource=>resource.id===selected.id)??(projectDoc?{title:projectDoc.name,folders:["工程文档"]}:undefined);
+    return <PropertyPanel density="compact" title="文档资源" icon={<BookOpen size={14}/>} subject={resource?.title??"文档不存在"}><PropertyGroup title="资源信息"><Property label="分类">{resource?.folders.join(" / ")}</Property><Property label="格式">Markdown</Property><Property label="访问">{projectDoc?"工程 · 只读":"内置 · 只读"}</Property></PropertyGroup></PropertyPanel>;
   }
   if (selected?.kind === "model")
     return <ModelDetails store={store} id={selected.id} scope={scope} open={open} />;
@@ -1335,7 +1341,7 @@ function CreateDialog({
             )}
           </>
         )}
-        <p className="muted">保存到本次会话，不启动通信；退出后不保留。</p>
+        <p className="muted">{store.project?"保存到工程文件，不自动启动通信。":"保存到本次会话，不启动通信；退出后不保留。"}</p>
         {store.error && (
           <p role="alert" className="error">
             {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
@@ -1467,7 +1473,7 @@ export function App() {
   const validHistory = (item:{panel:string;target?:Target}) => {
     const target=item.target;if(!target)return !!api.current?.getPanel(item.panel);
     const catalog=store.view?.catalog;
-    if(target.kind==="resource")return resources.some(resource=>resource.id===target.id);
+    if(target.kind==="resource")return resources.some(resource=>resource.id===target.id)||!!store.project?.documents?.some(d=>`project-document:${d.id}`===target.id);
     if(target.kind==="model")return !!catalog?.models.some(model=>model.id===target.id);
     if(target.kind==="endpoint")return !!catalog?.endpoints.some(endpoint=>endpoint.id===target.id&&(!target.unit||endpoint.units.some(unit=>unit.id===target.unit)));
     return false;
@@ -1482,7 +1488,7 @@ export function App() {
   };
   const searchResources = async (query:string) => {
     resourceSearch.current ??= import("../features/command-center/resourceSearch").then(({ResourceSearchIndex})=>new ResourceSearchIndex()).catch(error=>{resourceSearch.current=null;throw error;});
-    const index=await resourceSearch.current;index.update(store.view?.catalog);return index.search(query);
+    const index=await resourceSearch.current;index.update(store.view?.catalog,store.project?.documents??[]);return index.search(query);
   };
   useEffect(()=>{const handler=(event:KeyboardEvent)=>{
     if(event.isComposing||event.repeat||hasOpenSaveDialog(document))return;
@@ -1511,6 +1517,7 @@ export function App() {
     return () => { active = false; cancelKeys(); cancelNative?.(); };
   }, []);
   const [selected, setSelected] = useState<Target | null>(null);
+  const persistence=useProjectPersistence(store,api,setSelected);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [creationParent,setCreationParent]=useState<string|null>(null);
   const [closeRequest, setCloseRequest] = useState<{
@@ -1532,6 +1539,8 @@ export function App() {
     void armCloseGuard(
       () =>
         !!(
+          store.projectBusy ||
+          store.project ||
           store.modelDrafts.size ||
           store.drafts.size ||
           store.view?.catalog.models.length ||
@@ -1539,7 +1548,7 @@ export function App() {
           store.view?.catalog.devices.length ||
           store.view?.catalog.navigation?.folders.length
         ),
-      () => setExitRequest(true),
+      () => {if(!store.projectBusy)setExitRequest(true);},
     ).then((fn) => {
       if (active) dispose = fn;
       else fn();
@@ -1582,7 +1591,7 @@ export function App() {
       return existing;
     }
     const title =
-      target.kind === "resource"?resources.find(resource=>resource.id===target.id)?.title:target.kind === "model"
+      target.kind === "resource"?(resources.find(resource=>resource.id===target.id)?.title??store.project?.documents?.find(d=>`project-document:${d.id}`===target.id)?.name):target.kind === "model"
         ? store.modelDraft(target.id)?.name ?? store.view?.catalog.models.find(model=>model.id===target.id)?.name
         : store.endpoint(target.id)?.name ?? store.view?.catalog.endpoints.find(endpoint=>endpoint.id===target.id)?.name;
     return api.current?.addPanel({
@@ -1596,7 +1605,7 @@ export function App() {
   };
   const handleDocumentDrop=useRef<(targets:Target[],location?:DocumentLocation)=>Promise<void>>(async()=>{});
   handleDocumentDrop.current=async(targets,location)=>{
-    const valid=(target:Target)=>target.kind==='resource'?resources.some(r=>r.id===target.id):target.kind==='model'?!!store.modelDraft(target.id):target.kind==='endpoint'?!!store.endpoint(target.id):false;
+    const valid=(target:Target)=>target.kind==='resource'?(resources.some(r=>r.id===target.id)||!!store.project?.documents?.some(d=>`project-document:${d.id}`===target.id)):target.kind==='model'?!!store.modelDraft(target.id):target.kind==='endpoint'?!!store.endpoint(target.id):false;
     try{
       await prepareDocumentDrop(targets,valid,async target=>{if(target.kind==='model'||target.kind==='endpoint')await store.loadTarget(target.kind,target.id);});
       if(location&&(!api.current||!liveDocumentLocation(api.current,location)))throw Error('目标文档组已关闭，请重新拖入');
@@ -1606,6 +1615,7 @@ export function App() {
   };
   const openTool = (tool: "batch" | "resources")=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:api.current?defaultDocumentPosition(api.current):undefined});};
   const commandContext = {
+    project: persistence.request,
     get canCreate() { return !!store.view?.capabilities.configuration; },
     get canSave() { return [...document.querySelectorAll<HTMLButtonElement>("button[data-save-document]")].some(button=>button.dataset.saveDocument===activeDocument.current&&!button.disabled); },
     requestSave: () => {requestAnimationFrame(()=>saveAction.current());},
@@ -1691,7 +1701,7 @@ export function App() {
   };
   const components = useMemo(
     () => ({
-      resource:({params}:IDockviewPanelProps<{id:string;anchor?:string;navigation?:number}>)=><ResourceDocument {...params}/>,
+      resource:({params}:IDockviewPanelProps<{id:string;anchor?:string;navigation?:number}>)=>{const {store}=useWorkbench();return params.id.startsWith("project-document:")?<ProjectResourceDocument {...params} project={store.project}/>:<ResourceDocument {...params}/>;},
       resources:()=>{const {store}=useWorkbench();return <ResourcePanel store={store}/>;},
       batch:()=>{const {store,sheets}=useWorkbench();return <BatchPanel store={store} sheets={sheets}/>;},
       project: ProjectPanel,
@@ -1762,7 +1772,7 @@ export function App() {
               api.current?.getEdgeGroup("bottom")?.expand();
             }}>问题 {[...store.modelDrafts.values()].reduce((n,d)=>n+(d.preview?.errors.length??0),store.error?1:0)}</button>
             <span className="spacer"/>
-            <span className="footer-session" title="当前配置仅保留本次会话，退出即丢失">会话配置 · 退出不保留</span>
+            <span className="footer-session" title={store.project?.entry??"临时配置未写入工程文件"}>{store.project?`工程 · ${store.project.name}`:"临时会话 · 退出不保留"}</span>
           </footer>
         </div>
         {palette!==null && <CommandPalette initial={palette} searchResources={searchResources} searchCommands={query=>commands.list(commandContext,query)} executeCommand={executeCommand} openResource={result=>open(result.target)} close={()=>setPalette(null)}/>}
@@ -1773,7 +1783,8 @@ export function App() {
             cancel={() => setCloseRequest(null)}
           />
         )}
-        {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} />}
+        {persistence.dialogs}
+        {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} project={!!store.project} flush={persistence.flush} />}
         {dialog && <CreateDialog kind={dialog} parent={creationParent} close={() => setDialog(null)} />}
       </Context.Provider>
     </TooltipProvider>

@@ -8,10 +8,10 @@ function keys(text:string){return [normalize(text),normalize(pinyin(text,{toneTy
 export class ResourceSearchIndex {
  private entries:(ResourceSearchResult & {nameKeys:string[];pathKeys:string[]})[]=[];
  private signature='';
- update(catalog:Catalog|undefined){
+ update(catalog:Catalog|undefined,documents:readonly import("../../shared/api/project").ProjectDocumentInfo[]=[]){
   const unique=new Map<string,ResourceSearchResult>();
   for(const section of ['resources','simulators'] as const){
-   for(const [path,target] of projectNavigation(catalog,section).targets){
+   for(const [path,target] of projectNavigation(catalog,section,documents).targets){
     if(target.kind==='folder')continue;
     const key=JSON.stringify([target.kind,target.id,target.unit??'']);
     if(!unique.has(key))unique.set(key,{key,title:path.replace(/\/$/,'').split('/').at(-1)??path,path: path.replace(/\/$/,''),target});

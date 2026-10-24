@@ -22,3 +22,6 @@ pub mod partition;
 
 /// 固定批量会话接口。
 pub mod batch;
+
+/// 工程文件与本机恢复状态。
+pub mod project;

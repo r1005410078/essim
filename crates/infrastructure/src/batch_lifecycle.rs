@@ -110,6 +110,22 @@ pub struct BatchCoordinator {
     skips: Arc<Mutex<BTreeMap<EndpointId, String>>>,
 }
 impl BatchCoordinator {
+    /// 工程切换期间禁止新任务启动；未结束任务必须先结束或取消并等待。
+    /// # Errors
+    /// 批量任务仍活动、预览锁不可用或工程操作失败。
+    pub fn change_project<T>(&self, change: impl FnOnce() -> Result<T, Error>) -> Result<T, Error> {
+        let mut prepared = self
+            .prepared
+            .lock()
+            .map_err(|_| Error::new("STATE_POISONED", "批量预览不可用"))?;
+        if self.runner.query()?.is_some_and(|v| !v.finished) {
+            return Err(Error::new("BATCH_BUSY", "请先结束批量任务再切换工程"));
+        }
+        let result = change()?;
+        prepared.take();
+        Ok(result)
+    }
+
     /// 装配固定执行资源和工作区共同端点门。
     /// # Errors
     /// 固定线程创建失败或策略非法。

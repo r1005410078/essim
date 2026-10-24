@@ -42,6 +42,28 @@ impl<R: ConfigRepository> Workspace<R> {
     }
 }
 impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
+    /// 在组装层已停止旧运行并完成新工程预检后替换仓储，保持通知序号单调。
+    /// # Errors
+    /// 通知序号耗尽时保持旧仓储不变。
+    pub fn replace_repository(&mut self, repository: R) -> Result<(), Error> {
+        let sequence = self
+            .sequence
+            .checked_add(1)
+            .ok_or_else(|| Error::new("SEQUENCE_OVERFLOW", "通知序号耗尽"))?;
+        let catalog = repository.load();
+        self.repository = repository;
+        self.projection = Projection::new(catalog);
+        self.projection.sequence = sequence;
+        self.application_states.clear();
+        self.sequence = sequence;
+        Ok(())
+    }
+    /// 检查新配置提交与启动是否可用；只读查询和停止仍保持可用。
+    /// # Errors
+    /// 持久仓储处于待恢复状态。
+    pub fn ensure_repository_available(&self) -> Result<(), Error> {
+        self.repository.ensure_available()
+    }
     /// 获取通知位置，不复制完整模型目录，供低频配置订阅检查变化。
     pub fn sequence(&self) -> u64 {
         self.sequence
@@ -183,6 +205,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
     /// # Errors
     /// 非应用／删除命令、目标不存在或完整迁移校验失败。
     pub fn prepare_release(&mut self, command: Command) -> Result<ReleasePlan, Error> {
+        self.repository.ensure_available()?;
         if command.command_id.trim().is_empty() {
             return Err(Error::new("INVALID_COMMAND", "命令身份不能为空"));
         }
@@ -268,6 +291,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
         command: Command,
         released: bool,
     ) -> Result<(Receipt, ConfigEvent), Error> {
+        self.repository.ensure_available()?;
         if command.command_id.trim().is_empty() {
             return Err(Error::new("INVALID_COMMAND", "命令身份不能为空"));
         }
@@ -283,11 +307,26 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
         };
         catalog.navigation.normalize_model_folders()?;
         let result = match command.action {
-            Action::CreateInFolder{parent,resource}=>navigation::create_in_folder(&mut catalog,parent,resource),
-            Action::MoveNavigation{nodes,scope,parent}=>navigation::move_nodes(&mut catalog,nodes,scope,parent),
-            Action::CreateEndpointWithModel{endpoint,model}=>super::commands::overrides::create(&mut catalog,endpoint,model),
-            Action::PromoteOverrides{plan}=>super::commands::overrides::promote(&mut catalog,plan),
-            Action::ExtractUnitModel{endpoint,unit,id,name}=>super::commands::overrides::extract(&mut catalog,endpoint,unit,id,name),
+            Action::CreateInFolder { parent, resource } => {
+                navigation::create_in_folder(&mut catalog, parent, resource)
+            }
+            Action::MoveNavigation {
+                nodes,
+                scope,
+                parent,
+            } => navigation::move_nodes(&mut catalog, nodes, scope, parent),
+            Action::CreateEndpointWithModel { endpoint, model } => {
+                super::commands::overrides::create(&mut catalog, endpoint, model)
+            }
+            Action::PromoteOverrides { plan } => {
+                super::commands::overrides::promote(&mut catalog, plan)
+            }
+            Action::ExtractUnitModel {
+                endpoint,
+                unit,
+                id,
+                name,
+            } => super::commands::overrides::extract(&mut catalog, endpoint, unit, id, name),
             Action::CopyModel { source, id, name } => {
                 model::copy_model(&mut catalog, source, id, name)
             }

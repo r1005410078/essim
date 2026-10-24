@@ -31,6 +31,10 @@ pub(crate) fn build(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "文件",
         true,
         &[
+            &MenuItem::with_id(app, "project-create", "新建工程…", true, None::<&str>)?,
+            &MenuItem::with_id(app, "project-open", "打开工程…", true, Some("CmdOrCtrl+O"))?,
+            &MenuItem::with_id(app, "project-close", "关闭工程", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "workbench-save", "保存", true, Some("CmdOrCtrl+S"))?,
             &PredefinedMenuItem::close_window(app, Some("关闭窗口"))?,
             #[cfg(not(target_os = "macos"))]
@@ -85,6 +89,10 @@ pub(crate) fn dispatch(app: &AppHandle, event: tauri::menu::MenuEvent) {
             } else {
                 app.exit(0);
             }
+        }
+        "project-create" | "project-open" | "project-close" => {
+            let action = event.id.as_ref().strip_prefix("project-").unwrap_or("open");
+            let _ = app.emit_to("main", "workbench-project", action);
         }
         "workbench-save" => {
             let _ = app.emit_to("main", "workbench-save", ());

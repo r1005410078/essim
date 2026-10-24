@@ -24,6 +24,14 @@ pub struct MemoryRepository {
     resources: crate::resources::ResourceManager,
     charge: Option<crate::resources::Reservation>,
 }
+impl MemoryRepository {
+    pub(crate) fn with_resources(resources: crate::resources::ResourceManager) -> Self {
+        Self {
+            resources,
+            ..Default::default()
+        }
+    }
+}
 impl ConfigRepository for MemoryRepository {
     fn reserve_staging(&self) -> Result<Box<dyn Send>, Error> {
         Ok(Box::new(self.resources.reserve(
@@ -52,27 +60,31 @@ impl ConfigRepository for MemoryRepository {
 }
 /// 应用组装使用的线程安全入口；临界区只处理短配置操作。
 pub struct WorkspaceEngine {
-    pub(crate) workspace: Mutex<Workspace<MemoryRepository>>,
+    pub(crate) workspace: Mutex<Workspace<Box<dyn ConfigRepository + Send>>>,
     pub(crate) partition_plans: crate::partition::Plans,
     pub(crate) resources: crate::resources::ResourceManager,
     operations: OperationGates,
-    boundary: Mutex<Box<dyn ApplyBoundary + Send>>,
+    pub(crate) project_gate: std::sync::RwLock<()>,
+    pub(crate) project_root: Mutex<Option<crate::project::ProjectInfo>>,
+    pub(crate) boundary: Mutex<Box<dyn ApplyBoundary + Send>>,
     #[cfg(feature = "tcp-runtime")]
-    runtime: Option<std::sync::Arc<crate::tcp_slave::TcpSlaveRuntime>>,
+    pub(crate) runtime: Option<std::sync::Arc<crate::tcp_slave::TcpSlaveRuntime>>,
     #[cfg(feature = "tcp-runtime")]
-    master: Option<crate::tcp_master::TcpMasterRuntime>,
+    pub(crate) master: Option<crate::tcp_master::TcpMasterRuntime>,
 }
 impl Default for WorkspaceEngine {
     fn default() -> Self {
         let resources = crate::resources::ResourceManager::default();
         Self {
-            workspace: Mutex::new(Workspace::new(MemoryRepository {
+            workspace: Mutex::new(Workspace::new(Box::new(MemoryRepository {
                 resources: resources.clone(),
                 ..Default::default()
-            })),
+            }))),
             partition_plans: Default::default(),
             resources,
             operations: Default::default(),
+            project_root: Mutex::new(None),
+            project_gate: std::sync::RwLock::new(()),
             boundary: Mutex::new(Box::new(StoppedBoundary)),
             #[cfg(feature = "tcp-runtime")]
             runtime: None,
@@ -90,6 +102,7 @@ impl WorkspaceEngine {
         #[cfg(feature = "tcp-runtime")]
         if let Some(runtime) = &self.runtime {
             view.recording = Some(runtime.recording_view()?);
+            view.runtime_data = runtime.project_recording_view();
         }
         view.configured_endpoints = self
             .workspace
@@ -159,8 +172,7 @@ impl WorkspaceEngine {
         if self.runtime.is_some() {
             view.capabilities.execution = true;
             view.capabilities.recording = true;
-            view.capabilities.reason =
-                "当前支持TCP／RTU主从站运行与文件录制".into();
+            view.capabilities.reason = "当前支持TCP／RTU主从站运行与文件录制".into();
         }
         Ok(view)
     }
@@ -253,11 +265,19 @@ impl WorkspaceEngine {
     /// # Errors
     /// 锁中毒、配置非法或迁移不兼容时失败。
     pub fn preview_apply(&self, id: EndpointId, reset: bool) -> Result<ApplyPreview, Error> {
-        let workspace = self.workspace.lock().map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?;
-        let _staging = self.resources.reserve(essim_core::domain::resources::ResourceUsage {
-            memory_bytes: crate::resources::effective_staging_memory(workspace.catalog_ref(), &id)?,
-            ..Default::default()
-        })?;
+        let workspace = self
+            .workspace
+            .lock()
+            .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?;
+        let _staging = self
+            .resources
+            .reserve(essim_core::domain::resources::ResourceUsage {
+                memory_bytes: crate::resources::effective_staging_memory(
+                    workspace.catalog_ref(),
+                    &id,
+                )?,
+                ..Default::default()
+            })?;
         workspace.preview_apply(&id, reset)
     }
     /// 唯一配置修改入口，生产运行能力未接入时明确拒绝。
@@ -310,15 +330,29 @@ impl WorkspaceEngine {
         parent: Option<&OperationPermit>,
         batch: Option<&essim_core::application::commands::batch_targets::BatchPlan>,
     ) -> Result<(Receipt, ConfigEvent), Error> {
+        let _project = self
+            .project_gate
+            .read()
+            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
         // 新命令及每个 Unit 的有效表都必须先预留暂存空间，失败不进入停止／提交边界。
         let _configuration_staging = {
-            let workspace = self.workspace.lock().map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?;
-            let memory_bytes = crate::resources::serialized_size(&command)?.saturating_mul(4)
+            let workspace = self
+                .workspace
+                .lock()
+                .map_err(|_| Error::new("STATE_POISONED", "配置状态不可用"))?;
+            let memory_bytes = crate::resources::serialized_size(&command)?
+                .saturating_mul(4)
                 .saturating_add(match &command.action {
-                    Action::Apply {id, ..} => crate::resources::effective_staging_memory(workspace.catalog_ref(), id)?,
+                    Action::Apply { id, .. } => {
+                        crate::resources::effective_staging_memory(workspace.catalog_ref(), id)?
+                    }
                     _ => 0,
                 });
-            self.resources.reserve(essim_core::domain::resources::ResourceUsage {memory_bytes, ..Default::default()})?
+            self.resources
+                .reserve(essim_core::domain::resources::ResourceUsage {
+                    memory_bytes,
+                    ..Default::default()
+                })?
         };
         let target = match &command.action {
             Action::Apply { id, .. }
@@ -537,10 +571,10 @@ impl WorkspaceEngine {
                     recording,
                 )?,
             )),
-            workspace: Mutex::new(Workspace::new(MemoryRepository {
+            workspace: Mutex::new(Workspace::new(Box::new(MemoryRepository {
                 resources: resources.clone(),
                 ..Default::default()
-            })),
+            }))),
             resources,
             ..Self::default()
         })
@@ -553,6 +587,7 @@ impl WorkspaceEngine {
             .workspace
             .lock()
             .map_err(|_| Error::new("STATE_POISONED", "目录不可用"))?;
+        w.ensure_repository_available()?;
         let c = w.catalog_ref();
         let endpoint = c
             .applied
@@ -593,6 +628,10 @@ impl WorkspaceEngine {
         command: essim_core::application::commands::slave::SlaveCommand,
         parent: Option<&OperationPermit>,
     ) -> Result<essim_core::application::queries::slave::SlaveView, Error> {
+        let _project = self
+            .project_gate
+            .read()
+            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
         let operation = self.operations.enter(&command.endpoint, parent)?;
 
         use essim_core::application::commands::slave::SlaveAction;
@@ -671,7 +710,19 @@ impl WorkspaceEngine {
         }
         if let Some(runtime) = &self.runtime {
             runtime.shutdown();
+            if let Err(error) = runtime.flush_project_recording() {
+                eprintln!("运行数据库刷新未确认：{error}");
+            }
         }
+    }
+    /// 停止后确认工程数据库已处理所有入队记录，供显式退出链路使用。
+    /// # Errors
+    /// SQLite 队列积压或限时刷新未确认。
+    pub fn flush_project_records(&self) -> Result<(), Error> {
+        if let Some(runtime) = &self.runtime {
+            runtime.flush_project_recording()?;
+        }
+        Ok(())
     }
     /// 查询独立运行摘要及最多1024个指定点的实际值，不复制配置目录。
     /// # Errors
@@ -696,6 +747,10 @@ impl WorkspaceEngine {
         &self,
         command: essim_core::application::commands::master::MasterCommand,
     ) -> Result<essim_core::application::queries::master::MasterView, Error> {
+        let _project = self
+            .project_gate
+            .read()
+            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
         self.operations.ensure_available(&command.endpoint)?;
         use essim_core::application::commands::master::MasterAction;
         let master = self

@@ -1,6 +1,7 @@
 import {CommandRegistry} from './commands';
 export interface WorkbenchCommandContext {
  canCreate:boolean;
+ project?:(action:"create"|"open"|"close")=>void;
  canSave?:boolean;
  requestSave?:()=>void;
  toggleLayout?:(edge:"left"|"right"|"bottom")=>void;
@@ -11,6 +12,8 @@ export interface WorkbenchCommandContext {
 /** 菜单与未来命令检索共用同一命令，不通过DOM按钮模拟业务操作。 */
 export function createWorkbenchCommands(){
  const registry=new CommandRegistry<WorkbenchCommandContext>();
+ for(const [action,title] of [["create","新建工程"],["open","打开工程"],["close","关闭工程"]] as const)
+  registry.register({id:`workbench.project.${action}`,title,category:"工程",enabled:c=>!!c.project,run:c=>c.project?.(action)});
  for(const [kind,title] of [['model','新建采集模型'],['endpoint','新建模拟器'],['device','新建设备']] as const)
   registry.register({id:`workbench.create.${kind}`,title,category:'配置',enabled:c=>c.canCreate,run:c=>c.create(kind)});
  registry.register({id:'workbench.open.batch',title:'打开批量任务',category:'工作台',run:c=>c.openTool('batch')});

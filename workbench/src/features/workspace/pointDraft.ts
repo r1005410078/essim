@@ -129,6 +129,7 @@ export class ModelDraft {
     this.selected = id;
     this.notify();
   }
+  savedContent() { return this.baseline; }
   content() {
     return JSON.stringify(this.state);
   }

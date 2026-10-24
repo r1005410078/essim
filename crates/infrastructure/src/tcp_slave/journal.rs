@@ -19,7 +19,6 @@ pub(super) struct Journal {
     stream: crate::recording::RecordStream,
     chunks: u64,
 
-
     pub path: String,
     pub sequence: u64,
     pub unix_ms: String,
@@ -78,16 +77,19 @@ impl Journal {
             "run-{stamp}-{}.jsonl",
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
+        let run_id = path.file_stem().unwrap().to_string_lossy().into_owned();
+        let stream = pool.open(path.clone())?;
+        let path = stream.path().unwrap_or(&path).to_path_buf();
         let snapshot = Start {
             kind: "snapshot",
             schema: 1,
-            run: path.file_stem().unwrap().to_string_lossy().into_owned(),
+            run: run_id,
             endpoint,
             models,
             units,
         };
         let mut journal = Self {
-            stream: pool.open(path.clone())?,
+            stream,
 
             chunks: 0,
 

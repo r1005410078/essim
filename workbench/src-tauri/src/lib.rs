@@ -19,8 +19,22 @@ pub fn run() {
         .manage(ExitPermission::default())
         .setup(|app| {
             let record_root = app.path().app_data_dir()?.join("runs");
-            let engine=Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
-            app.manage(Arc::new(essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?));
+            let engine = Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
+            app.manage(Arc::new(
+                essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?,
+            ));
+            let recent =
+                essim_infrastructure::project::RecentProject::new(&app.path().app_data_dir()?);
+            let startup_error = match recent.load() {
+                Ok(Some(path)) => engine.open_project(&path).err().map(|e| e.to_string()),
+                Ok(None) => None,
+                Err(e) => Some(e.to_string()),
+            };
+            app.manage(commands::project::ProjectSession {
+                recent,
+                startup_error: std::sync::Mutex::new(startup_error),
+                operation: std::sync::atomic::AtomicBool::new(false),
+            });
             app.manage(engine);
             if let Some(window) = app.get_webview_window("main") {
                 // macOS保留原生红绿灯；其他桌面由工作台提供窗口操作按钮。
@@ -37,6 +51,12 @@ pub fn run() {
         .manage(commands::subscriptions::Subscriptions::default())
         .manage(commands::point_table::PointFileJobs::default())
         .invoke_handler(tauri::generate_handler![
+            commands::project::query_project,
+            commands::project::load_project_document,
+            commands::project::choose_project,
+            commands::project::close_project,
+            commands::project::read_project_local,
+            commands::project::write_project_local,
             commands::batch::preview_batch,
             commands::batch::start_batch,
             commands::batch::query_batch,
@@ -77,8 +97,8 @@ pub fn run() {
         .expect("无法启动ESSim工作台")
         .run(|app, event| {
             if matches!(&event, tauri::RunEvent::Exit) {
-                let batches=app.state::<commands::batch::Batches>();
-                let _=batches.request_shutdown();
+                let batches = app.state::<commands::batch::Batches>();
+                let _ = batches.request_shutdown();
                 batches.wait_idle();
                 app.state::<Arc<WorkspaceEngine>>().shutdown_slave();
             }

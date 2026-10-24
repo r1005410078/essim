@@ -1,15 +1,15 @@
 //! 基础设施适配器：会话配置、真实协议运行与有界批量调度组件。
-/// 会话内配置目录与应用入口。
-pub mod workspace;
 /// 点表输入预览与文件格式交换。
 pub mod point_exchange;
+/// 会话内配置目录与应用入口。
+pub mod workspace;
 
 /// 正式TCP从站运行适配器。
-#[cfg(feature="tcp-runtime")]
+#[cfg(feature = "tcp-runtime")]
 pub mod tcp_slave;
 
 /// 正式TCP主站运行适配器。
-#[cfg(feature="tcp-runtime")]
+#[cfg(feature = "tcp-runtime")]
 pub mod tcp_master;
 
 /// 本机串口设备发现。
@@ -38,3 +38,6 @@ pub mod recording;
 
 /// 实例覆盖预览与有效点表读取。
 pub mod unit_overrides;
+
+/// 工程文件清单、静态资源与持久提交。
+pub mod project;

@@ -9,7 +9,6 @@ pub(super) struct Journal {
     stream: crate::recording::RecordStream,
     chunks: u64,
 
-
     pub path: String,
 }
 impl Journal {
@@ -24,8 +23,10 @@ impl Journal {
             now(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
+        let stream = pool.open(path.clone())?;
+        let path = stream.path().unwrap_or(&path).to_path_buf();
         let mut journal = Self {
-            stream: pool.open(path.clone())?,
+            stream,
 
             chunks: 0,
             path: path.to_string_lossy().into_owned(),
