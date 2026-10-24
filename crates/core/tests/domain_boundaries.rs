@@ -9,6 +9,9 @@ fn folder(id: &str, parent: Option<&str>) -> Folder {
         id: FolderId(id.into()),
         name: id.into(),
         parent: parent.map(|id| FolderId(id.into())),
+        scope: Default::default(),
+        icon: "folder".into(),
+        color: "#477fbc".into(),
     }
 }
 #[test]

@@ -134,7 +134,11 @@ button:focus-visible {
 .point-editor .toolbar select{font-size:11px;background:transparent;border:1px solid #e0e7f0;border-radius:4px;padding:3px;max-width:130px}
 .model-references{padding:7px 13px;border-bottom:1px solid #edf1f6;font-size:12px}.model-references button{display:block;text-align:left;color:#086cff;font-size:11px;padding:4px 0}
 .tree-context-menu {position:fixed;min-width:180px;display:flex;flex-direction:column;padding:4px;background:#fff;border:1px solid #dce4ef;border-radius:6px;box-shadow:0 6px 20px #1b345c24;z-index:1000;font-size:12px;color:#26324a}
-.tree-context-menu button {padding:6px 12px;text-align:left;border-radius:3px}.tree-context-menu button:hover,.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
+.tree-context-menu button {display:flex;align-items:center;gap:8px;min-height:28px;padding:5px 8px;text-align:left;border-radius:3px;white-space:nowrap}
+.tree-context-menu button svg {flex-shrink:0;color:#6d7f98}
+.tree-context-menu button:hover:not(:disabled),.tree-context-menu button:focus-visible{background:#eaf2ff;outline:0}
+.tree-context-menu button.destructive,.tree-context-menu button.destructive svg {color:#c64848}
+.tree-context-menu button:disabled {opacity:.45;cursor:default}
 .tree-menu-backdrop{position:fixed;inset:0;z-index:999}.root-tree-menu{position:absolute}
 .mapping-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0}.mapping-grid label{display:flex;flex-direction:column;gap:3px}.import-preview{max-height:220px;overflow:auto;border:1px solid #e3e9f1}.import-preview table{border-collapse:collapse;white-space:nowrap;font-size:11px}.import-preview th,.import-preview td{border:1px solid #e3e9f1;padding:4px 8px}.import-dialog pre{white-space:pre-wrap;font:inherit;max-height:130px;overflow:auto}
 .pending {
@@ -756,3 +760,33 @@ button.footer-status:hover {background:#e9eef5;color:#27334b;}
 .unit-view-switch > button {display:flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:22px;padding:0;border:0;border-radius:2px;box-sizing:border-box;color:#78849a;}
 .unit-view-switch > button[aria-selected="true"] {background:#fff;color:#25324b;}
 .unit-view-switch > button:focus-visible {outline:1px solid #4388df;outline-offset:-1px;}
+
+/* 文件夹主题选择复用公共弹框，仅排列内部控件。 */
+/* 文件夹弹框内部布局；外框尺寸、滚动、焦点与操作栏由公共Dialog维护。 */
+.folder-dialog-fields {display:flex;flex-direction:column;gap:7px;min-width:0;}
+.folder-dialog-fields>label {display:grid;grid-template-columns:38px minmax(0,1fr);align-items:center;gap:7px;font-size:12px;}
+.folder-name-input {display:flex;align-items:center;gap:7px;min-width:0;border:1px solid #d8dee7;border-radius:3px;background:#fff;padding-left:7px;}
+.folder-name-input:focus-within {outline:2px solid #7faaf0;outline-offset:1px;}
+.workbench-dialog .workbench-dialog-body .folder-name-input input {border:0;min-height:26px;padding-left:0;background:transparent;outline:none;}
+.folder-appearance {min-width:0;display:flex;flex-direction:column;gap:7px;}
+.folder-icon-picker {border:1px solid var(--wb-line);border-radius:3px;min-width:0;}
+.folder-icon-toolbar {display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px;border-bottom:1px solid var(--wb-line);background:var(--wb-chrome);}
+.folder-icon-groups {display:flex;align-items:center;gap:2px;flex-shrink:0;}
+.folder-icon-groups button {height:24px;padding:0 9px;font-size:11px;border:1px solid transparent;border-radius:3px;}
+.folder-icon-groups button[aria-pressed="true"] {border-color:#b3cdf0;background:#eaf2ff;color:#2865bb;}
+.folder-icon-search {display:flex;align-items:center;gap:4px;width:132px;min-width:0;border:1px solid #d8dee7;border-radius:3px;background:white;padding-left:5px;color:#718198;}
+.workbench-dialog .workbench-dialog-body .folder-icon-search input {width:100%;border:0;min-height:24px;padding:2px 4px;font-size:11px;background:transparent;}
+.folder-icon-grid {display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:1px;padding:3px;}
+.folder-icon-grid button {height:30px;min-width:0;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:2px;}
+.folder-icon-grid button:hover,.folder-icon-groups button:hover {background:#edf3fc;}
+.folder-icon-grid button[aria-pressed="true"] {border-color:currentColor;background:#e4f2ef;color:#399f91;}
+.folder-icon-empty {margin:0;padding:9px;text-align:center;font-size:11px;color:#718198;}
+.folder-color-row {display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;}
+.folder-color-row>span:first-child {margin-right:3px;flex-shrink:0;}
+.folder-color-swatches {display:flex;gap:2px;flex-shrink:0;}
+.folder-color-row button {display:flex;align-items:center;justify-content:center;width:23px;height:24px;padding:3px;border:1px solid transparent;border-radius:3px;}
+.folder-color-row button span {display:block;width:15px;height:15px;border-radius:50%;}
+.folder-color-row button[aria-pressed="true"] {border-color:currentColor;}
+.workbench-dialog-body .folder-color-row input[type="color"] {flex:0 0 26px;width:26px;height:24px;min-height:24px;padding:2px;}
+.workbench-dialog-body .folder-color-row input:not([type="color"]) {flex:0 1 80px;width:80px;min-width:55px;min-height:24px;padding:2px 5px;font-size:11px;}
+.folder-selected-name {margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#718198;}

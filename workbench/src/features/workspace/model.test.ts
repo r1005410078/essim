@@ -385,3 +385,12 @@ it("本地新模型草稿不发已保存模型查询",async()=>{
  store.modelDrafts.set("local",new ModelDraft("local","本地草稿",[],store.changed,false));
  await store.loadTarget("model","local");expect(adapter.loadModel).not.toHaveBeenCalled();expect(store.error).toBe("");
 });
+it('keeps empty model folders separate and preserves stable identities after rename',()=>{
+ const c=view().catalog;c.navigation={folders:[{id:'models',name:'模型目录',scope:'models',parent:null,icon:'pcs',color:'#399f91'},{id:'sim',name:'模拟器目录',scope:'simulators',parent:null}],members:{'endpoint-a':'sim'},modelMembers:{'model-a':'models'}};
+ const resources=navigation(c,'resources'),simulators=navigation(c,'simulators');
+ expect([...resources.targets.values()].some(t=>t.kind==='folder'&&t.id==='models')).toBe(true);
+ expect([...simulators.targets.values()].some(t=>t.kind==='folder'&&t.id==='models')).toBe(false);
+ c.navigation.folders[0]!.name='重命名';c.navigation.folders[0]!.color='#c58d36';
+ const next=navigation(c,'resources');expect([...next.targets.values()].find(t=>t.kind==='model')).toEqual({kind:'model',id:'model-a'});
+ expect([...next.targets.keys()].some(p=>p.includes('重命名'))).toBe(true);
+});

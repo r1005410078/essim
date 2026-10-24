@@ -1,3 +1,4 @@
+import {attachTreeEvents} from './treeMount';
 import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {FileTreeProps} from '@pierre/trees/react';
@@ -15,12 +16,10 @@ export function TreeStatusLayer({model,input,store,catalog,active}:{model:FileTr
  const mounted=useRef<Mount[]>([]);
  const serial=useRef(0);
  useEffect(()=>{
-  let stopped=false,frame=0;let observer:MutationObserver|undefined;let root:ShadowRoot|HTMLElement|undefined;
+  let stopped=false,queued=false;let observer:MutationObserver|undefined;let root:ShadowRoot|HTMLElement|undefined;
   const sync=()=>{
    if(stopped)return;
-   const container=model.getFileTreeContainer();const nextRoot=container?.shadowRoot??container;
-   if(!nextRoot){frame=requestAnimationFrame(sync);return;}
-   if(root!==nextRoot){observer?.disconnect();root=nextRoot;observer=new MutationObserver(()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(sync);});observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['data-item-path']});}
+   if(!root)return;
    const rows=[...root.querySelectorAll<HTMLElement>('[data-item-path]:not([data-item-parked])')];
    const next:Mount[]=[];
    for(const row of rows){
@@ -32,8 +31,8 @@ export function TreeStatusLayer({model,input,store,catalog,active}:{model:FileTr
    for(const old of mounted.current)if(!next.includes(old))old.host.remove();
    if(next.length!==mounted.current.length||next.some((item,index)=>item!==mounted.current[index])){mounted.current=next;setMounts(next);}
   };
-  frame=requestAnimationFrame(sync);
-  return()=>{stopped=true;cancelAnimationFrame(frame);observer?.disconnect();for(const mount of mounted.current)mount.host.remove();mounted.current=[];};
+  const release=attachTreeEvents(()=>model.getFileTreeContainer(),(_host,treeRoot)=>{root=treeRoot;observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;sync();});});observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['data-item-path']});sync();return()=>observer?.disconnect();});
+  return()=>{stopped=true;release();for(const mount of mounted.current)mount.host.remove();mounted.current=[];};
  },[model,input]);
  useEffect(()=>{
   if(!active)return;

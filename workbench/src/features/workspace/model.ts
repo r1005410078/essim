@@ -40,6 +40,7 @@ export function navigation(
       const path=leaf(folder.parent?modelFolder(folder.parent):"采集模型",folder.name,folder.id,{kind:"folder",id:folder.id});
       modelFolders.set(id,path);paths.push(`${path}/`);targets.set(`${path}/`,{kind:"folder",id:folder.id});return path;
     };
+    for(const folder of catalog.navigation?.folders??[])if(folder.scope==="models")modelFolder(folder.id);
     for (const model of catalog.models) {
       const parent=catalog.navigation?.modelMembers?.[model.id];
       paths.push(leaf(parent?modelFolder(parent):"采集模型",model.name,model.id,{kind:"model",id:model.id}));
@@ -71,7 +72,7 @@ export function navigation(
       const path=leaf(folder.parent ? folderPath(folder.parent) : "",folder.name,folder.id,{kind:"folder",id});
       folderPaths.set(id,path); paths.push(`${path}/`);targets.set(`${path}/`,{kind:"folder",id});return path;
     };
-    for(const folder of catalog.navigation?.folders ?? []) folderPath(folder.id);
+    for(const folder of catalog.navigation?.folders ?? []) if(folder.scope!=="models")folderPath(folder.id);
     for (const endpoint of catalog.endpoints) {
       const parent = leaf(
         folderPaths.get(catalog.navigation?.members[endpoint.id] ?? "") ?? "",
@@ -333,6 +334,7 @@ export class WorkspaceStore {
       await this.refresh();
       const target=action.kind==="saveEndpoint"||action.kind==="createEndpoint"||action.kind==="createEndpointWithModel"?action.endpoint.id:action.kind==="promoteOverrides"?action.plan.endpoint:action.kind==="extractUnitModel"?action.endpoint:null;
       if(target)await this.loadTarget("endpoint",target,true);
+      if(action.kind==="createInFolder")await this.loadTarget(action.resource.kind,action.resource.kind==="model"?action.resource.model.id:action.resource.endpoint.id,true);
       if(action.kind==="saveModel")await this.loadTarget("model",action.model.id,true);
       if (action.kind === "saveEndpoint") {
         const current = this.drafts.get(action.endpoint.id);

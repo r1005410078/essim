@@ -22,6 +22,22 @@ pub struct Command {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Action {
+    /// 在指定目录原子创建一个业务资源。
+    CreateInFolder {
+        /// 根目录为空，按资源类型确定目录范围。
+        parent: Option<FolderId>,
+        /// 限定模型或模拟器创建载荷。
+        resource: NewNavigationResource,
+    },
+    /// 原子调整选中对象的导航父级，不改变运行配置。
+    MoveNavigation {
+        /// 去重前的稳定对象身份，领域层合并父子混选。
+        nodes: Vec<crate::domain::navigation::NavigationNode>,
+        /// 目标导航分类。
+        scope: crate::domain::navigation::FolderScope,
+        /// 根目录为空。
+        parent: Option<FolderId>,
+    },
     /// 新模型与模拟器一次创建。
     CreateEndpointWithModel {
         /// 首个单元引用该模型的端点。
@@ -165,6 +181,7 @@ pub(crate) mod endpoint;
 pub(crate) mod lifecycle;
 pub(crate) mod model;
 pub(crate) mod navigation;
+pub use navigation::NewNavigationResource;
 pub(crate) mod operations;
 
 /// 独立从站运行命令。

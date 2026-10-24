@@ -1,0 +1,9 @@
+import{TooltipProvider}from'@essim/ui/components/tooltip';
+// 临时前端库回归夹具，不连接 Rust，不代表产品运行数据。
+import React,{useMemo,useState} from 'react';import{createRoot}from'react-dom/client';import{NavigationTree}from'../../src/features/workspace/ProjectNavigation';import{WorkspaceStore,projectNavigation}from'../../src/features/workspace/model';import type{Catalog}from'../../src/shared/api/contracts';import'../../src/styles/globals.css';
+const models=Array.from({length:200},(_,i)=>({id:`m${i}`,name:`模型 ${String(i).padStart(3,'0')}`,points:[]}));
+const initial={models,endpoints:[],devices:[],applied:[],values:{},navigation:{folders:[{id:'f',name:'目录',scope:'models',parent:null}],members:{},modelMembers:{}}} as Catalog;
+function Check(){const[catalog,setCatalog]=useState(initial);const[note,setNote]=useState('临时树回归：200条模型，每行有未保存状态');const store=useMemo(()=>new WorkspaceStore({} as never),[]);store.view={sequence:'1',catalog,capabilities:{configuration:true}} as never;for(const model of models)store.modelDrafts.set(model.id,{...model,persisted:true,dirty:true} as never);
+store.execute=async action=>{if(action.kind==='moveNavigation')setCatalog(old=>({...old,navigation:{...old.navigation!,modelMembers:{...old.navigation?.modelMembers,...Object.fromEntries(action.nodes.filter(n=>n.kind==='model').map(n=>[n.id,action.parent]))}}}));setNote(JSON.stringify(action));return {} as never;};
+return <><p style={{margin:0,height:30}}>{note}</p><button onClick={()=>setCatalog(old=>({...old,navigation:{...old.navigation!,modelMembers:{m0:'f',m1:'f'}}}))}>权威路径刷新</button><div style={{height:480,width:320,display:'flex',border:'1px solid #ddd'}}><NavigationTree input={projectNavigation(catalog,'resources')} catalog={catalog} section="resources" store={store} active open={target=>setNote(`打开 ${target.kind}:${target.id}`)}/></div></>;}
+createRoot(document.getElementById('root')!).render(<TooltipProvider><Check/></TooltipProvider>);

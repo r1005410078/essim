@@ -9,12 +9,18 @@ type Props = Omit<DialogHTMLAttributes<HTMLDialogElement>, 'title' | 'open'> & {
   variant?: "standard" | "command";
 };
 const viewport = () => ({ width: document.documentElement.clientWidth, height: window.innerHeight });
+function activeControl(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  let element = document.activeElement;
+  while (element?.shadowRoot?.activeElement) element = element.shadowRoot.activeElement;
+  return element instanceof HTMLElement ? element : null;
+}
 const edges: DialogEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 /** 紧凑工作台弹框。原生 modal 保留焦点限制、背景 inert 与表单语义。 */
 export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function WorkbenchDialog({ title, busy = false, initialWidth = 472, variant = "standard", children, className = '', onCancel, onKeyDown, onPointerDown, onPointerUp, onPointerCancel, style, ...props }, forwardedRef) {
   const ref = useRef<HTMLDialogElement>(null);
   // 在子输入框autoFocus提交之前记住触发元素，不能等showModal的effect才读取。
-  const initialFocus = useRef<HTMLElement | null>(typeof document !== 'undefined' && document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const initialFocus = useRef<HTMLElement | null>(activeControl());
   useImperativeHandle(forwardedRef, () => ref.current!, []);
   const titleId = useId();
   const [rect, setRect] = useState<DialogRect | null>(null);
@@ -44,10 +50,10 @@ export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function Wor
     const dialog = ref.current!;
     const previous = initialFocus.current;
     if (!dialog.open) dialog.showModal();
+    const target = dialog.querySelector<HTMLElement>('[autofocus], .workbench-dialog-body input:not(:disabled), .workbench-dialog-body textarea:not(:disabled), .workbench-dialog-body button:not(:disabled), .workbench-dialog-footer button:not(:disabled)');
+    target?.focus();
     const frame = requestAnimationFrame(() => {
       if (!manual.current) fitRef.current();
-      const target = dialog.querySelector<HTMLElement>('[autofocus], .workbench-dialog-body input:not(:disabled), .workbench-dialog-body textarea:not(:disabled), .workbench-dialog-body button:not(:disabled), .workbench-dialog-footer button:not(:disabled)');
-      target?.focus();
     });
     const resize = () => { if (!manual.current) fitRef.current(); else setRect(current => current && constrainDialog(current, viewport())); };
     window.addEventListener('resize', resize);

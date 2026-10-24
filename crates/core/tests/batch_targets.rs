@@ -35,6 +35,9 @@ fn catalog() -> Catalog {
     for (id, parent) in [("root", None), ("child", Some("root")), ("other", None)] {
         c.navigation
             .save_folder(Folder {
+                scope: Default::default(),
+                icon: "folder".into(),
+                color: "#477fbc".into(),
                 id: FolderId(id.into()),
                 name: id.into(),
                 parent: parent.map(|p| FolderId(p.into())),

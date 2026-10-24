@@ -17,9 +17,11 @@ export function ImportPoints({
   target,
   close,
   created,
+  parent,
 }: {
   store: WorkspaceStore;
   target?: ModelDraft;
+  parent?:string;
   close: () => void;
   created?: (id: string) => void;
 }) {
@@ -126,12 +128,13 @@ export function ImportPoints({
         close();
         return;
       }
-      await validate({
+      const preview=await validate({
         id,
         name,
         points: rows,
       });
       if (!active.current) return;
+      if(parent!==undefined){await store.execute({kind:"createInFolder",parent,resource:{kind:"model",model:preview.model!}});created?.(id);close();return;}
       {
         const draft = new ModelDraft(id, name, rows, store.changed, false);
         store.modelDrafts.set(id, draft);

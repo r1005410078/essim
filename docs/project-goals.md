@@ -146,3 +146,7 @@ python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave 
 ```
 
 M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
+
+## 已验收的工作台组织能力（2026-10-24）
+
+支持用主题图标及颜色组织多级文件夹，按右键目录上下文新建资源，多选拖拽调整所属层级；中央Dockview支持Tab分屏及树资源按停靠位置打开，分屏共享同一业务状态。只组织当前可编辑模型／模拟器，协议主题图标不表示对应协议已实现。详见[提案](../openspec/changes/organize-resource-tree-and-docking/proposal.md)与[任务](../openspec/changes/organize-resource-tree-and-docking/tasks.md)。当前已接入代码并通过核心／前端自动检查及macOS原生拖放、分屏、菜单键盘与弹框矩阵验收（26/26）；Windows/Linux未验，见[实施记录](test-records/2026-10-24-resource-tree-docking.md)；保持会话配置、稳定身份及保存／应用分离，不引入配置版本管理。

@@ -164,6 +164,9 @@ fn removed_folder_and_middle_identity_conflict_leave_no_generated_objects() {
     let folder = FolderId("target".into());
     c.navigation
         .save_folder(Folder {
+                scope: Default::default(),
+                icon: "folder".into(),
+                color: "#477fbc".into(),
             id: folder.clone(),
             name: "目标".into(),
             parent: None,

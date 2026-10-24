@@ -88,6 +88,8 @@ pub enum ConfigurationFact {
         /// 复位单元身份。
         unit: UnitId,
     },
+    /// 一次原子导航移动完成，完整目录随事件投影。
+    NavigationMoved,
     /// 导航文件夹保存完成。
     FolderSaved {
         /// 文件夹身份。

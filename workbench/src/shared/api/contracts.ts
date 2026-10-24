@@ -85,7 +85,10 @@ export interface UnitValues {
   raw: Record<string, RawValue>;
   stale: boolean;
 }
-export interface Folder { id: string; name: string; parent: string | null; }
+export type FolderScope='simulators'|'models';
+export interface Folder { id: string; name: string; parent: string | null; scope?:FolderScope; icon?:string; color?:string; }
+export type NavigationNode={kind:'folder'|'endpoint'|'model';id:string};
+export type CreateResource={kind:'model';model:CollectionModel}|{kind:'endpoint';endpoint:EndpointConfig;model?:CollectionModel};
 export interface Catalog {
   navigation?: { folders: Folder[]; members: Record<string, string>; modelMembers?: Record<string,string> };
   models: CollectionModel[];
@@ -117,6 +120,8 @@ export type Action =
   | { kind: "copyEndpoint"; source: string; id: string }
   | { kind: "deleteEndpoint"; id: string }
   | { kind: "resetUnit"; id: string; unit: string }
+  | {kind:'createInFolder';parent:string|null;resource:CreateResource}
+  | {kind:'moveNavigation';nodes:NavigationNode[];scope:FolderScope;parent:string|null}
   | { kind: "saveFolder"; folder: Folder }
   | { kind: "deleteFolder"; id: string }
   | { kind: "moveEndpoint"; id: string; parent: string | null }

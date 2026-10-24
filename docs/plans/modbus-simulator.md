@@ -158,3 +158,10 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 - [x] [提案](../../openspec/changes/show-resource-tree-status/proposal.md)与实现：有界元数据查询、独立配置标记、Unit状态边界。
 - [x] 自动化与macOS TCP从站基本状态／hover验证，见[记录](../test-records/2026-10-24-tree-status.md)。
 - [ ] 主站／RTU各状态的原生交互及其他平台复核。本补充不改变既有协议阶段验收范围。
+
+### 独立工作树验收完成：资源树组织与文档分屏（2026-10-24）
+
+- [x] 讨论确认：文件夹右键按目录新建，主题图标／颜色，多选混合拖拽只换层级，不手动排序；中央Dockview Tab分屏及树资源拖入落点。
+- [x] 完成[提案与行为规格](../../openspec/changes/organize-resource-tree-and-docking/proposal.md)，48款[图标选型参考](../../openspec/changes/organize-resource-tree-and-docking/assets/icon-concepts.png)；只代表设计与计划。
+- [x] 实现与集成收尾：核心／前端代码已接入，原生修复及验收过程见[实施记录](../test-records/2026-10-24-resource-tree-docking.md)，按[任务清单](../../openspec/changes/organize-resource-tree-and-docking/tasks.md)实施原子导航事务、SVG预设和拖放集成。
+- [x] 验收：核心测试、前端检查及macOS Tauri创建／菜单键盘／多选移动／分屏／弹框鼠标矩阵完成，见实施记录。Windows/Linux未验；尚未提交、合并，不替代协议阶段验收。

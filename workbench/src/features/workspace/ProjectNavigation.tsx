@@ -1,3 +1,6 @@
+import {useNavigationDrag} from "./useNavigationDrag";
+import {draggableTarget} from "./treeDrag";
+import {folderSprite,folderSymbolId} from "./folderIcons";
 import {TreeStatusLayer} from "./TreeStatusLayer";
 import type {WorkspaceStore} from "./model";
 import { useEffect, useRef } from "react";
@@ -63,6 +66,7 @@ const treeCSS = `
   .navigation-status { order:5; display:flex; align-items:center; gap:4px; flex:0 0 auto; margin-left:auto; padding-right:6px; }
   .navigation-status:empty { display:none; }
   [data-item-section="action"] { order: 4; }
+  [data-navigation-drop="true"] {box-shadow:inset 0 0 0 1px #83ace0;background:#edf3fc;}
 `;
 
 export function NavigationTree({ input, catalog, section, open, store, active, ...props }: {
@@ -84,14 +88,10 @@ export function NavigationTree({ input, catalog, section, open, store, active, .
       }
       return Number(right.isDirectory) - Number(left.isDirectory) || left.basename.localeCompare(right.basename, "zh-CN", { numeric: true });
     },
-    density: "default", itemHeight: 28, search: false, renaming: false, dragAndDrop: false,
-    composition: { contextMenu: { enabled: true, triggerMode: "both" } },
+    density: "default", itemHeight: 28, search: false, renaming: false, dragAndDrop: {canDrag:paths=>paths.every(path=>draggableTarget(current.current.input.targets.get(path))),canDrop:()=>false},
+    composition: { contextMenu: { enabled: true, triggerMode: "right-click" } },
     icons: { set: "none", spriteSheet },
     unsafeCSS: treeCSS,
-    onSelectionChange: paths => {
-      const target = current.current.input.targets.get(paths.at(-1) ?? "");
-      if (target) current.current.open(target);
-    },
     renderRowDecoration: ({ item }) => {
       const path = String(item.path);
       const target = current.current.input.targets.get(path);
@@ -101,13 +101,33 @@ export function NavigationTree({ input, catalog, section, open, store, active, .
       } else if (target?.kind === "model") icon = "model";
       else if (target?.kind === "device") icon = "device";
       else if (target?.kind === "resource") icon = "document";
-      else if (target?.kind === "folder") icon = "folder";
+      else if (target?.kind === "folder") return {icon:{name:folderSymbolId(target.id),width:16,height:16,viewBox:"0 0 24 24"}};
       else if (path.replace(/\/$/, "") === "采集模型") icon = "models";
       else if (path.replace(/\/$/, "") === "设备") icon = "device";
       else if (path.replace(/\/$/, "") === "文档资源") icon = "documents";
       return { icon: { name: `navigation-${icon}`, width: 16, height: 16, viewBox: "0 0 24 24" } };
     },
   });
-  useEffect(() => { model.resetPaths(input.paths); }, [model, input]);
+  useNavigationDrag(model,input,catalog,store,section,open);
+  const previousInput=useRef(input);
+  const projected=useRef(false);
+  useEffect(() => {
+    const old=previousInput.current;
+    const identity=(target:Target)=>`${target.kind}:${target.id}:${target.unit??''}`;
+    const nextById=new Map([...input.targets].map(([path,target])=>[identity(target),path]));
+    const remap=(path:string)=>{const target=old.targets.get(path);return target?nextById.get(identity(target)):input.paths.includes(path)?path:undefined;};
+    const selection=model.getSelectedPaths().map(remap).filter((p):p is string=>!!p);
+    const focus=model.getFocusedPath();
+    const expanded=[...old.targets.keys()].filter(path=>{const item=model.getItem(path);return item&&'isExpanded' in item&&item.isExpanded();}).map(remap).filter((p):p is string=>!!p);
+    // 固定分组同样保留展开状态；第一次投影沿用全部展开。
+    for(const row of model.getVisibleRows(0,model.getVisibleCount()))if(row.isExpanded&&!old.targets.has(row.path))expanded.push(row.path);
+    model.setIcons({set:"none",spriteSheet:spriteSheet.replace("</svg>",`${folderSprite(catalog?.navigation?.folders??[])}</svg>`)});
+    model.resetPaths(input.paths,projected.current?{initialExpandedPaths:expanded}:undefined);
+    projected.current=true;
+    for(const path of model.getSelectedPaths())model.getItem(path)?.deselect();
+    for(const path of selection)model.getItem(path)?.select();
+    if(focus){const path=remap(focus);if(path)model.focusPath(path);}
+    previousInput.current=input;
+  }, [model, input, catalog?.navigation]);
   return <><FileTree model={model} style={{ flex: 1, minHeight: 0 }} {...props} /><TreeStatusLayer model={model} input={input} catalog={catalog} store={store} active={active}/></>;
 }

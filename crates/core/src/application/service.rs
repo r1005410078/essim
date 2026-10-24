@@ -48,7 +48,10 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
     }
     /// 装配受控停机边界；生产适配器须确认完整资源范围停止。
     pub fn with_boundary(repository: R, boundary: B) -> Self {
-        let catalog = repository.load();
+        let mut catalog = repository.load();
+        // 只归一化可完整校验的旧导航投影；损坏目录保留原状，由写命令返回明确错误。
+        // 权威目录仍在下一次配置事务中统一提交，不在构造时隐式写入存储。
+        let _ = catalog.navigation.normalize_model_folders();
         Self {
             repository,
             boundary,
@@ -153,6 +156,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             .sequence
             .checked_add(1)
             .ok_or_else(|| Error::new("SEQUENCE_OVERFLOW", "通知序号耗尽"))?;
+        catalog.navigation.normalize_model_folders()?;
         self.repository.commit(catalog.clone())?;
         let event = ConfigEvent {
             schema: 1,
@@ -277,7 +281,10 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             observed_catalog: &mut observed_catalog,
             released,
         };
+        catalog.navigation.normalize_model_folders()?;
         let result = match command.action {
+            Action::CreateInFolder{parent,resource}=>navigation::create_in_folder(&mut catalog,parent,resource),
+            Action::MoveNavigation{nodes,scope,parent}=>navigation::move_nodes(&mut catalog,nodes,scope,parent),
             Action::CreateEndpointWithModel{endpoint,model}=>super::commands::overrides::create(&mut catalog,endpoint,model),
             Action::PromoteOverrides{plan}=>super::commands::overrides::promote(&mut catalog,plan),
             Action::ExtractUnitModel{endpoint,unit,id,name}=>super::commands::overrides::extract(&mut catalog,endpoint,unit,id,name),
@@ -325,6 +332,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             .sequence
             .checked_add(1)
             .ok_or_else(|| Error::new("SEQUENCE_OVERFLOW", "配置序号已耗尽"))?;
+        catalog.navigation.normalize_model_folders()?;
         self.repository.commit(catalog.clone())?;
         let event = ConfigEvent {
             schema: 1,
@@ -405,6 +413,7 @@ impl<R: ConfigRepository, B: ApplyBoundary> Workspace<R, B> {
             }
         }
         catalog.values.extend(values);
+        catalog.navigation.normalize_model_folders()?;
         self.repository.commit(catalog.clone())?;
         self.projection.replace_catalog(catalog);
         self.application_states

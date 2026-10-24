@@ -22,3 +22,5 @@
 只对当前实际渲染的树行所对应端点，每秒读取一次现有主从站元数据，最多4并发，unit:null、points:[]。隐藏导航／页面时不发送查询，失效代次、配置序号变化和删除后的响应被忽略。质量图标复用运行表已有真实查询，不新增点值读取，不宣称全Unit健康或全点异常汇总。
 
 提案见[show-resource-tree-status](../../openspec/changes/show-resource-tree-status/proposal.md)，验证见[原生及自动化记录](../test-records/2026-10-24-tree-status.md)。
+
+节点菜单仅通过右键或键盘上下文菜单操作打开，使用树组件的`triggerMode: "right-click"`，不再显示行尾三点按钮或占用其动作槽；导航顶部“更多”按钮保留。

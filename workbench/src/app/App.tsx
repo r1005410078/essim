@@ -1,3 +1,5 @@
+import {TreeContextMenu} from "../features/workspace/TreeContextMenu";
+import {installDocumentDocking,defaultDocumentPosition,dockingPosition,relocateDocument,prepareDocumentDrop,liveDocumentLocation,isDocument,type DocumentLocation} from '../features/workspace/documentDocking';
 import {CategoryTabs} from "../features/workspace/CategoryTabs";
 import {EndpointToolbarFrame,PointToolbar,UnitViewSwitch} from "../features/workspace/PointToolbar";
 import { InspectorTab } from "../features/workspace/InspectorTab";
@@ -33,6 +35,7 @@ import { MasterRuntimeControls } from "../features/workspace/MasterRuntimeContro
 import type {MasterPoint} from "../shared/api/contracts";
 import { SlaveRuntimeControls } from "../features/workspace/SlaveRuntimeControls";
 import type { RawValue } from "../shared/api/contracts";
+import { canAddUnit, simulatorActions, type SimulatorAction } from "../features/workspace/navigationActions";
 import { NavigationDialog, type NavigationRequest } from "../features/workspace/NavigationDialog";
 import { EnumSelect } from "../features/workspace/EnumSelect";
 import { bindSaveShortcut, hasOpenSaveDialog } from "../features/workspace/saveShortcut";
@@ -84,6 +87,17 @@ import {
   ListStart,
   FileSpreadsheet,
   BookOpen,
+  CircuitBoard,
+  Copy,
+  Pencil,
+  FolderInput,
+  FolderPlus,
+  Trash2,
+  FilePlus2,
+  FileInput,
+  Download,
+  Split,
+  Cpu,
 } from "lucide-react";
 import "dockview-react/dist/styles/dockview.css";
 import { createWorkspaceClient } from "../shared/api/workspace";
@@ -97,7 +111,6 @@ import {
   WorkspaceStore,
   errorMessage,
   projectNavigation,
-  documentPosition,
   type Target,
   type NavigationSection,
 } from "../features/workspace/model";
@@ -127,7 +140,7 @@ interface WorkbenchContext {
   sheets: SheetViews;
   open: (target: Target) => void;
   selected: Target | null;
-  dialog: (kind: DialogKind) => void;
+  dialog: (kind: DialogKind, parent?:string|null) => void;
   closeDocument: (id: string, close: () => void) => void;
   removedModel: (id: string) => void;
   removedEndpoint: (id: string) => void;
@@ -179,6 +192,18 @@ function Icon({
 function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
 }
+const simulatorMenu = {
+  newEndpoint: { label: "新建模拟器", icon: Server },
+  newFolder: { label: "新建文件夹", icon: FolderPlus },
+  newUnit: { label: "新增 Unit", icon: CircuitBoard },
+  copy: { label: "复制模拟器", icon: Copy },
+  rename: { label: "重命名", icon: Pencil },
+  move: { label: "移动到", icon: FolderInput },
+  delete: { label: "删除", icon: Trash2 },
+  renameUnit: { label: "重命名单元", icon: Pencil },
+  deleteUnit: { label: "删除单元", icon: Trash2 },
+} satisfies Record<SimulatorAction, { label: string; icon: typeof Server }>;
+
 function ProjectPanel() {
   const { store, open, dialog, removedModel, removedEndpoint, openTool } = useWorkbench();
   const navigationId = useId();
@@ -187,11 +212,15 @@ function ProjectPanel() {
   const draftResourceKey = JSON.stringify(
     [...store.modelDrafts.values()].map((d) => [d.id, d.name, d.persisted]),
   );
+  const draftEndpointKey = JSON.stringify([...store.drafts.values()].map(endpoint =>
+    [endpoint.id, endpoint.name, endpoint.units.map(unit => [unit.id, unit.name, unit.station, unit.device])],
+  ));
   const catalog = useMemo(
     () =>
       originalCatalog
         ? {
             ...originalCatalog,
+            endpoints: originalCatalog.endpoints.map(endpoint => store.endpoint(endpoint.id)!),
             models: [
               ...originalCatalog.models.map((model) => ({
                 ...model,
@@ -207,11 +236,13 @@ function ProjectPanel() {
             ],
           }
         : undefined,
-    [originalCatalog, draftResourceKey],
+    [originalCatalog, draftResourceKey, draftEndpointKey],
   );
   const [partitioning,setPartitioning]=useState(false);
   const [navigationAction,setNavigationAction]=useState<NavigationRequest|null>(null);
   const [importing, setImporting] = useState(false);
+  const [importParent,setImportParent]=useState<string|undefined>();
+  const startImport=(parent?:string)=>{setImportParent(parent);setImporting(true);};
   const [appendImport, setAppendImport] = useState<string | null>(null);
   const [resourceAction, setResourceAction] = useState<{
     kind: "rename" | "copy" | "delete";
@@ -228,13 +259,14 @@ function ProjectPanel() {
     [catalog],
   );
   const newItems = section === "simulators" ? [
-    { label: "模拟器…", disabled: !store.view || store.busy, action: () => dialog("endpoint") },
-    { label: "模拟器文件夹…", disabled: !store.view || store.busy, action: () => setNavigationAction({ kind: "newFolder" }) },
-    { label: "按采集点分组创建…", disabled: !store.view?.catalog.models.length || store.busy, action: () => setPartitioning(true) },
+    { label: "模拟器", icon: <Server size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>dialog("endpoint")) },
+    { label: "模拟器文件夹", icon: <FolderPlus size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>setNavigationAction({ kind: "newFolder" })) },
+    { label: "按采集点分组创建", icon: <Split size={14}/>, disabled: !store.view?.catalog.models.length || store.busy, action: () => setTimeout(()=>setPartitioning(true)) },
   ] : [
-    { label: "采集模型…", disabled: !store.view || store.busy, action: () => dialog("model") },
-    { label: "设备…", disabled: !store.view || store.busy, action: () => dialog("device") },
-    { label: "导入新模型…", disabled: !store.view || store.busy, action: () => setImporting(true) },
+    { label: "采集模型", icon: <FilePlus2 size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>dialog("model")) },
+    { label: "设备", icon: <Cpu size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>dialog("device")) },
+    {label:"模型文件夹…",disabled:!store.view||store.busy,action:()=>setTimeout(()=>setNavigationAction({kind:"newFolder",scope:"models"}))},
+    { label: "导入新模型", icon: <FileInput size={14}/>, disabled: !store.view || store.busy, action: () => setTimeout(()=>startImport()) },
   ];
   return (
     <div
@@ -275,18 +307,18 @@ function ProjectPanel() {
           id={`${navigationId}-${treeSection}-panel`} aria-labelledby={`${navigationId}-${treeSection}-tab`}
           hidden={section !== treeSection}>
       {input.paths.length ? (
-        <NavigationTree input={input} catalog={catalog} section={treeSection} open={open} store={store} active={section===treeSection}
+        <NavigationTree input={input} catalog={originalCatalog} section={treeSection} open={open} store={store} active={section===treeSection}
           renderContextMenu={(item, context) => {
             const target = input.targets.get(String(item.path));
             const section=treeSection === "resources" && String(item.path).split("/")[0] === "文档资源"?"documents":treeSection;
             const act = (action: () => void) => {
-              context.close({ restoreFocus: false });
-              action();
+              context.close({ restoreFocus: true });
+              queueMicrotask(action);
             };
             // 菜单脱离Dockview的裁切／层叠上下文，保留树组件识别门户所需的标记。
             return createPortal(
-              <div
-                role="menu"
+              <TreeContextMenu
+                close={() => context.close({restoreFocus:true})}
                 className="tree-context-menu"
                 style={{
                   left: Math.min(
@@ -300,31 +332,35 @@ function ProjectPanel() {
                 }}
                 data-file-tree-context-menu-root="true"
               >
-                {section==="documents"&&<button role="menuitem" disabled={target?.kind!=="resource"} onClick={()=>target&&act(()=>open(target))}>打开文档</button>}
-                {section==="simulators" && <>
-                  <button role="menuitem" onClick={()=>act(()=>dialog("endpoint"))}>新建模拟器…</button>
-                  <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",target:target?.kind==="folder"?target:undefined}))}>新建文件夹…</button>
-                  {(target?.kind==="endpoint" || target?.kind==="folder") && <>
-                    {target.kind==="endpoint" && <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"copy",target}))}>复制模拟器…</button>}
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"rename",target}))}>重命名…</button>
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target}))}>移动到…</button>
-                    <button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"delete",target}))}>删除…</button>
-                  </>}
-                </>}
-                {section==="resources" && <button
+                {section==="documents"&&<button role="menuitem" disabled={target?.kind!=="resource"} onClick={()=>target&&act(()=>open(target))}><BookOpen size={14} aria-hidden="true"/>打开文档</button>}
+                {(section === "simulators" || target?.kind === "endpoint") && simulatorActions(target).map(kind => {
+                  const { label, icon: MenuIcon } = simulatorMenu[kind];
+                  const endpoint = target?.kind === "endpoint" ? store.endpoint(target.id) : undefined;
+                  const disabled = store.busy || !store.view || (kind === "newUnit" && (!endpoint || !canAddUnit(endpoint) || !catalog?.models.length));
+                  return <button key={kind} role="menuitem" disabled={disabled}
+                    className={kind === "delete" || kind === "deleteUnit" ? "destructive" : undefined}
+                    onClick={() => act(() => {
+                      if (kind === "newEndpoint") dialog("endpoint",target?.kind==="folder"?target.id:null);
+                      else setNavigationAction({ kind, target: kind === "newFolder" && target?.kind !== "folder" ? undefined : target });
+                    })}><MenuIcon size={14} aria-hidden="true"/>{kind==="rename"&&target?.kind==="folder"?"编辑文件夹":label}</button>;
+                })}
+                {section==="resources" && target?.kind !== "endpoint" && <button
                   role="menuitem"
-                  onClick={() => act(() => dialog("model"))}
+                  onClick={() => act(() => dialog("model",target?.kind==="folder"?target.id:null))}
                 >
-                  新建采集模型
+                  <FilePlus2 size={14} aria-hidden="true"/>新建采集模型
                 </button>}
-                {section === "resources" && <button role="menuitem" onClick={() => act(() => setImporting(true))}>导入新模型…</button>}
+                {section === "resources" && target?.kind !== "endpoint" && <button role="menuitem" onClick={() => act(() => startImport(target?.kind==="folder"?target.id:undefined))}><FileInput size={14} aria-hidden="true"/>导入新模型</button>}
+                {section==="resources"&&target?.kind!=="endpoint"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",scope:"models",target:target?.kind==="folder"?target:undefined}))}><FolderPlus size={14}/>新建文件夹</button>}
+                {section==="resources"&&target?.kind==="folder"&&([['rename','编辑文件夹'],['move','移动到'],['delete','删除空文件夹']] as const).map(([kind,label])=><button key={kind} role="menuitem" onClick={()=>act(()=>setNavigationAction({kind,target,scope:"models"}))}>{label}</button>)}
+                {target?.kind==="model"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target,scope:"models"}))}>移动到</button>}
                 {target?.kind === "model" && (
                   <>
                     <button
                       role="menuitem"
                       onClick={() => act(() => open(target))}
                     >
-                      打开
+                      <FolderOpen size={14} aria-hidden="true"/>打开
                     </button>
                     <button
                       role="menuitem"
@@ -335,7 +371,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      重命名…
+                      <Pencil size={14} aria-hidden="true"/>重命名
                     </button>
                     <button
                       role="menuitem"
@@ -345,7 +381,7 @@ function ProjectPanel() {
                         )
                       }
                     >
-                      复制模型…
+                      <Copy size={14} aria-hidden="true"/>复制模型
                     </button>
                     <button
                       role="menuitem"
@@ -356,7 +392,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      导入追加…
+                      <FileInput size={14} aria-hidden="true"/>导入追加
                     </button>
                     <button
                       role="menuitem"
@@ -367,7 +403,7 @@ function ProjectPanel() {
                         })
                       }
                     >
-                      删除…
+                      <Trash2 size={14} aria-hidden="true"/>删除
                     </button>
                     {["json", "csv", "xlsx"].map((format) => (
                       <button
@@ -388,12 +424,12 @@ function ProjectPanel() {
                           })
                         }
                       >
-                        导出 {format.toUpperCase()}…
+                        <Download size={14} aria-hidden="true"/>导出 {format.toUpperCase()}
                       </button>
                     ))}
                   </>
                 )}
-              </div>,
+              </TreeContextMenu>,
               document.body,
             );
           }}
@@ -422,7 +458,7 @@ function ProjectPanel() {
             onPointerDown={(e) => e.stopPropagation()}
           >
             {newItems.map(item => <button key={item.label} role="menuitem" disabled={item.disabled}
-              onClick={() => { setRootMenu(null); item.action(); }}>{item.label}</button>)}
+              onClick={() => { setRootMenu(null); item.action(); }}>{item.icon}{item.label}</button>)}
           </div>
         </div>,
         document.body,
@@ -430,6 +466,7 @@ function ProjectPanel() {
       {importing && (
         <ImportPoints
           store={store}
+          parent={importParent}
           close={() => setImporting(false)}
           created={(id) => open({ kind: "model", id })}
         />
@@ -1150,8 +1187,10 @@ function Observations({params,api}:IDockviewPanelProps<{view?:string}>){
 function CreateDialog({
   kind,
   close,
+  parent=null,
 }: {
   kind: Exclude<DialogKind, null>;
+  parent?:string|null;
   close: () => void;
 }) {
   const { store, open } = useWorkbench();
@@ -1186,11 +1225,7 @@ function CreateDialog({
     try {
       if (kind === "model") {
         const model: CollectionModel = { id, name, points: [] };
-        await store.execute({
-          kind: "saveModel",
-          model,
-
-        });
+        await store.execute({kind:"createInFolder",parent,resource:{kind:"model",model}});
         open({ kind: "model", id });
       } else if (kind === "device") {
         await store.execute({
@@ -1216,7 +1251,7 @@ function CreateDialog({
                 },
           units: [{id:crypto.randomUUID(),name:unitName,station:Number(station),enabled:true,model:{id:modelId==="__new__"?crypto.randomUUID():modelId},device:null}],
         };
-        await store.execute(modelId==="__new__"?{kind:"createEndpointWithModel",endpoint,model:{id:endpoint.units[0]!.model.id,name:newModelName.trim(),points:[]}}:{kind:"createEndpoint",endpoint});
+        await store.execute({kind:"createInFolder",parent,resource:{kind:"endpoint",endpoint,...(modelId==="__new__"?{model:{id:endpoint.units[0]!.model.id,name:newModelName.trim(),points:[]}}:{})}});
         store.endpointModes.set(id,"configuration");
         open({ kind: "endpoint", id });
       }
@@ -1477,6 +1512,7 @@ export function App() {
   }, []);
   const [selected, setSelected] = useState<Target | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
+  const [creationParent,setCreationParent]=useState<string|null>(null);
   const [closeRequest, setCloseRequest] = useState<{
     id: string;
     close: () => void;
@@ -1525,7 +1561,7 @@ export function App() {
       void disconnect?.();
     };
   }, [store]);
-  const open = (target: Target) => {
+  const open = (target: Target, location?:DocumentLocation) => {
     if(target.kind==="model"||target.kind==="endpoint")void store.loadTarget(target.kind,target.id).catch(e=>{store.error=errorMessage(e);store.changed();});
     setSelected((previous) =>
       previous?.id === target.id &&
@@ -1542,32 +1578,39 @@ export function App() {
     const existing = api.current?.getPanel(id);
     if (existing) {
       if(target.kind==="resource")existing.api.updateParameters({id:target.id,anchor:target.anchor,navigation:++resourceNavigationCount.current});
-      existing.api.setActive();
-      return;
+      if(location)relocateDocument(existing,location);else existing.api.setActive();
+      return existing;
     }
     const title =
       target.kind === "resource"?resources.find(resource=>resource.id===target.id)?.title:target.kind === "model"
-        ? store.modelDraft(target.id)?.name
-        : store.endpoint(target.id)?.name;
-    api.current?.addPanel({
+        ? store.modelDraft(target.id)?.name ?? store.view?.catalog.models.find(model=>model.id===target.id)?.name
+        : store.endpoint(target.id)?.name ?? store.view?.catalog.endpoints.find(endpoint=>endpoint.id===target.id)?.name;
+    return api.current?.addPanel({
       id,
       component: target.kind,
       tabComponent: "document",
       params: { id: target.id,...(target.kind==="resource"?{anchor:target.anchor,navigation:++resourceNavigationCount.current}:{}) },
       title: title ?? "配置",
-      renderer: "always",
-      position: documentPosition(
-        api.current?.panels.map((panel) => panel.id) ?? [],
-      ),
+      position: location?dockingPosition(location):api.current?defaultDocumentPosition(api.current):undefined,
     });
   };
-  const openTool = (tool: "batch" | "resources")=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:documentPosition(api.current?.panels.map(p=>p.id)??[])});};
+  const handleDocumentDrop=useRef<(targets:Target[],location?:DocumentLocation)=>Promise<void>>(async()=>{});
+  handleDocumentDrop.current=async(targets,location)=>{
+    const valid=(target:Target)=>target.kind==='resource'?resources.some(r=>r.id===target.id):target.kind==='model'?!!store.modelDraft(target.id):target.kind==='endpoint'?!!store.endpoint(target.id):false;
+    try{
+      await prepareDocumentDrop(targets,valid,async target=>{if(target.kind==='model'||target.kind==='endpoint')await store.loadTarget(target.kind,target.id);});
+      if(location&&(!api.current||!liveDocumentLocation(api.current,location)))throw Error('目标文档组已关闭，请重新拖入');
+      let next=location;
+      for(const target of targets){const panel=open(target,next);if(panel)next={group:panel.group,position:'center'};}
+    }catch(error){store.error=errorMessage(error);store.changed();}
+  };
+  const openTool = (tool: "batch" | "resources")=>{const id=`tool:${tool}`;const existing=api.current?.getPanel(id);if(existing){existing.api.setActive();return;}api.current?.addPanel({id,component:tool,tabComponent:"document",params:{id:tool},title:tool==="batch"?"批量任务":"运行资源",position:api.current?defaultDocumentPosition(api.current):undefined});};
   const commandContext = {
     get canCreate() { return !!store.view?.capabilities.configuration; },
     get canSave() { return [...document.querySelectorAll<HTMLButtonElement>("button[data-save-document]")].some(button=>button.dataset.saveDocument===activeDocument.current&&!button.disabled); },
     requestSave: () => {requestAnimationFrame(()=>saveAction.current());},
     toggleLayout: toggleEdge,
-    create: (kind: "model" | "endpoint" | "device") => setDialog(kind),
+    create: (kind: "model" | "endpoint" | "device") => {setCreationParent(null);setDialog(kind);},
     openTool,
     openGuide: () => open({kind:"resource",id:"modbus-guide"}),
   };
@@ -1587,6 +1630,9 @@ export function App() {
   },[store.lastError]);
   const ready = ({ api: layout }: DockviewReadyEvent) => {
     api.current = layout;
+
+
+
     const initial = initialWorkbenchLayout(layout.width || window.innerWidth, layout.height || window.innerHeight);
     layout.addPanel({ id: "welcome", component: "welcome", title: "工作台" });
     // 左右边栏包围中央列，使底边输出区只占文档区宽度。
@@ -1625,6 +1671,8 @@ export function App() {
       const panel = layout.getPanel(id);
       if (panel) panel.group.model.header.hidden = true;
     }
+    // 固定工具组不参与文档拖放；原生Dockview负责分割预览与Tab移动。
+    installDocumentDocking(layout,(targets,location)=>{void handleDocumentDrop.current(targets,location);});
     layout.onDidRemovePanel(panel=>documentTargets.current.delete(panel.id));
     history.visit({panel:"welcome"});
     layout.onDidActivePanelChange(({ panel }) => {
@@ -1672,7 +1720,7 @@ export function App() {
           sheets,
           open,
           selected,
-          dialog: kind => {if(kind===null)setDialog(null);else dispatchCommand(`workbench.create.${kind}`);},
+          dialog: (kind,parent) => {if(kind===null)setDialog(null);else if(parent!==undefined){setCreationParent(parent);setDialog(kind);}else dispatchCommand(`workbench.create.${kind}`);},
           closeDocument,
           removedEndpoint: (id) => {api.current?.getPanel(`endpoint:${id}`)?.api.close();setSelected(previous=>previous?.kind==="endpoint" && previous.id===id ? null : previous);},
           removedModel: (id) => {
@@ -1692,6 +1740,7 @@ export function App() {
           )}
           <main>
             <DockviewReact
+              disableFloatingGroups
               components={components}
               tabComponents={tabComponents}
               rightHeaderActionsComponent={HeaderActions}
@@ -1725,7 +1774,7 @@ export function App() {
           />
         )}
         {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} />}
-        {dialog && <CreateDialog kind={dialog} close={() => setDialog(null)} />}
+        {dialog && <CreateDialog kind={dialog} parent={creationParent} close={() => setDialog(null)} />}
       </Context.Provider>
     </TooltipProvider>
   );
