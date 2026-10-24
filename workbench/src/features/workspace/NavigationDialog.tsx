@@ -7,7 +7,7 @@ import { EnumSelect } from "./EnumSelect";
 import { WorkspaceStore, errorMessage, nextStation, type Target } from "./model";
 import { editNavigationUnit, type UnitNavigationAction } from "./navigationActions";
 
-export type NavigationRequest = { kind: "copy" | "delete" | "rename" | "move" | "newFolder" | UnitNavigationAction; target?: Target; scope?:FolderScope };
+export type NavigationRequest = { kind: "copy" | "delete" | "rename" | "move" | "newFolder" | UnitNavigationAction; target?: Target; scope?:FolderScope; restoreFocus?:()=>void };
 /** 导航操作只提交稳定身份；单元编辑与整机生命周期操作分开。 */
 export function NavigationDialog({ store, request, close, open, removed }: {
   store: WorkspaceStore; request: NavigationRequest; close: () => void; open: (t: Target) => void; removed: (id: string) => void;
@@ -63,7 +63,7 @@ export function NavigationDialog({ store, request, close, open, removed }: {
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
-  return <WorkbenchDialog onCancel={close} title={title} busy={busy || store.busy} initialWidth={folderEditing?440:undefined}>
+  return <WorkbenchDialog onCancel={close} title={title} busy={busy || store.busy} initialWidth={folderEditing?440:undefined} restoreFocus={request.restoreFocus}>
     <form onSubmit={event => { event.preventDefault(); void submit(); }}>
       <DialogBody>
         {request.kind === "copy" && <p>复制当前保存配置，生成新模拟器及Unit身份，不带应用和值。{endpoint && store.drafts.has(endpoint.id) && "源有未保存修改，本次复制不包含这些修改。"}</p>}

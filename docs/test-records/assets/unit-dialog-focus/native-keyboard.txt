@@ -1,0 +1,310 @@
+Window: "ESSim · 储能协议仿真工作台", App: ESSim Focus Verified.
+0 standard window ESSim · 储能协议仿真工作台, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: ESSim, URL: tauri://localhost
+			3 container
+				4 button 收起或展开左侧导航
+				5 button 历史后退
+				6 button (disabled) 历史前进
+				7 button 全局资源与命令检索
+				8 button 收起或展开右侧属性
+				9 button 收起或展开底部面板
+			10 container
+				11 container 导航
+					12 container 导航
+						13 container 项目导航面板
+							14 tab group (selectable) 导航分类
+								15 tab (selected) 模拟器
+								16 tab (selectable) 资源
+							17 pop up button 新建模拟器
+							18 pop up button 更多导航操作
+							19 container 模拟器
+								20 container
+									21 pop up button 同步焦点验证
+									22 pop up button Unit 1 · 电池簇 A
+									23 pop up button Options
+							24 text 会话配置 · 退出后不保留
+				25 container
+					26 container 同步焦点验证
+						27 tab group (selectable)
+							28 tab (selectable) 工作台
+							29 tab (selected) 同步焦点验证
+						30 button 新建文档
+						31 container 同步焦点验证
+					32 text 同步焦点验证 opened
+					33 container 通信报文
+						34 tab group (selectable)
+							35 tab (selectable) 事件记录
+							36 tab (selected) 通信报文
+							37 tab (selectable) 问题
+						38 button 收起底部面板
+						39 container 通信报文
+							40 combo box (collapsed, settable) 观测端点, Secondary Actions: Expand, Value: 跟随当前端点
+
+								41 text 跟随当前端点
+							42 combo box (collapsed, settable) 报文方向, Secondary Actions: Expand, Value: 全部方向
+
+								43 text 全部方向
+							44 button 暂停展示
+							45 text 0
+							46 text  条 · 最近窗口
+							47 button (disabled) 导出
+							48 table 真实通信报文
+								49 row (selectable) 时间
+方向
+连接
+内容
+结果
+							50 text 每次查询最近 100 条，界面最多保留 500 条；暂停或高频通信可能跳过记录，完整记录以运行文件为准。
+				51 container Unit
+					52 tab group (selectable)
+						53 tab (selectable) 点
+						54 tab (selected) Unit
+						55 tab (selectable) 端点
+					56 container Unit
+						57 container 详细信息
+							58 container
+								59 text 详细信息 TCP 从站 / Unit 1 未保存
+							60 search text field (settable) 搜索属性
+								61 text 搜索属性
+							62 container (expanded) Secondary Actions: Collapse
+								63 summary 单元配置, Value: on
+									64 text 单元配置
+								65 container 当前单元
+									66 text 当前单元
+									67 pop up button 切换单元, Help: Unit 01 · 电池簇 A
+									68 button 添加 Unit
+									69 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								70 container Unit ID
+									71 text Unit ID
+									72 number field (settable) 线上站号, Value: 1
+										73 stepper 0
+											74 unknown
+											75 unknown
+									76 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								77 container 名称
+									78 text 名称
+									79 text field (settable) 单元名称, Value: 电池簇 A
+									80 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								81 container Unit备注
+									82 text Unit备注
+									83 text field (settable) Unit备注
+									84 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								85 container 删除单元
+									86 text 删除单元
+									87 button 从草稿移除 电池簇 A
+									88 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								89 container 启用
+									90 text 启用
+									91 checkbox 启用单元, Value: 1
+									92 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								93 container 关联设备
+									94 text 关联设备
+									95 combo box (collapsed, settable) 关联设备, Secondary Actions: Expand, Value: 独立模拟器
+
+										96 text 独立模拟器
+									97 button (disabled) 定位关联设备
+									98 button (disabled) 解除设备关联
+									99 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+								100 container 采集模型
+									101 text 采集模型
+									102 combo box (collapsed, settable) 采集模型, Secondary Actions: Expand, Value: 焦点模型
+
+										103 text 焦点模型
+									104 button 打开采集模型
+									105 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
+							106 text 切换单元仅切换视图，不影响运行与草稿。
+			107 container 工作台状态栏
+				108 text 已连接 端点  1 待应用  1
+				109 button 问题 0, Help: 展开问题面板
+				110 text 会话配置 · 退出不保留
+			111 menu Secondary Actions: Cancel
+				112 新增 Unit
+				113 重命名单元
+				114 删除单元
+		115 scroll bar (settable, float) 0
+	116 close button
+	117 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	118 minimize button
+119 menu bar
+	120 ESSim Focus Verified
+	121 文件
+	122 编辑
+
+
+删除后Shift+F10：
+There has been no change in the accessibility tree for Window: "ESSim · 储能协议仿真工作台".
+The focused UI element is 141 pop up button 同步焦点验证
+
+Esc、Up、Down、Shift+F10：
+The following is a diff from the previous accessibility tree for Window: "ESSim · 储能协议仿真工作台" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 125-139
+~			123 container
+~				124 button 收起或展开左侧导航
++				125 button 历史后退
++				126 button (disabled) 历史前进
++				127 button 全局资源与命令检索
++				128 button 收起或展开右侧属性
++				129 button 收起或展开底部面板
++			130 container
++				131 container 导航
++					132 container 导航
++						133 container 项目导航面板
++							134 tab group (selectable) 导航分类
++								135 tab (selected) 模拟器
++								136 tab (selectable) 资源
++							137 pop up button 新建模拟器
++							138 pop up button 更多导航操作
++							139 container 模拟器
++								140 container
++									141 pop up button 同步焦点验证
++									142 pop up button Unit 1
++									143 pop up button Options
++							144 text 会话配置 · 退出后不保留
++				145 container
++					146 container 同步焦点验证
++						147 tab group (selectable)
++							148 tab (selectable) 工作台
++							149 tab (selected) 同步焦点验证
++						150 button 新建文档
++						151 container 同步焦点验证
++					152 text 同步焦点验证 opened
++					153 container 通信报文
++						154 tab group (selectable)
++							155 tab (selectable) 事件记录
++							156 tab (selected) 通信报文
++							157 tab (selectable) 问题
++						158 button 收起底部面板
++						159 container 通信报文
++							160 combo box (collapsed, settable) 观测端点, Secondary Actions: Expand, Value: 跟随当前端点
+
++								161 text 跟随当前端点
++							162 combo box (collapsed, settable) 报文方向, Secondary Actions: Expand, Value: 全部方向
+
++								163 text 全部方向
++							164 button 暂停展示
++							165 text 0
++							166 text  条 · 最近窗口
++							167 button (disabled) 导出
++							168 table 真实通信报文
++								169 row (selectable) 时间
+方向
+连接
+内容
+结果
++							170 text 每次查询最近 100 条，界面最多保留 500 条；暂停或高频通信可能跳过记录，完整记录以运行文件为准。
++				171 container Unit
++					172 tab group (selectable)
++						173 tab (selectable) 点
++						174 tab (selected) Unit
++						175 tab (selectable) 端点
++					176 container Unit
++						177 container 详细信息
++							178 container
++								179 text 详细信息 TCP 从站 / Unit 1 未保存
++							180 search text field (settable) 搜索属性
++								181 text 搜索属性
++							182 container (expanded) Secondary Actions: Collapse
++								183 summary 单元配置, Value: on
++									184 text 单元配置
++								185 container 当前单元
++									186 text 当前单元
++									187 pop up button 切换单元, Help: Unit 01
++									188 button 添加 Unit
++									189 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								190 container Unit ID
++									191 text Unit ID
++									192 number field (settable) 线上站号, Value: 1
++										193 stepper 0
++											194 unknown
++											195 unknown
++									196 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								197 container 名称
++									198 text 名称
++									199 text field (settable) 单元名称, Value: Unit 1
++									200 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								201 container Unit备注
++									202 text Unit备注
++									203 text field (settable) Unit备注
++									204 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								205 container 删除单元
++									206 text 删除单元
++									207 button 从草稿移除 Unit 1
++									208 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								209 container 启用
++									210 text 启用
++									211 checkbox 启用单元, Value: 1
++									212 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								213 container 关联设备
++									214 text 关联设备
++									215 combo box (collapsed, settable) 关联设备, Secondary Actions: Expand, Value: 独立模拟器
+
++										216 text 独立模拟器
++									217 button (disabled) 定位关联设备
++									218 button (disabled) 解除设备关联
++									219 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++								220 container 采集模型
++									221 text 采集模型
++									222 combo box (collapsed, settable) 采集模型, Secondary Actions: Expand, Value: 焦点模型
+
++										223 text 焦点模型
++									224 button 打开采集模型
++									225 splitter 调整字段名与值的列宽, Help: 拖动调整整个面板列宽；方向键微调，双击或 Home 恢复默认, Value: 41
++							226 text 切换单元仅切换视图，不影响运行与草稿。
++				227 toolbar 单元工具栏
++					228 pop up button 切换单元, Help: Unit 01
++					229 button 保存实例修改（本次会话）
++					230 button (disabled) 应用配置
++					231 container 当前配置有未保存修改；启动使用已应用快照。首次运行前，请先保存并应用配置。
++						232 text 未保存
++					233 button 新增点
++					234 button (disabled) 删除选中点
++					235 button (disabled) 撤销
++					236 button (disabled) 重做
++					237 text 焦点模型  ·  已保存  ·  0  差异 127.0.0.1:1502
++					238 button 导入追加
++					239 pop up button 导出模型
++					240 pop up button 更多点表操作
++					241 tab group (selectable) 单元视图
++						242 tab (selected) 配置视图
++						243 tab (selectable) 运行视图
++				244 container
++					245 container
++						246 splitter 50
++						247 splitter 50
++						248 splitter 50
++						249 splitter 50
++						250 splitter 50
++						251 splitter 50
++						252 splitter 50
++						253 splitter 50
++						254 splitter 50
++						255 splitter 50
++						256 splitter 50
++						257 splitter 50
++						258 splitter 50
++						259 splitter 50
++						260 splitter 50
++						261 splitter 50
++						262 splitter 50
++						263 splitter 50
++						264 splitter 50
++				265 tab group (selectable) 模型四遥分类
++					266 container 分类导航
++						267 button 上一分类
++						268 button 下一分类
++					269 tab (selected) 遥测
++					270 tab (selectable) 遥信
++					271 tab (selectable) 遥控
++					272 tab (selectable) 遥调
++					273 text 0
++					274 text  点 · 本次会话
++			275 container 工作台状态栏
++				276 text 已连接 端点  1 待应用  1
++				277 button 问题 0, Help: 展开问题面板
++				278 text 会话配置 · 退出不保留
++			279 menu Secondary Actions: Cancel
++				280 新增 Unit
++				281 重命名单元
++				282 删除单元
+The focused UI element is 142 pop up button Unit 1

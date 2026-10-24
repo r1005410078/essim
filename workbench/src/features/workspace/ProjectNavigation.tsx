@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@essim/ui/components/to
 import type { Catalog } from "../../shared/api/contracts";
 import type { NavigationSection, Target, projectNavigation } from "./model";
 import spriteSheet from "./navigation-icons.svg?raw";
+import { navigationFocusCandidates, navigationFocusPath, restoreNavigationFocus } from "./navigationFocus";
 
 export const navigationSections = ["simulators", "resources"] as const;
 export const navigationLabels = { simulators: "模拟器", resources: "资源" };
@@ -129,5 +130,19 @@ export function NavigationTree({ input, catalog, section, open, store, active, .
     if(focus){const path=remap(focus);if(path)model.focusPath(path);}
     previousInput.current=input;
   }, [model, input, catalog?.navigation]);
-  return <><FileTree model={model} style={{ flex: 1, minHeight: 0 }} {...props} /><TreeStatusLayer model={model} input={input} catalog={catalog} store={store} active={active}/></>;
+  return <><FileTree model={model} style={{ flex: 1, minHeight: 0 }} {...props}
+    renderContextMenu={props.renderContextMenu ? (item, context) => {
+      const candidates = navigationFocusCandidates(current.current.input, String(item.path));
+      const panel = model.getFileTreeContainer()?.closest<HTMLElement>(".navigation-panel");
+      return props.renderContextMenu!(item, { ...context, restoreFocus: () => {
+        // modal已关闭；同步更新模型再恢复焦点，不依赖WebView可被暂停的动画帧。
+        if (document.querySelector("dialog[open]")) return;
+        const host = model.getFileTreeContainer();
+        const root = (host?.shadowRoot ?? host)?.querySelector<HTMLElement>('[role="tree"]');
+        if (!root?.isConnected || !root.getClientRects().length) { if (panel?.isConnected) panel.focus(); return; }
+        model.resetPaths(current.current.input.paths, {initialExpandedPaths:model.getVisibleRows(0,model.getVisibleCount()).filter(row=>row.isExpanded).map(row=>row.path)});
+        restoreNavigationFocus(model, root, navigationFocusPath(current.current.input, candidates));
+      } });
+    } : undefined}
+  /><TreeStatusLayer model={model} input={input} catalog={catalog} store={store} active={active}/></>;
 }

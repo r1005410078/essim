@@ -65,4 +65,15 @@ describe("树菜单按稳定身份操作", () => {
     expect(canAddUnit(store.endpoint("e")!)).toBe(false);
     expect(() => editNavigationUnit(store, "newUnit", target, { name: "新", station: 2, model: "m" })).toThrow();
   });
+  it("删除非当前单元保留选择，删除最后一个单元仍保留空模拟器", () => {
+    const { store, execute } = setup();
+    store.selectUnit("e", "u3");
+    editNavigationUnit(store, "deleteUnit", target);
+    expect(store.selectedUnits.get("e")).toBe("u3");
+    editNavigationUnit(store, "deleteUnit", { ...target, unit: "u3" });
+    expect(store.endpoint("e")).toMatchObject({ id: "e", name: "模拟器", units: [] });
+    expect(store.selectedUnits.has("e")).toBe(false);
+    expect(canAddUnit(store.endpoint("e")!)).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+  });
 });

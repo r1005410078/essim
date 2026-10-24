@@ -341,7 +341,7 @@ function ProjectPanel() {
                     className={kind === "delete" || kind === "deleteUnit" ? "destructive" : undefined}
                     onClick={() => act(() => {
                       if (kind === "newEndpoint") dialog("endpoint",target?.kind==="folder"?target.id:null);
-                      else setNavigationAction({ kind, target: kind === "newFolder" && target?.kind !== "folder" ? undefined : target });
+                      else setNavigationAction({ kind, target: kind === "newFolder" && target?.kind !== "folder" ? undefined : target, restoreFocus: context.restoreFocus });
                     })}><MenuIcon size={14} aria-hidden="true"/>{kind==="rename"&&target?.kind==="folder"?"编辑文件夹":label}</button>;
                 })}
                 {section==="resources" && target?.kind !== "endpoint" && <button
@@ -351,9 +351,9 @@ function ProjectPanel() {
                   <FilePlus2 size={14} aria-hidden="true"/>新建采集模型
                 </button>}
                 {section === "resources" && target?.kind !== "endpoint" && <button role="menuitem" onClick={() => act(() => startImport(target?.kind==="folder"?target.id:undefined))}><FileInput size={14} aria-hidden="true"/>导入新模型</button>}
-                {section==="resources"&&target?.kind!=="endpoint"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",scope:"models",target:target?.kind==="folder"?target:undefined}))}><FolderPlus size={14}/>新建文件夹</button>}
-                {section==="resources"&&target?.kind==="folder"&&([['rename','编辑文件夹'],['move','移动到'],['delete','删除空文件夹']] as const).map(([kind,label])=><button key={kind} role="menuitem" onClick={()=>act(()=>setNavigationAction({kind,target,scope:"models"}))}>{label}</button>)}
-                {target?.kind==="model"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target,scope:"models"}))}>移动到</button>}
+                {section==="resources"&&target?.kind!=="endpoint"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"newFolder",scope:"models",target:target?.kind==="folder"?target:undefined,restoreFocus:context.restoreFocus}))}><FolderPlus size={14}/>新建文件夹</button>}
+                {section==="resources"&&target?.kind==="folder"&&([['rename','编辑文件夹'],['move','移动到'],['delete','删除空文件夹']] as const).map(([kind,label])=><button key={kind} role="menuitem" onClick={()=>act(()=>setNavigationAction({kind,target,scope:"models",restoreFocus:context.restoreFocus}))}>{label}</button>)}
+                {target?.kind==="model"&&<button role="menuitem" onClick={()=>act(()=>setNavigationAction({kind:"move",target,scope:"models",restoreFocus:context.restoreFocus}))}>移动到</button>}
                 {target?.kind === "model" && (
                   <>
                     <button
@@ -444,7 +444,7 @@ function ProjectPanel() {
         </div>;
       })}
       {partitioning&&<PartitionDialog store={store} close={()=>setPartitioning(false)}/>}
-      {navigationAction && <NavigationDialog store={store} request={navigationAction} close={()=>setNavigationAction(null)} open={open} removed={removedEndpoint} />}
+      {navigationAction && <NavigationDialog store={store} request={navigationAction} close={() => setNavigationAction(null)} open={open} removed={removedEndpoint} />}
       <div className="navigation-note">会话配置 · 退出后不保留</div>
       {rootMenu && createPortal(
         <div

@@ -1,12 +1,15 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useRef, useState, type DialogHTMLAttributes, type HTMLAttributes, type PointerEvent, type ReactNode } from 'react';
 import { GripHorizontal, Maximize2, PanelsTopLeft, X } from 'lucide-react';
 import { constrainDialog, resizeDialog, type DialogEdge, type DialogRect } from '../lib/dialog-geometry';
+import { closeDialogAndRestoreFocus } from '../lib/dialog-focus';
 
 type Props = Omit<DialogHTMLAttributes<HTMLDialogElement>, 'title' | 'open'> & {
   title: ReactNode;
   busy?: boolean;
   initialWidth?: number;
   variant?: "standard" | "command";
+  /** 触发节点可能重建时，关闭后由业务按稳定身份恢复焦点。 */
+  restoreFocus?: () => void;
 };
 const viewport = () => ({ width: document.documentElement.clientWidth, height: window.innerHeight });
 function activeControl(): HTMLElement | null {
@@ -17,10 +20,12 @@ function activeControl(): HTMLElement | null {
 }
 const edges: DialogEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 /** 紧凑工作台弹框。原生 modal 保留焦点限制、背景 inert 与表单语义。 */
-export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function WorkbenchDialog({ title, busy = false, initialWidth = 472, variant = "standard", children, className = '', onCancel, onKeyDown, onPointerDown, onPointerUp, onPointerCancel, style, ...props }, forwardedRef) {
+export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function WorkbenchDialog({ title, busy = false, initialWidth = 472, variant = "standard", restoreFocus, children, className = '', onCancel, onKeyDown, onPointerDown, onPointerUp, onPointerCancel, style, ...props }, forwardedRef) {
   const ref = useRef<HTMLDialogElement>(null);
   // 在子输入框autoFocus提交之前记住触发元素，不能等showModal的effect才读取。
   const initialFocus = useRef<HTMLElement | null>(activeControl());
+  const restoreFocusRef = useRef(restoreFocus);
+  restoreFocusRef.current = restoreFocus;
   useImperativeHandle(forwardedRef, () => ref.current!, []);
   const titleId = useId();
   const [rect, setRect] = useState<DialogRect | null>(null);
@@ -63,8 +68,7 @@ export const WorkbenchDialog = forwardRef<HTMLDialogElement, Props>(function Wor
       window.removeEventListener('resize', resize);
       window.visualViewport?.removeEventListener('resize', resize);
       interaction.current = null;
-      dialog.close();
-      if (previous?.isConnected) previous.focus();
+      closeDialogAndRestoreFocus(dialog, previous, restoreFocusRef.current);
     };
   }, []);
   // 子组件内部状态改变（如导入预览）也会触发自然高度重算；手动缩放后保持用户尺寸。

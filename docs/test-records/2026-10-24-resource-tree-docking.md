@@ -187,3 +187,8 @@ Windows/Linux均未验证。本记录仅证明上述明确完成项，不代表�
 Home复位后，鼠标拖标题分别到左、右、上、下窗口边界，均停在8逻辑像素的内部边距，标题、正文与操作栏完整可见；右下边界同时保留确认／取消。[拖动边界截图](../testing/assets/resource-folder-drag-boundary-macos.png)。从默认右下手柄拖到(600,400)，弹框在320×160逻辑像素最小尺寸停止，正文可滚动，操作栏固定可见。[鼠标最小尺寸截图](../testing/assets/resource-folder-pointer-minimum-macos.png)。随后鼠标点击恢复按钮，回到默认440px宽和居中位置，[复位截图](../testing/assets/resource-folder-pointer-restored-macos.png)。
 
 6.2剩余鼠标矩阵已完成，本提案26/26项。沿用最近44文件188测试、类型检查、生产构建与核心测试证据；本轮仅增验收材料，没有产品源码变更，无须重复协议测试。OpenSpec严格校验与diff检查重新通过。限macOS；Windows/Linux未验。代码仍在独立工作树，未提交、未合并、未归档。
+
+
+## 与主分支整合复核
+
+用户要求合并并推送后，整合主分支36965ae的Unit菜单／稳定身份焦点恢复修复：保留restoreFocus回调、树键盘游标恢复和对应回归测试，同时保留本次目录图标、多选拖拽、非动画帧初始焦点、菜单键盘及停靠能力。树焦点重建保留原展开路径。合并后46文件197项前端测试、TypeScript、Vite构建通过；OpenSpec严格校验和diff检查通过。原生实际创建“合并复核”，编辑弹框Esc取消后AX focused回同一目录，随后Shift+F10重开该目录菜单成功。未重新扩大协议互操作或跨平台证据。
