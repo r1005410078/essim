@@ -1,7 +1,10 @@
 /** Tauri仅在通信适配层使用；业务组件只依赖WorkspaceClient。 */
-import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import { Channel, invoke as tauriInvoke, isTauri } from "@tauri-apps/api/core";
 import type { WorkspaceClient, WorkspaceView } from "./contracts";
+import { projectSession } from './project';
 export function createWorkspaceClient(): WorkspaceClient {
+  const session = projectSession();
+  const invoke: typeof tauriInvoke = (command, args, options) => options ? tauriInvoke(command, { ...(args as object), projectSession: session }, options) : tauriInvoke(command, { ...(args as object), projectSession: session });
   if (!isTauri()) {
     const unavailable = async (): Promise<never> => {
       throw {

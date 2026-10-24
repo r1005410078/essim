@@ -39,3 +39,5 @@
 - [x] 5.6 同步 README、项目目标、M08 计划和存储使用说明；Windows／Linux 及外部 EMS 未实测部分保持待验，M07 不标完成。
 
 验收证据及平台边界见 [实施记录](../../../docs/test-records/2026-10-24-project-persistence.md)。勾选范围为本轮实现及 macOS 验收，不代表 Windows／Linux 原生、真实断电或 M07 交付。
+
+后续入口行为由 [require-project-startup-and-switcher](../require-project-startup-and-switcher/proposal.md)及其任务跟踪：取消临时会话并新建空工程，不将原阶段勾选当作后续入口验收。

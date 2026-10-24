@@ -7,6 +7,7 @@ pub type Batches = Arc<BatchCoordinator>;
 /// 固定范围并生成有界预览。
 #[tauri::command]
 pub async fn preview_batch(
+    _access: super::project_access::ProjectAccess,
     request: essim_core::application::commands::batch_targets::BatchRequest,
     drafts: DraftDisposition,
     batches: State<'_, Batches>,
@@ -18,24 +19,34 @@ pub async fn preview_batch(
 }
 /// 确认后开始后台执行。
 #[tauri::command]
-pub fn start_batch(id: String, batches: State<'_, Batches>) -> Result<(), ErrorDto> {
+pub fn start_batch(
+    _access: super::project_access::ProjectAccess,
+    id: String,
+    batches: State<'_, Batches>,
+) -> Result<(), ErrorDto> {
     batches.start(&id)
 }
 /// 只读进度。
 #[tauri::command]
 pub fn query_batch(
+    _access: super::project_access::ProjectAccess,
     batches: State<'_, Batches>,
 ) -> Result<Option<essim_core::application::queries::batch::BatchView>, ErrorDto> {
     batches.query()
 }
 /// 取消后续未开始项。
 #[tauri::command]
-pub fn cancel_batch(id: String, batches: State<'_, Batches>) -> Result<(), ErrorDto> {
+pub fn cancel_batch(
+    _access: super::project_access::ProjectAccess,
+    id: String,
+    batches: State<'_, Batches>,
+) -> Result<(), ErrorDto> {
     batches.cancel(&id)
 }
 /// 仅对实际结束任务的失败项重新预览。
 #[tauri::command]
 pub async fn retry_batch(
+    _access: super::project_access::ProjectAccess,
     previous: String,
     id: String,
     drafts: DraftDisposition,
@@ -49,6 +60,7 @@ pub async fn retry_batch(
 /// 查询资源估计及当前进程RSS。
 #[tauri::command]
 pub async fn query_resources(
+    _access: super::project_access::ProjectAccess,
     engine: State<'_, super::Engine>,
 ) -> Result<essim_infrastructure::resources::ResourceView, ErrorDto> {
     let e = engine.inner().clone();
@@ -59,4 +71,10 @@ pub async fn query_resources(
 
 /// 关闭未确认预览只归还暂存，不取消已确认任务。
 #[tauri::command]
-pub fn discard_batch(id:String,batches:State<'_,Batches>)->Result<(),ErrorDto>{batches.discard_preview(&id)}
+pub fn discard_batch(
+    _access: super::project_access::ProjectAccess,
+    id: String,
+    batches: State<'_, Batches>,
+) -> Result<(), ErrorDto> {
+    batches.discard_preview(&id)
+}

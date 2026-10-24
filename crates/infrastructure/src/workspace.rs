@@ -66,6 +66,8 @@ pub struct WorkspaceEngine {
     operations: OperationGates,
     pub(crate) project_gate: std::sync::RwLock<()>,
     pub(crate) project_root: Mutex<Option<crate::project::ProjectInfo>>,
+    pub(crate) project_required: std::sync::atomic::AtomicBool,
+    pub(crate) project_clients: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     pub(crate) boundary: Mutex<Box<dyn ApplyBoundary + Send>>,
     #[cfg(feature = "tcp-runtime")]
     pub(crate) runtime: Option<std::sync::Arc<crate::tcp_slave::TcpSlaveRuntime>>,
@@ -84,6 +86,8 @@ impl Default for WorkspaceEngine {
             resources,
             operations: Default::default(),
             project_root: Mutex::new(None),
+            project_required: std::sync::atomic::AtomicBool::new(false),
+            project_clients: Default::default(),
             project_gate: std::sync::RwLock::new(()),
             boundary: Mutex::new(Box::new(StoppedBoundary)),
             #[cfg(feature = "tcp-runtime")]
@@ -98,6 +102,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 资源或目录状态不可用。
     pub fn query_resources(&self) -> Result<crate::resources::ResourceView, Error> {
+        self.ensure_project()?;
         let mut view = self.resources.query()?;
         #[cfg(feature = "tcp-runtime")]
         if let Some(runtime) = &self.runtime {
@@ -134,6 +139,7 @@ impl WorkspaceEngine {
         id: &EndpointId,
         permit: &OperationPermit,
     ) -> Result<(), Error> {
+        self.ensure_project()?;
         let _child = self.operations.enter(id, Some(permit))?;
         self.workspace
             .lock()
@@ -152,6 +158,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 内部状态锁中毒时失败。
     pub fn sequence(&self) -> Result<u64, Error> {
+        self.ensure_project()?;
         Ok(self
             .workspace
             .lock()
@@ -162,6 +169,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 内部状态锁中毒时返回明确故障。
     pub fn query(&self) -> Result<WorkspaceView, Error> {
+        self.ensure_project()?;
         #[allow(unused_mut)]
         let mut view = self
             .workspace
@@ -180,6 +188,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 目录锁不可用。
     pub fn query_navigation(&self) -> Result<WorkspaceView, Error> {
+        self.ensure_project()?;
         let w = self
             .workspace
             .lock()
@@ -227,6 +236,7 @@ impl WorkspaceEngine {
         &self,
         id: &essim_core::domain::identity::ModelId,
     ) -> Result<essim_core::domain::model::CollectionModel, Error> {
+        self.ensure_project()?;
         Ok(self
             .workspace
             .lock()
@@ -242,6 +252,7 @@ impl WorkspaceEngine {
         id: &EndpointId,
     ) -> Result<std::collections::BTreeMap<UnitId, essim_core::domain::values::UnitValues>, Error>
     {
+        self.ensure_project()?;
         self.workspace
             .lock()
             .map_err(|_| Error::new("STATE_POISONED", "目录不可用"))?
@@ -255,6 +266,7 @@ impl WorkspaceEngine {
         &self,
         endpoint: EndpointConfig,
     ) -> Result<std::collections::BTreeMap<UnitId, bool>, Error> {
+        self.ensure_project()?;
         let workspace = self
             .workspace
             .lock()
@@ -265,6 +277,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 锁中毒、配置非法或迁移不兼容时失败。
     pub fn preview_apply(&self, id: EndpointId, reset: bool) -> Result<ApplyPreview, Error> {
+        self.ensure_project()?;
         let workspace = self
             .workspace
             .lock()
@@ -330,10 +343,7 @@ impl WorkspaceEngine {
         parent: Option<&OperationPermit>,
         batch: Option<&essim_core::application::commands::batch_targets::BatchPlan>,
     ) -> Result<(Receipt, ConfigEvent), Error> {
-        let _project = self
-            .project_gate
-            .read()
-            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
+        let _project = self.project_operation()?;
         // 新命令及每个 Unit 的有效表都必须先预留暂存空间，失败不进入停止／提交边界。
         let _configuration_staging = {
             let workspace = self
@@ -628,10 +638,7 @@ impl WorkspaceEngine {
         command: essim_core::application::commands::slave::SlaveCommand,
         parent: Option<&OperationPermit>,
     ) -> Result<essim_core::application::queries::slave::SlaveView, Error> {
-        let _project = self
-            .project_gate
-            .read()
-            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
+        let _project = self.project_operation()?;
         let operation = self.operations.enter(&command.endpoint, parent)?;
 
         use essim_core::application::commands::slave::SlaveAction;
@@ -683,6 +690,7 @@ impl WorkspaceEngine {
         command: essim_core::application::commands::slave::SlaveCommand,
         parent: &OperationPermit,
     ) -> Result<crate::tcp_slave::SlaveCompletion, Error> {
+        let _project = self.project_operation()?;
         let _operation = self.operations.enter(&command.endpoint, Some(parent))?;
         let runtime = self
             .runtime
@@ -731,6 +739,7 @@ impl WorkspaceEngine {
         &self,
         query: essim_core::application::queries::slave::SlaveQuery,
     ) -> Result<essim_core::application::queries::slave::SlaveView, Error> {
+        self.ensure_project()?;
         self.runtime
             .as_ref()
             .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP从站运行服务"))?
@@ -747,10 +756,7 @@ impl WorkspaceEngine {
         &self,
         command: essim_core::application::commands::master::MasterCommand,
     ) -> Result<essim_core::application::queries::master::MasterView, Error> {
-        let _project = self
-            .project_gate
-            .read()
-            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
+        let _project = self.project_operation()?;
         self.operations.ensure_available(&command.endpoint)?;
         use essim_core::application::commands::master::MasterAction;
         let master = self
@@ -787,6 +793,7 @@ impl WorkspaceEngine {
         &self,
         query: essim_core::application::queries::master::MasterQuery,
     ) -> Result<essim_core::application::queries::master::MasterView, Error> {
+        self.ensure_project()?;
         self.master
             .as_ref()
             .ok_or_else(|| Error::new("CAPABILITY_UNAVAILABLE", "未装配TCP主站"))?

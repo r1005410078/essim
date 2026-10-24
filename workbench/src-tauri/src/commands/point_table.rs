@@ -33,7 +33,10 @@ pub fn cancel_point_file(job_id: String, jobs: State<'_, PointFileJobs>) -> Resu
 /// # Errors
 /// 后台任务无法执行时失败；字段错误放入预览结果。
 #[tauri::command]
-pub async fn preview_point_table(input: DraftInput) -> Result<DraftPreview, ErrorDto> {
+pub async fn preview_point_table(
+    _access: super::project_access::ProjectAccess,
+    input: DraftInput,
+) -> Result<DraftPreview, ErrorDto> {
     tauri::async_runtime::spawn_blocking(move || point_exchange::preview(input))
         .await
         .map_err(|e| Error::new("PREVIEW_FAILED", e.to_string()))
@@ -43,6 +46,7 @@ pub async fn preview_point_table(input: DraftInput) -> Result<DraftPreview, Erro
 /// 文件过大、读取或格式错误时失败。
 #[tauri::command]
 pub async fn open_point_file(
+    _access: super::project_access::ProjectAccess,
     job_id: String,
     jobs: State<'_, PointFileJobs>,
 ) -> Result<Option<InputFile>, ErrorDto> {
@@ -103,6 +107,7 @@ pub async fn open_point_file(
 /// 模型不存在、格式写出或文件系统操作失败。
 #[tauri::command]
 pub async fn export_point_file(
+    _access: super::project_access::ProjectAccess,
     id: String,
     format: String,
     engine: State<'_, Engine>,
@@ -120,7 +125,10 @@ pub async fn export_point_file(
 /// # Errors
 /// 格式非法或文件写出失败时返回错误；系统取消返回false。
 #[tauri::command]
-pub async fn export_point_template(format: String) -> Result<bool, ErrorDto> {
+pub async fn export_point_template(
+    _access: super::project_access::ProjectAccess,
+    format: String,
+) -> Result<bool, ErrorDto> {
     use essim_core::domain::{identity::ModelId, model::CollectionModel};
     save_exchange(
         CollectionModel {
@@ -162,6 +170,7 @@ async fn save_exchange(
 /// 引用缺失、覆盖非法、格式不支持、编码或文件写入失败。
 #[tauri::command]
 pub async fn export_unit_points(
+    _access: super::project_access::ProjectAccess,
     endpoint: String,
     unit: String,
     format: String,

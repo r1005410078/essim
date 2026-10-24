@@ -76,10 +76,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 参数、目录冲突、接口枚举失败、预览过大或状态不可用时拒绝；未配置IP随预览返回。
     pub fn preview_partition(&self, request: PartitionRequest) -> Result<Preview, Error> {
-        let _project = self
-            .project_gate
-            .read()
-            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
+        let _project = self.project_operation()?;
         let mut plans = self
             .partition_plans
             .0
@@ -144,10 +141,7 @@ impl WorkspaceEngine {
     /// # Errors
     /// 预览缺失／过期或提交失败，原配置保持不变。
     pub fn create_partition(&self, token: &str) -> Result<Receipt, Error> {
-        let _project = self
-            .project_gate
-            .read()
-            .map_err(|_| Error::new("STATE_POISONED", "工程操作门不可用"))?;
+        let _project = self.project_operation()?;
         let (created, plan, _lease) = self
             .partition_plans
             .0

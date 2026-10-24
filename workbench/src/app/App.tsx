@@ -1,3 +1,6 @@
+import {ProjectMenu} from "../features/projects/ProjectMenu";
+import {ProjectEntry} from "../features/projects/ProjectEntry";
+import type {ProjectInfo} from "../shared/api/project";
 import {ProjectResourceDocument} from "../features/resources/ProjectResourceDocument";
 import {useProjectPersistence} from "../features/workspace/useProjectPersistence";
 import {TreeContextMenu} from "../features/workspace/TreeContextMenu";
@@ -447,7 +450,7 @@ function ProjectPanel() {
       })}
       {partitioning&&<PartitionDialog store={store} close={()=>setPartitioning(false)}/>}
       {navigationAction && <NavigationDialog store={store} request={navigationAction} close={() => setNavigationAction(null)} open={open} removed={removedEndpoint} />}
-      <div className="navigation-note">{store.project?`工程 · ${store.project.name}`:"临时会话 · 退出后不保留"}</div>
+      <div className="navigation-note">{store.project?`工程 · ${store.project.name}`:"工程载入中"}</div>
       {rootMenu && createPortal(
         <div
           className="tree-menu-backdrop"
@@ -834,7 +837,7 @@ function CloseDraftDialog({
   return (
     <WorkbenchDialog ref={ref} onCancel={e=>{e.preventDefault();e.stopPropagation();if(!busy)cancel();}} title={<>{endpointId ? "模拟器" : "模型"}有未保存修改</>} busy={busy}>
       <DialogBody>
-      <p>{store.project?"存在未保存修改，请选择如何关闭。":"保存仅保留本次会话。请选择如何关闭。"}</p>
+      <p>存在未保存修改，请选择如何关闭。</p>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -884,18 +887,18 @@ function CloseDraftDialog({
     </WorkbenchDialog>
   );
 }
-function ExitDialog({ cancel,project,flush }: { cancel: () => void;project:boolean;flush:()=>Promise<void> }) {
+function ExitDialog({ cancel,flush }: { cancel: () => void;flush:()=>Promise<void> }) {
   const {store}=useWorkbench();
   const [busy,setBusy]=useState(false);
   const exit=async()=>{setBusy(true);try{await flush();await closeWorkbenchWindow();}catch(e){store.error=errorMessage(e);store.changed();setBusy(false);}};
   const ref = useRef<HTMLDialogElement>(null);
   return (
-    <WorkbenchDialog ref={ref} busy={busy} onCancel={cancel} title={project?"退出工程？":"退出本次会话？"}>
+    <WorkbenchDialog ref={ref} busy={busy} onCancel={cancel} title="退出工程？">
       <DialogBody>
-      <p>{project?"已保存内容保留在工程中，未保存草稿暂存到恢复区；退出时停止通信。":"当前所有配置（包括已保存配置）、文件夹结构及未保存草稿，退出后都会丢失。"}</p>
+      <p>已保存内容保留在工程中，未保存草稿暂存到恢复区；退出时停止通信。</p>
       </DialogBody><DialogFooter>
         <button type="button" disabled={busy} onClick={cancel}>取消退出</button>
-        <button type="button" disabled={busy} onClick={()=>void exit()}>{project?"退出并保留草稿":"放弃并退出"}</button>
+        <button type="button" disabled={busy} onClick={()=>void exit()}>退出并保留草稿</button>
       </DialogFooter>
     </WorkbenchDialog>
   );
@@ -1341,7 +1344,7 @@ function CreateDialog({
             )}
           </>
         )}
-        <p className="muted">{store.project?"保存到工程文件，不自动启动通信。":"保存到本次会话，不启动通信；退出后不保留。"}</p>
+        <p className="muted">保存到工程文件，不自动启动通信。</p>
         {store.error && (
           <p role="alert" className="error">
             {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
@@ -1435,7 +1438,8 @@ function HeaderActions({ group }: IDockviewHeaderActionsProps) {
     </Icon></span>
   );
 }
-export function App() {
+export function App() { return <ProjectEntry>{project => <WorkspaceApp key={project.session} project={project}/>}</ProjectEntry>; }
+function WorkspaceApp({project}:{project:ProjectInfo}) {
   useEffect(() => {
     let active = true;
     let cancel: (() => void) | undefined;
@@ -1456,7 +1460,7 @@ export function App() {
       cancel?.();
     };
   }, []);
-  const store = useMemo(() => new WorkspaceStore(createWorkspaceClient()), []);
+  const store = useMemo(() => {const store=new WorkspaceStore(createWorkspaceClient());store.project=project;return store;}, []);
   const sheets = useMemo(() => new SheetViews(), []);
   const commands = useMemo(createWorkbenchCommands, []);
   const resourceSearch = useRef<Promise<ResourceSearchIndex> | null>(null);
@@ -1742,7 +1746,7 @@ export function App() {
         }}
       >
         <div className="workbench">
-          <WorkbenchTitlebar platform={platform} canBack={history.canMove(-1,validHistory)} canForward={history.canMove(1,validHistory)} back={()=>navigateHistory(-1)} forward={()=>navigateHistory(1)} toggle={toggleEdge} search={setPalette} operate={action=>{void operateWindow(action).catch(error=>{store.error=errorMessage(error);store.changed();});}}/>
+          <WorkbenchTitlebar project={<ProjectMenu name={project.name} entry={project.entry} recent={persistence.recent} disabled={store.projectBusy || store.busy} request={persistence.request}/>} platform={platform} canBack={history.canMove(-1,validHistory)} canForward={history.canMove(1,validHistory)} back={()=>navigateHistory(-1)} forward={()=>navigateHistory(1)} toggle={toggleEdge} search={setPalette} operate={action=>{void operateWindow(action).catch(error=>{store.error=errorMessage(error);store.changed();});}}/>
           {store.error && (
             <div className="error-banner" role="alert">
               {store.error}{store.lastError?.relatedUnitId && `（冲突Unit：${store.lastError.relatedUnitId}）`}
@@ -1772,7 +1776,7 @@ export function App() {
               api.current?.getEdgeGroup("bottom")?.expand();
             }}>问题 {[...store.modelDrafts.values()].reduce((n,d)=>n+(d.preview?.errors.length??0),store.error?1:0)}</button>
             <span className="spacer"/>
-            <span className="footer-session" title={store.project?.entry??"临时配置未写入工程文件"}>{store.project?`工程 · ${store.project.name}`:"临时会话 · 退出不保留"}</span>
+            <span className="footer-session" title={store.project?.entry??"工程载入中"}>{store.project?`工程 · ${store.project.name}`:"工程载入中"}</span>
           </footer>
         </div>
         {palette!==null && <CommandPalette initial={palette} searchResources={searchResources} searchCommands={query=>commands.list(commandContext,query)} executeCommand={executeCommand} openResource={result=>open(result.target)} close={()=>setPalette(null)}/>}
@@ -1784,7 +1788,7 @@ export function App() {
           />
         )}
         {persistence.dialogs}
-        {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} project={!!store.project} flush={persistence.flush} />}
+        {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} flush={persistence.flush} />}
         {dialog && <CreateDialog kind={dialog} parent={creationParent} close={() => setDialog(null)} />}
       </Context.Provider>
     </TooltipProvider>

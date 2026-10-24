@@ -116,9 +116,9 @@ mod budget;
 pub(crate) use budget::BudgetRepository;
 
 mod engine;
-pub use engine::{ProjectDocumentInfo, ProjectInfo};
+pub use engine::{ProjectClientGuard, ProjectDocumentInfo, ProjectInfo};
 mod local;
-pub use local::RecentProject;
+pub use local::{RecentEntry, RecentProject};
 mod runtime;
 pub use runtime::RuntimeDataView;
 pub(crate) use runtime::{RunRecorder, RunWriter};

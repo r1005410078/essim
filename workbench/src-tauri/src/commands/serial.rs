@@ -2,6 +2,7 @@
 /// 在阻塞工作线程枚举设备，避免占用窗口事件线程。
 #[tauri::command]
 pub async fn list_serial_ports(
+    _access: super::project_access::ProjectAccess,
 ) -> Result<Vec<essim_infrastructure::serial_discovery::SerialDevice>, String> {
     tauri::async_runtime::spawn_blocking(
         essim_infrastructure::serial_discovery::available_serial_devices,

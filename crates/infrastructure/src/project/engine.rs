@@ -31,12 +31,114 @@ pub struct ProjectDocumentInfo {
     #[serde(skip)]
     pub(crate) path: String,
 }
+/// 保持单个桌面请求的工程身份有效，生命周期切换不得跨越活跃请求。
+pub struct ProjectClientGuard(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+impl Drop for ProjectClientGuard {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+    }
+}
 impl WorkspaceEngine {
-    /// 返回当前工程；无工程时仍允许现有临时会话编辑。
+    /// 为正式桌面启用工程门禁；内存测试和无界面执行器默认不启用。
+    pub fn require_project(&self) {
+        self.project_required
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+    pub(crate) fn project_operation(&self) -> Result<std::sync::RwLockReadGuard<'_, ()>, Error> {
+        let guard = self.project_gate.read().map_err(poison)?;
+        self.ensure_project()?;
+        Ok(guard)
+    }
+    pub(crate) fn ensure_project(&self) -> Result<(), Error> {
+        if self
+            .project_required
+            .load(std::sync::atomic::Ordering::Acquire)
+            && self.project_info()?.is_none()
+        {
+            return Err(Error::new("PROJECT_REQUIRED", "请先打开或新建工程"));
+        }
+        Ok(())
+    }
+    /// 将桌面请求绑定到当前打开会话，直到请求完成前禁止替换工程。
+    /// # Errors
+    /// 未打开工程或请求来自旧会话。
+    pub fn project_client(&self, session: &str) -> Result<ProjectClientGuard, Error> {
+        // IPC 参数解析不能等待停机线程持有的写锁，否则会阻塞原生事件循环。
+        let _gate = self.project_gate.try_read().map_err(|error| match error {
+            std::sync::TryLockError::WouldBlock => {
+                Error::new("PROJECT_BUSY", "工程正在切换，请稍后重试")
+            }
+            std::sync::TryLockError::Poisoned(_) => Error::new("STATE_POISONED", "工程状态不可用"),
+        })?;
+        let info = self
+            .project_info()?
+            .ok_or_else(|| Error::new("PROJECT_REQUIRED", "请先打开或新建工程"))?;
+        if info.session != session {
+            return Err(Error::new("PROJECT_CHANGED", "工程已切换，请刷新后重试"));
+        }
+        self.project_clients
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        Ok(ProjectClientGuard(self.project_clients.clone()))
+    }
+    fn ensure_no_clients(&self) -> Result<(), Error> {
+        if self
+            .project_clients
+            .load(std::sync::atomic::Ordering::Acquire)
+            > 0
+        {
+            return Err(Error::new("PROJECT_BUSY", "工程请求尚未完成，请稍后重试"));
+        }
+        Ok(())
+    }
+
+    /// 返回当前已打开工程；正式桌面无工程时只提供引导。
     /// # Errors
     /// 工程状态锁不可用。
     pub fn project_info(&self) -> Result<Option<ProjectInfo>, Error> {
         Ok(self.project_root.lock().map_err(poison)?.clone())
+    }
+    /// 读取需要停机保护的运行摘要，不复制模型、应用快照或点值。
+    /// # Errors
+    /// 目录或运行状态不可读。
+    pub fn project_requires_stop(&self) -> Result<bool, Error> {
+        #[cfg(feature = "tcp-runtime")]
+        {
+            let endpoints: Vec<_> = self
+                .workspace
+                .lock()
+                .map_err(poison)?
+                .catalog_ref()
+                .endpoints
+                .iter()
+                .map(|e| (e.id.clone(), e.role))
+                .collect();
+            for (endpoint, role) in endpoints {
+                if role == essim_core::domain::endpoint::Role::Slave {
+                    if let Some(runtime) = &self.runtime {
+                        use essim_core::application::queries::slave::{SlaveQuery, SlaveState};
+                        let view = runtime.query(SlaveQuery {
+                            endpoint,
+                            unit: None,
+                            points: vec![],
+                        })?;
+                        if !matches!(view.state, SlaveState::Idle | SlaveState::Stopped) {
+                            return Ok(true);
+                        }
+                    }
+                } else if let Some(master) = &self.master {
+                    let view =
+                        master.query(essim_core::application::queries::master::MasterQuery {
+                            endpoint,
+                            unit: None,
+                            points: vec![],
+                        })?;
+                    if view.state != "disconnected" || view.polling {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        Ok(false)
     }
     /// 独立 SQLite 运行记录的积压与故障，不执行数据库查询或磁盘 IO。
     pub fn project_runtime_data(&self) -> Option<super::RuntimeDataView> {
@@ -87,29 +189,38 @@ impl WorkspaceEngine {
         }
         Ok(text)
     }
-    /// 创建工程并持久化当前已保存内容；脏草稿由调用方先保护。
+    /// 在空目录创建全新空工程；当前工程的脏草稿由调用方先保护。
     /// # Errors
     /// 目录非空、配置不合法、当前操作未结束或存储失败。
     pub fn create_project(&self, root: &Path, name: &str) -> Result<ProjectInfo, Error> {
         let _project = self.project_gate.write().map_err(poison)?;
-        let (catalog, endpoints, permits) = {
+        self.ensure_no_clients()?;
+        let (endpoints, permits) = {
             let w = self.workspace.lock().map_err(poison)?;
             let permits = self.stop_permits(w.catalog_ref())?;
-            (
-                w.catalog_ref().clone(),
-                w.catalog_ref().endpoints.clone(),
-                permits,
-            )
+            (w.catalog_ref().endpoints.clone(), permits)
         };
-        let repository = ProjectRepository::create(root, name, catalog)?;
+        let repository = ProjectRepository::create(root, name, Default::default())?;
         self.replace_project(repository, endpoints, permits)
     }
     /// 打开工程，先完整预检目标，再停止旧工程通信；等待停机时不持有目录锁。
     /// # Errors
     /// 目标不合法、被占用、旧操作未结束、停止或替换失败。
     pub fn open_project(&self, entry: &Path) -> Result<ProjectInfo, Error> {
+        if let Some(info) = self.project_info()? {
+            if entry.canonicalize().ok().as_ref() == Some(&info.entry) {
+                return Ok(info);
+            }
+        }
         let repository = ProjectRepository::open(entry)?;
+        self.activate_project(repository)
+    }
+    /// 激活已预检且持锁的工程；失败保留当前工程。
+    /// # Errors
+    /// 工程操作忙碌、停止或可靠记录刷新失败。
+    pub fn activate_project(&self, repository: ProjectRepository) -> Result<ProjectInfo, Error> {
         let _project = self.project_gate.write().map_err(poison)?;
+        self.ensure_no_clients()?;
         let (endpoints, permits) = {
             let w = self.workspace.lock().map_err(poison)?;
             (
@@ -170,11 +281,12 @@ impl WorkspaceEngine {
         *self.project_root.lock().map_err(poison)? = Some(info.clone());
         Ok(info)
     }
-    /// 关闭工程，确认通信资源和记录刷新后进入临时会话。
+    /// 关闭工程，确认通信资源和记录刷新后回到工程引导。
     /// # Errors
     /// 活动操作、停机或刷新未确认时保留旧工程；已停止的通信不自动重启。
     pub fn close_project(&self) -> Result<(), Error> {
         let _project = self.project_gate.write().map_err(poison)?;
+        self.ensure_no_clients()?;
         let (endpoints, permits) = {
             let w = self.workspace.lock().map_err(poison)?;
             (

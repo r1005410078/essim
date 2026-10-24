@@ -10,6 +10,7 @@ use tauri::State;
 /// 参数、配置或运行服务不可用。
 #[tauri::command]
 pub async fn execute_master(
+    _access: super::project_access::ProjectAccess,
     command: MasterCommand,
     engine: State<'_, Engine>,
 ) -> Result<MasterView, ErrorDto> {
@@ -25,6 +26,7 @@ pub async fn execute_master(
 /// 查询非法或服务不可用。
 #[tauri::command]
 pub async fn query_master(
+    _access: super::project_access::ProjectAccess,
     query: MasterQuery,
     engine: State<'_, Engine>,
 ) -> Result<MasterView, ErrorDto> {

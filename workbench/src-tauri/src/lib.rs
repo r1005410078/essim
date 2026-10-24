@@ -5,7 +5,7 @@ mod native_menu;
 use essim_infrastructure::workspace::WorkspaceEngine;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
-/// 只有前端明确确认放弃会话后才允许进程退出；退出码不是授权凭据。
+/// 工作台完成工程退出保护后才允许退出；无工程引导页可直接关闭。
 #[derive(Default)]
 pub(crate) struct ExitPermission {
     confirmed: std::sync::atomic::AtomicBool,
@@ -23,10 +23,17 @@ pub fn run() {
             app.manage(Arc::new(
                 essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?,
             ));
+            engine.require_project();
             let recent =
                 essim_infrastructure::project::RecentProject::new(&app.path().app_data_dir()?);
             let startup_error = match recent.load() {
-                Ok(Some(path)) => engine.open_project(&path).err().map(|e| e.to_string()),
+                Ok(Some(path)) => match engine.open_project(&path) {
+                    Ok(info) => recent
+                        .save_named(Some(&info.entry), Some(&info.name))
+                        .err()
+                        .map(|e| format!("工程已恢复，但最近工程设置未保存：{e}")),
+                    Err(error) => Some(error.to_string()),
+                },
                 Ok(None) => None,
                 Err(e) => Some(e.to_string()),
             };
@@ -34,6 +41,7 @@ pub fn run() {
                 recent,
                 startup_error: std::sync::Mutex::new(startup_error),
                 operation: std::sync::atomic::AtomicBool::new(false),
+                prepared: std::sync::Mutex::new(None),
             });
             app.manage(engine);
             if let Some(window) = app.get_webview_window("main") {
@@ -53,7 +61,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::project::query_project,
             commands::project::load_project_document,
-            commands::project::choose_project,
+            commands::project::prepare_project,
+            commands::project::commit_project,
+            commands::project::cancel_prepared_project,
+            commands::project::remove_recent_project,
             commands::project::close_project,
             commands::project::read_project_local,
             commands::project::write_project_local,

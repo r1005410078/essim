@@ -49,6 +49,7 @@ impl Drop for Subscriptions {
 /// 订阅集合锁已中毒或系统无法创建订阅线程时可能 panic。
 #[tauri::command]
 pub fn subscribe_workspace(
+    _access: super::project_access::ProjectAccess,
     channel: Channel<WorkspaceView>,
     engine: Managed<'_, Engine>,
     subscriptions: Managed<'_, Subscriptions>,
@@ -67,9 +68,21 @@ pub fn subscribe_workspace(
     let flag = cancel.clone();
     // 线程持有 Arc 克隆，避免超出本次命令的 State 借用生命周期。
     let engine = engine.inner().clone();
+    let session = engine
+        .project_info()?
+        .map(|p| p.session)
+        .unwrap_or_default();
     let join = thread::spawn(move || {
         let mut last = None;
         while !flag.load(Ordering::Acquire) {
+            let _client = match engine.project_client(&session) {
+                Ok(client) => client,
+                Err(error) if error.code == "PROJECT_BUSY" => {
+                    thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
+                Err(_) => break,
+            };
             let sequence = match engine.sequence() {
                 Ok(sequence) => sequence,
                 Err(_) => break,
@@ -85,6 +98,7 @@ pub fn subscribe_workspace(
                 }
                 last = Some(sequence);
             }
+            drop(_client);
             // M01仅订阅小型配置目录，无高频点值流。最多100ms观察取消。
             thread::sleep(Duration::from_millis(100));
         }
@@ -128,6 +142,10 @@ mod tests {
             let flag = Arc::new(AtomicBool::new(false));
             let worker_flag = flag.clone();
             let completed = completed.clone();
+            let session = engine
+                .project_info()?
+                .map(|p| p.session)
+                .unwrap_or_default();
             let join = thread::spawn(move || {
                 while !worker_flag.load(Ordering::Acquire) {
                     thread::sleep(Duration::from_millis(1));

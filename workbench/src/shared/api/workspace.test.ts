@@ -10,9 +10,11 @@ vi.mock("@tauri-apps/api/core", () => ({
     onmessage: unknown;
   },
 }));
+import { bindProjectSession } from "./project";
 import { createWorkspaceClient } from "./workspace";
 beforeEach(() => {
   invoke.mockReset();
+  bindProjectSession("session-A");
   isTauri.mockReturnValue(true);
 });
 it("无后端时查询、命令和订阅全部明确失败", async () => {
@@ -45,7 +47,7 @@ it("稳定对象原样传递，后端拒绝不转为成功", async () => {
   await expect(client.execute(command)).rejects.toMatchObject({
     code: "CAPABILITY_UNAVAILABLE",
   });
-  expect(invoke).toHaveBeenCalledWith("execute_workspace", { command });
+  expect(invoke).toHaveBeenCalledWith("execute_workspace", { command, projectSession:"session-A" });
 });
 it("订阅取消幂等，停止向已关闭面板交付更新", async () => {
   const client = createWorkspaceClient();
@@ -76,7 +78,7 @@ it("点表预览保留64位文本和字段错误，导出当前已保存模型",
   };
   invoke.mockResolvedValueOnce({ model: null, errors: [error], previews: [] });
   expect((await client.previewPoints!(input)).errors[0]).toEqual(error);
-  expect(invoke).toHaveBeenCalledWith("preview_point_table", { input });
+  expect(invoke).toHaveBeenCalledWith("preview_point_table", { input, projectSession:"session-A" });
   invoke.mockResolvedValueOnce(false);
   expect(await client.exportPointFile!("m", "xlsx")).toBe(
     false,
@@ -84,6 +86,7 @@ it("点表预览保留64位文本和字段错误，导出当前已保存模型",
   expect(invoke).toHaveBeenLastCalledWith("export_point_file", {
     id: "m",
     format: "xlsx",
+    projectSession:"session-A",
   });
 });
 it("文件取消发送任务令牌并丢弃后台迟到结果", async () => {
@@ -102,7 +105,7 @@ it("文件取消发送任务令牌并丢弃后台迟到结果", async () => {
   const jobId = invoke.mock.calls.find(
     (call) => call[0] === "open_point_file",
   )![1].jobId;
-  expect(invoke).toHaveBeenCalledWith("cancel_point_file", { jobId });
+  expect(invoke).toHaveBeenCalledWith("cancel_point_file", { jobId, projectSession:"session-A" });
   complete({ name: "late.csv", sheets: [] });
   expect(await task).toBeNull();
 });
@@ -110,7 +113,7 @@ it("串口发现仅调用查询，保留路径和设备名称", async () => {
   const ports = [{path:"/dev/cu.test",name:"RS485 · USB 1234:5678"}];
   invoke.mockResolvedValueOnce(ports);
   await expect(createWorkspaceClient().listSerialPorts!()).resolves.toEqual(ports);
-  expect(invoke).toHaveBeenCalledWith("list_serial_ports");
+  expect(invoke).toHaveBeenCalledWith("list_serial_ports",{projectSession:"session-A"});
 });
 it("浏览器串口发现明确失败，不伪造设备", async () => {
   isTauri.mockReturnValue(false);
@@ -123,7 +126,13 @@ it("分组规划、提交与释放经统一适配传输，失败保留后端原�
  const request={source:"m",batchId:"b",prefix:"组",groupSize:1000,startIp:"127.0.0.1",port:1080,station:1,folder:null};
  invoke.mockRejectedValueOnce({code:"IP_NOT_LOCAL",message:"未配置"});
  await expect(client.previewPartition!(request)).rejects.toMatchObject({code:"IP_NOT_LOCAL"});
- expect(invoke).toHaveBeenLastCalledWith("preview_partition",{request});
- invoke.mockResolvedValueOnce({});await client.createPartition!("b");expect(invoke).toHaveBeenLastCalledWith("create_partition",{token:"b"});
- invoke.mockResolvedValueOnce(undefined);await client.discardPartition!("b");expect(invoke).toHaveBeenLastCalledWith("discard_partition",{token:"b"});
+ expect(invoke).toHaveBeenLastCalledWith("preview_partition",{request,projectSession:"session-A"});
+ invoke.mockResolvedValueOnce({});await client.createPartition!("b");expect(invoke).toHaveBeenLastCalledWith("create_partition",{token:"b",projectSession:"session-A"});
+ invoke.mockResolvedValueOnce(undefined);await client.discardPartition!("b");expect(invoke).toHaveBeenLastCalledWith("discard_partition",{token:"b",projectSession:"session-A"});
+});
+
+it("旧客户端捕获原工程凭证，不能在全局切换后伪装为新请求",async()=>{
+ const old=createWorkspaceClient();bindProjectSession("session-B");const next=createWorkspaceClient();
+ invoke.mockResolvedValue({});await old.query();expect(invoke).toHaveBeenLastCalledWith("query_workspace",{projectSession:"session-A"});
+ await next.query();expect(invoke).toHaveBeenLastCalledWith("query_workspace",{projectSession:"session-B"});
 });

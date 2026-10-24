@@ -358,10 +358,12 @@ fn project_stop_failure_keeps_old_workspace_and_queries_remain_available() {
     entered.recv_timeout(Duration::from_secs(2)).unwrap();
     let start = Instant::now();
     let query = engine.query().unwrap();
+    let client_error = engine.project_client("old-session").err().unwrap();
     let elapsed = start.elapsed();
     let _ = release.send(());
     let error = worker.join().unwrap().unwrap_err();
     assert_eq!(error.code, "TEST_RELEASE_TIMEOUT");
+    assert_eq!(client_error.code, "PROJECT_BUSY");
     assert!(elapsed < Duration::from_secs(1));
     assert_eq!(query.catalog.endpoints.len(), 1);
     assert_eq!(engine.query().unwrap().catalog.endpoints.len(), 1);
@@ -407,4 +409,189 @@ fn concurrent_recent_settings_writers_never_publish_partial_json() {
         writer.join().unwrap();
     }
     assert!(RecentProject::new(&t.0).load().unwrap().is_some());
+}
+
+#[test]
+fn desktop_requires_project_and_new_project_is_empty() {
+    use essim_infrastructure::workspace::WorkspaceEngine;
+    let engine = WorkspaceEngine::default();
+    engine.require_project();
+    assert_eq!(engine.query().unwrap_err().code, "PROJECT_REQUIRED");
+    assert_eq!(
+        engine
+            .execute(essim_core::application::commands::Command {
+                command_id: "no-project".into(),
+                action: essim_core::application::commands::Action::SaveModel {
+                    model: catalog().models.remove(0)
+                }
+            })
+            .unwrap_err()
+            .code,
+        "PROJECT_REQUIRED"
+    );
+    assert_eq!(
+        engine.query_resources().unwrap_err().code,
+        "PROJECT_REQUIRED"
+    );
+    #[cfg(feature = "tcp-runtime")]
+    {
+        use essim_core::application::commands::{
+            master::{MasterAction, MasterCommand},
+            slave::{SlaveAction, SlaveCommand},
+        };
+        use essim_core::domain::identity::EndpointId;
+        assert_eq!(
+            engine
+                .execute_slave(SlaveCommand {
+                    command_id: "no-project".into(),
+                    endpoint: EndpointId("e".into()),
+                    action: SlaveAction::Stop
+                })
+                .unwrap_err()
+                .code,
+            "PROJECT_REQUIRED"
+        );
+        assert_eq!(
+            engine
+                .execute_master(MasterCommand {
+                    command_id: "no-project".into(),
+                    endpoint: EndpointId("e".into()),
+                    action: MasterAction::Disconnect
+                })
+                .unwrap_err()
+                .code,
+            "PROJECT_REQUIRED"
+        );
+    }
+    assert_eq!(
+        engine.query_navigation().unwrap_err().code,
+        "PROJECT_REQUIRED"
+    );
+    let a = Temp::new();
+    let b = Temp::new();
+    let first = engine.create_project(&a.0, "A").unwrap();
+    engine
+        .execute(essim_core::application::commands::Command {
+            command_id: "seed".into(),
+            action: essim_core::application::commands::Action::SaveModel {
+                model: catalog().models.remove(0),
+            },
+        })
+        .unwrap();
+    assert_eq!(engine.query().unwrap().catalog.models.len(), 1);
+    let again = engine.open_project(&first.entry).unwrap();
+    assert_eq!(first.session, again.session);
+    engine.create_project(&b.0, "B").unwrap();
+    assert!(engine.query().unwrap().catalog.models.is_empty());
+    engine.close_project().unwrap();
+    assert_eq!(engine.query().unwrap_err().code, "PROJECT_REQUIRED");
+}
+#[test]
+fn recent_history_survives_close_and_migrates_legacy_path() {
+    use essim_infrastructure::project::RecentProject;
+    let t = Temp::new();
+    let path = t.0.join("recent-project.json");
+    let entry = t.0.join("A/project.workspace");
+    std::fs::create_dir_all(&t.0).unwrap();
+    std::fs::write(&path, serde_json::to_vec(&Some(&entry)).unwrap()).unwrap();
+    let recent = RecentProject::new(&t.0);
+    assert_eq!(recent.entries().unwrap().len(), 1);
+    recent.save(None).unwrap();
+    assert_eq!(recent.load().unwrap(), None);
+    assert_eq!(recent.entries().unwrap().len(), 1);
+    recent.remove(&entry).unwrap();
+    assert!(recent.entries().unwrap().is_empty());
+}
+
+#[test]
+fn project_request_lease_rejects_stale_calls_and_blocks_close() {
+    use essim_infrastructure::workspace::WorkspaceEngine;
+    let engine = WorkspaceEngine::default();
+    engine.require_project();
+    assert!(engine.project_client("").is_err());
+    let a = Temp::new();
+    let first = engine.create_project(&a.0, "A").unwrap();
+    let lease = engine.project_client(&first.session).unwrap();
+    assert_eq!(engine.close_project().unwrap_err().code, "PROJECT_BUSY");
+    assert!(engine.project_info().unwrap().is_some());
+    drop(lease);
+    engine.close_project().unwrap();
+    engine.open_project(&first.entry).unwrap();
+    assert!(engine.project_client(&first.session).is_err());
+}
+
+#[test]
+fn recent_history_is_bounded_path_based_and_reports_corruption() {
+    use essim_infrastructure::project::RecentProject;
+    let t = Temp::new();
+    let recent = RecentProject::new(&t.0);
+    for i in 0..12 {
+        recent
+            .save_named(
+                Some(&t.0.join(format!("{i}/project.workspace"))),
+                Some(&format!("工程{i}")),
+            )
+            .unwrap();
+    }
+    let entries = recent.entries().unwrap();
+    assert_eq!(entries.len(), 10);
+    assert_eq!(entries[0].name, "工程11");
+    let again = entries[5].entry.clone();
+    recent.save_named(Some(&again), Some("已改名")).unwrap();
+    let entries = recent.entries().unwrap();
+    assert_eq!(entries.len(), 10);
+    assert_eq!(entries[0].entry, again);
+    assert_eq!(entries[0].name, "已改名");
+    std::fs::write(t.0.join("recent-project.json"), b"broken").unwrap();
+    assert!(recent.entries().is_err());
+}
+
+#[cfg(feature = "tcp-runtime")]
+#[test]
+fn project_runtime_protection_same_entry_and_reopen_never_autostarts() {
+    use essim_core::application::commands::{
+        slave::{SlaveAction, SlaveCommand},
+        Command,
+    };
+    use essim_core::domain::identity::EndpointId;
+    use essim_infrastructure::workspace::WorkspaceEngine;
+    let a = Temp::new();
+    let engine = WorkspaceEngine::with_tcp_runtime(a.0.join("fallback")).unwrap();
+    engine.require_project();
+    let info = engine.create_project(&a.0, "运行验收").unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    for action in [
+        serde_json::json!({"kind":"saveModel","model":{"id":"m","name":"M","points":[{"id":"p","name":"P","category":"measurement","area":"holding","address":0,"valueType":"u16","scale":"1","unit":"","initial":{"kind":"unsigned","value":"0"},"initialEngineering":"0","byteOrder":"big","wordOrder":"big","note":"","slaveWritable":true,"masterPeriodMs":1000}]}}),
+        serde_json::json!({"kind":"createEndpoint","endpoint":{"id":"e","name":"E","role":"slave","transport":{"kind":"tcp","address":"127.0.0.1","port":port},"units":[{"id":"u","name":"U","station":1,"enabled":true,"model":{"id":"m"}}]}}),
+        serde_json::json!({"kind":"apply","id":"e","resetIncompatible":false}),
+    ] {
+        engine
+            .execute(Command {
+                command_id: "configure".into(),
+                action: serde_json::from_value(action).unwrap(),
+            })
+            .unwrap();
+    }
+    assert!(!engine.project_requires_stop().unwrap());
+    engine
+        .execute_slave(SlaveCommand {
+            command_id: "start".into(),
+            endpoint: EndpointId("e".into()),
+            action: SlaveAction::Start { max_clients: 10 },
+        })
+        .unwrap();
+    assert!(engine.project_requires_stop().unwrap());
+    assert_eq!(
+        engine.open_project(&info.entry).unwrap().session,
+        info.session
+    );
+    assert!(engine.project_requires_stop().unwrap());
+    engine.close_project().unwrap();
+    engine.open_project(&info.entry).unwrap();
+    assert!(!engine.project_requires_stop().unwrap());
+    let released = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap();
+    drop(released);
+    assert_eq!(engine.query().unwrap().catalog.endpoints.len(), 1);
 }

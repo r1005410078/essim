@@ -4,7 +4,7 @@ use super::{
     Engine,
 };
 use tauri::State;
-/// 用户确认放弃本次会话后退出，不能把窗口销毁误当成配置已经落盘。
+/// 用户确认工程草稿保护后退出；窗口销毁不替代配置保存。
 #[tauri::command]
 pub(crate) async fn exit_workbench(
     app: tauri::AppHandle,
@@ -39,7 +39,10 @@ pub(crate) fn set_exit_guard_ready(ready: bool, permission: State<'_, crate::Exi
 /// # Errors
 /// 状态锁故障时失败。
 #[tauri::command]
-pub fn query_workspace(engine: State<'_, Engine>) -> Result<WorkspaceView, ErrorDto> {
+pub fn query_workspace(
+    _access: super::project_access::ProjectAccess,
+    engine: State<'_, Engine>,
+) -> Result<WorkspaceView, ErrorDto> {
     engine.query_navigation()
 }
 /// 执行强类型配置命令，校验权威配置，不接受前端伪造的应用状态。
@@ -47,6 +50,7 @@ pub fn query_workspace(engine: State<'_, Engine>) -> Result<WorkspaceView, Error
 /// 参数、引用、存储或未接入能力错误原样返回。
 #[tauri::command]
 pub async fn execute_workspace(
+    _access: super::project_access::ProjectAccess,
     command: Command,
     engine: State<'_, Engine>,
 ) -> Result<Receipt, ErrorDto> {
@@ -60,6 +64,7 @@ pub async fn execute_workspace(
 /// 配置非法、引用失效或存在未确认不兼容点时失败。
 #[tauri::command]
 pub fn preview_apply(
+    _access: super::project_access::ProjectAccess,
     id: String,
     reset: bool,
     engine: State<'_, Engine>,
@@ -72,6 +77,7 @@ pub fn preview_apply(
 /// 参数解析或配置状态锁失败。
 #[tauri::command]
 pub fn inspect_endpoint(
+    _access: super::project_access::ProjectAccess,
     endpoint: essim_core::domain::endpoint::EndpointConfig,
     engine: State<'_, Engine>,
 ) -> Result<std::collections::BTreeMap<essim_core::domain::identity::UnitId, bool>, ErrorDto> {
@@ -81,6 +87,7 @@ pub fn inspect_endpoint(
 /// 按需读取完整保存模型。
 #[tauri::command]
 pub async fn load_model(
+    _access: super::project_access::ProjectAccess,
     id: String,
     engine: State<'_, Engine>,
 ) -> Result<essim_core::domain::model::CollectionModel, ErrorDto> {
@@ -94,6 +101,7 @@ pub async fn load_model(
 /// 按需读取目标端点已应用模型和值。
 #[tauri::command]
 pub async fn load_endpoint_values(
+    _access: super::project_access::ProjectAccess,
     id: String,
     engine: State<'_, Engine>,
 ) -> Result<
@@ -116,6 +124,7 @@ pub async fn load_endpoint_values(
 /// 引用、覆盖校验、预算或后台任务失败。
 #[tauri::command]
 pub async fn resolve_unit(
+    _access: super::project_access::ProjectAccess,
     unit: essim_core::domain::endpoint::UnitConfig,
     engine: State<'_, Engine>,
 ) -> Result<essim_core::domain::model::CollectionModel, ErrorDto> {
@@ -129,6 +138,7 @@ pub async fn resolve_unit(
 /// 差异失效、字段依赖、共享引用冲突或预算不足。
 #[tauri::command]
 pub async fn preview_unit_promotion(
+    _access: super::project_access::ProjectAccess,
     endpoint: String,
     unit: String,
     selection: essim_core::application::commands::overrides::OverrideSelection,
@@ -150,6 +160,7 @@ pub async fn preview_unit_promotion(
 /// 选区非法、映射不一致、确认值失效或配置在取样期间改变。
 #[tauri::command]
 pub async fn capture_initials(
+    _access: super::project_access::ProjectAccess,
     endpoint: String,
     unit: String,
     points: Vec<String>,

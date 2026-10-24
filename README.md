@@ -33,7 +33,7 @@ Unit 右键菜单按单元身份提供新增、重命名和删除；模拟器节
 
 点表数据区下拉显示中文名称、英文标识和位宽／访问属性，选中后单元格仅显示中文；悬停或键盘聚焦选项可查看 Markdown 协议说明。[验证记录](docs/test-records/2026-10-23-modbus-area-dropdown.md)。
 
-**已接入工程持久化：静态资源文件、运行 SQLite、最近工程与草稿恢复；未打开工程的临时会话退出即丢失。** 场景／拓扑／3D未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
+**已接入工程持久化：静态资源文件、运行 SQLite、最近工程与草稿恢复；正式桌面必须打开或新建工程后才能进入工作台。** 场景／拓扑／3D未交付；TCP 多端点运行已接入，规模边界见下文。默认项目为空，不放入演示设备或假运行记录。浏览器预览无后端时明确失败。
 
 M02正在实施[点表管理提案](openspec/changes/implement-modbus-point-table-management/proposal.md)：已接入树右键CRUD、NovaSheet编辑、精确数值编码、模型引用、Markdown帮助和JSON／CSV／XLSX交换，自动化及主要原生流程已验证，下拉修改与属性同步已由用户确认，剩余快捷键／键盘帮助复核中。实际测试及限制见[实施记录](docs/test-records/2026-10-16-m02-progress.md)，未将实现中的功能标为整体验收完成。
 
@@ -163,3 +163,13 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 
 
 工程持久化已完成[方案提案](openspec/changes/persist-project-files-and-runtime-data/proposal.md)：使用通用 `project.workspace` 清单、独立静态资源文件和运行 SQLite，启动恢复最近工程但不自动运行；已在本分支实现并完成 macOS 流程与自动化验收，见[实施记录](docs/test-records/2026-10-24-project-persistence.md)。Windows／Linux 原生行为仍待验证。
+
+
+## 应用诊断日志（提案中）
+
+计划将应用错误与调试日志写入系统应用日志目录，支持结构化分级、大小轮转、有界后台写入、Rust／前端异常及日志故障可见性，并提供打开日志目录命令。独立于工程 `runs/`、SQLite 与协议可靠录制，不自动上传。本轮仅形成[提案](openspec/changes/add-application-diagnostic-logging/proposal.md)，尚未实现。
+
+
+## 工程启动与切换（已实现，macOS 验收完成）
+
+用户已确认取消正式客户端临时会话：首次无工程显示左右分区引导，必须打开或新建工程才进入工作台；启动恢复最近工程，关闭工程返回引导。顶部调整为左侧工程菜单、中间历史与检索、右侧三个面板开关。按[提案](openspec/changes/require-project-startup-and-switcher/proposal.md)，已接入工程门禁、独立引导页、最近列表及标题栏布局；自动化和 macOS 流程已验证，标题栏拖动由用户手工确认；Windows／Linux 原生行为待验。

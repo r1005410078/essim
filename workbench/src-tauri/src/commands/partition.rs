@@ -1,9 +1,10 @@
 //! 点位分组预览及一次创建IPC；不自动应用或运行。
-use super::{Engine, dto::ErrorDto};
+use super::{dto::ErrorDto, Engine};
 use tauri::State;
 /// 使用实际接口枚举和当前已保存模型生成预览。
 #[tauri::command]
 pub async fn preview_partition(
+    _access: super::project_access::ProjectAccess,
     request: essim_core::application::commands::partition::PartitionRequest,
     engine: State<'_, Engine>,
 ) -> Result<essim_infrastructure::partition::Preview, ErrorDto> {
@@ -15,6 +16,7 @@ pub async fn preview_partition(
 /// 原子提交一次预览；过期或源内容改变则要求重新规划。
 #[tauri::command]
 pub async fn create_partition(
+    _access: super::project_access::ProjectAccess,
     token: String,
     engine: State<'_, Engine>,
 ) -> Result<essim_core::application::commands::Receipt, ErrorDto> {
@@ -26,6 +28,10 @@ pub async fn create_partition(
 
 /// 关闭预览时归还暂存资源。
 #[tauri::command]
-pub fn discard_partition(token: String, engine: State<'_, Engine>) -> Result<(), ErrorDto> {
+pub fn discard_partition(
+    _access: super::project_access::ProjectAccess,
+    token: String,
+    engine: State<'_, Engine>,
+) -> Result<(), ErrorDto> {
     engine.discard_partition(&token)
 }

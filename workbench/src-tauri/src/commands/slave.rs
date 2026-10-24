@@ -10,6 +10,7 @@ use tauri::State;
 /// 参数、配置、监听、记录或执行器故障。
 #[tauri::command]
 pub async fn execute_slave(
+    _access: super::project_access::ProjectAccess,
     command: SlaveCommand,
     engine: State<'_, Engine>,
 ) -> Result<SlaveView, ErrorDto> {
@@ -23,6 +24,7 @@ pub async fn execute_slave(
 /// 查询过大、点非法或执行器故障。
 #[tauri::command]
 pub async fn query_slave(
+    _access: super::project_access::ProjectAccess,
     query: SlaveQuery,
     engine: State<'_, Engine>,
 ) -> Result<SlaveView, ErrorDto> {
@@ -36,7 +38,10 @@ pub async fn query_slave(
 /// # Errors
 /// 超过8MiB、不是JSON或文件写入失败。
 #[tauri::command]
-pub async fn export_observations(content: String) -> Result<bool, ErrorDto> {
+pub async fn export_observations(
+    _access: super::project_access::ProjectAccess,
+    content: String,
+) -> Result<bool, ErrorDto> {
     if content.len() > 8 * 1024 * 1024
         || serde_json::from_str::<serde_json::Value>(&content).is_err()
     {

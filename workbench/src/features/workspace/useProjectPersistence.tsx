@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { WorkbenchDialog, DialogBody, DialogFooter } from '@essim/ui/components/workbench-dialog';
-import { createProjectClient, listenProjectCommands } from '../../shared/api/project';
+import { createProjectClient, listenProjectCommands, type ProjectPreparation } from '../../shared/api/project';
 import { draftRecovery, hasRecovery, restoreDraftRecovery, combineRecovery, recoverySets, type DraftRecovery } from './projectRecovery';
 import { errorMessage, type WorkspaceStore, type Target } from './model';
 
@@ -10,6 +10,8 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
   const client = useMemo(createProjectClient, []);
   const [action, setAction] = useState<'create' | 'open' | 'close' | null>(null);
   const [busy, setBusy] = useState(false);
+  const prepared = useRef<ProjectPreparation | null>(null);
+  const [recent, setRecent] = useState<import('../../shared/api/project').RecentProject[]>([]);
   store.projectBusy = busy;
   const [recovery, setRecovery] = useState<DraftRecovery | null>(null);
   const initialized = useRef(false), localReady = useRef(false), preserveRecovery = useRef(false);
@@ -32,7 +34,7 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     if (initialized.current || !store.view || !api.current) return;
     initialized.current = true; let disposed = false; let timer: ReturnType<typeof setTimeout> | undefined; let disposeLayout: (() => void) | undefined;
     const start = async () => {
-      const status = await client.status(); if (disposed) return; store.project = status.project; if (status.startupError) store.error = status.startupError; store.changed();
+      const status = await client.status(); if (disposed) return; store.project = status.project; setRecent(status.recent ?? []); if (status.startupError) store.error = status.startupError; store.changed();
       if (!status.project) { localReady.current = true; return; }
       const [layout, drafts] = await Promise.all([client.read(status.project.session ?? status.project.id, 'workspace').catch(e => { fail(e); return null; }), client.read(status.project.session ?? status.project.id, 'recovery').catch(e => { preserveRecovery.current = true; fail(e); return null; })]); if (disposed) return;
       const dock = api.current!; const fallback = dock.toJSON();
@@ -65,22 +67,35 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     const cancel = store.subscribe(() => { if (!localReady.current || preserveRecovery.current || !store.project) return; clearTimeout(timer); timer = setTimeout(() => { void write('recovery', recoveryPayload()).catch(fail); }, 800); });
     return () => { cancel(); clearTimeout(timer); };
   }, [store]);
-  useEffect(() => { let alive = true, dispose: (() => void) | undefined; void listenProjectCommands(action => { if (!busy) setAction(action); }).then(cancel => { if (alive) dispose = cancel; else cancel(); }); return () => { alive = false; dispose?.(); }; }, [busy]);
+  useEffect(() => { let alive = true, dispose: (() => void) | undefined; void listenProjectCommands(action => { if (!busy) void request(action); }).then(cancel => { if (alive) dispose = cancel; else cancel(); }); return () => { alive = false; dispose?.(); }; }, [busy]);
   useEffect(() => {
     let active = true, pending = false, last = '';
     const timer = setInterval(() => { if (pending || !store.project) return; pending = true; void client.status().then(status => { const message = status.runtimeData?.error; if (active && message && message !== last) { last = message; fail(`运行数据库记录不完整：${message}`); } }).catch(() => { }).finally(() => { pending = false; }); }, 2000);
     return () => { active = false; clearInterval(timer); };
   }, [client, store]);
+  const complete = async (action: 'create' | 'open' | 'close', target: ProjectPreparation | null) => {
+    await flush();
+    if (action === 'close') await client.close();
+    else if (target) await client.commit(target.token);
+    window.location.reload();
+  };
+  const cancel = () => { if (busy) return; if (prepared.current) void client.cancel(prepared.current.token).catch(fail); prepared.current = null; setAction(null); };
+  const request = async (next: 'create' | 'open' | 'close', entry?: string) => {
+    if (busy || store.busy) return; setBusy(true);
+    try {
+      const target = next === 'close' ? null : await client.prepare(next, entry);
+      if (next !== 'close' && !target) return;
+      if (target?.same) { await client.cancel(target.token); return; }
+      prepared.current = target;
+      const current = await client.status();
+      const needsProtection = hasRecovery(draftRecovery(store)) || current.requiresStop;
+      if (needsProtection) setAction(next);
+      else await complete(next, target);
+    } catch (e) { fail(e); if (prepared.current) void client.cancel(prepared.current.token).catch(fail); prepared.current=null; } finally { setBusy(false); }
+  };
   const perform = async () => {
     if (!action || busy) return; setBusy(true);
-    try {
-      if (!store.project && action !== 'create' && hasRecovery(draftRecovery(store))) throw Error('临时会话存在未保存草稿，请先保存或新建工程保留草稿，再切换。');
-      await flush();
-      const result = action === 'close' ? (await client.close(), true) : await client.choose(action);
-      const changed = !!result;
-      if (action === 'create' && result && typeof result === 'object') { store.project = result; store.changed(); await client.write(result.session ?? result.id, 'recovery', draftRecovery(store)); }
-      if (changed) { window.location.reload(); return; } setAction(null);
-    } catch (e) { fail(e); } finally { setBusy(false); }
+    try { await complete(action, prepared.current); } catch (e) { fail(e); if(prepared.current) void client.cancel(prepared.current.token).catch(fail); setAction(null); prepared.current = null; } finally { setBusy(false); }
   };
   const decideRecovery = async (restore: boolean) => {
     if (!recovery || busy) return; setBusy(true);
@@ -90,8 +105,8 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     } catch (e) { fail(e); } finally { setBusy(false); }
   };
   const dialogs = <>
-    {action && <WorkbenchDialog title={action === 'create' ? '新建工程' : action === 'open' ? '打开工程' : '关闭工程'} initialWidth={400} busy={busy} onCancel={() => { if (!busy) setAction(null); }}><DialogBody><p>{action === 'create' ? '将当前已保存配置写入新工程。' : '切换前会停止当前工程通信。'}</p><p>未保存草稿会保留在当前工程恢复区；临时会话的草稿请先保存。</p></DialogBody><DialogFooter><button type="button" disabled={busy} onClick={() => setAction(null)}>取消</button><button type="button" disabled={busy || store.busy} onClick={() => void perform()}>{action === 'close' ? '关闭工程' : '选择位置'}</button></DialogFooter></WorkbenchDialog>}
+    {action && <WorkbenchDialog title={action === 'create' ? '新建工程' : action === 'open' ? '打开工程' : '关闭工程'} initialWidth={400} busy={busy} onCancel={cancel}><DialogBody><p>{action === 'create' ? '将在所选目录创建空工程，不复制当前资源。' : '切换前会停止当前工程通信。'}</p><p>未保存草稿会保留在当前工程恢复区；运行通信会停止。</p></DialogBody><DialogFooter><button type="button" disabled={busy} onClick={cancel}>取消</button><button type="button" disabled={busy || store.busy} onClick={() => void perform()}>{action === 'close' ? '关闭工程' : '切换工程'}</button></DialogFooter></WorkbenchDialog>}
     {recovery && <WorkbenchDialog title="发现未保存草稿" initialWidth={400} busy={busy} onCancel={() => { if (!busy) setRecovery(null); }}><DialogBody><p>可恢复上次未保存修改。正式资源已变化的草稿会保留副本，不覆盖文件。</p></DialogBody><DialogFooter><button type="button" disabled={busy} onClick={() => void decideRecovery(false)}>丢弃草稿</button><button type="button" disabled={busy} onClick={() => void decideRecovery(true)}>恢复草稿</button></DialogFooter></WorkbenchDialog>}
   </>;
-  return { request: setAction, dialogs, flush };
+  return { request: (action: 'create' | 'open' | 'close', entry?: string) => { void request(action, entry); }, recent, dialogs, flush };
 }
