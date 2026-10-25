@@ -13,13 +13,26 @@ pub async fn execute_master(
     _access: super::project_access::ProjectAccess,
     command: MasterCommand,
     engine: State<'_, Engine>,
+    log: tauri::State<'_, crate::diagnostics::ApplicationLog>,
 ) -> Result<MasterView, ErrorDto> {
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    let operation = command.command_id.clone();
+    let endpoint = command.endpoint.0.clone();
+
+    let result = tauri::async_runtime::spawn_blocking(move || {
         engine.execute_master(command).map_err(ErrorDto::from)
     })
     .await
-    .map_err(|_| ErrorDto::new("MASTER_TASK_FAILED", "主站任务失败"))?
+    .map_err(|_| ErrorDto::new("MASTER_TASK_FAILED", "主站任务失败"))
+    .and_then(|result| result);
+    crate::diagnostics::result(
+        &log.log,
+        "master_operation",
+        &operation,
+        Some(&endpoint),
+        &result,
+    );
+    result
 }
 /// 查询主站轻量投影。
 /// # Errors

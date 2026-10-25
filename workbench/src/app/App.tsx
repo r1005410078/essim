@@ -1,3 +1,4 @@
+import {ApplicationLogProblem} from '../features/diagnostics/ApplicationLogProblem';
 import {ProjectMenu} from "../features/projects/ProjectMenu";
 import {ProjectEntry} from "../features/projects/ProjectEntry";
 import type {ProjectInfo} from "../shared/api/project";
@@ -1188,7 +1189,7 @@ function InspectorPanel({params,api:panelApi}:IDockviewPanelProps<{scope:Inspect
 function ProblemsPanel(){
  const {store,open}=useWorkbench();
  const issues=[...store.modelDrafts.values()].flatMap(draft=>(draft.preview?.errors??[]).map(issue=>({draft,issue})));
- return <div className="panel column observation-panel"><div className="observation-tools"><strong>问题</strong><span className="muted">{issues.length+(store.error?1:0)} 项</span><span className="spacer"/><span className="muted">来自实际校验结果</span></div><div className="problem-list">{store.error&&<div className="panel-note error">{store.error}</div>}{issues.map(({draft,issue},index)=><button className="problem-row" key={`${draft.id}:${index}`} onClick={()=>{open({kind:"model",id:draft.id});requestAnimationFrame(()=>store.focusModelIssue.get(draft.id)?.(issue));}}><span className="error">●</span><strong>{draft.name}</strong><span>{issue.message}</span></button>)}{!issues.length&&!store.error&&<div className="observation-empty"><WorkspaceIllustration kind="inspector"/><span>当前没有校验问题</span></div>}</div></div>;
+ return <div className="panel column observation-panel"><div className="observation-tools"><strong>问题</strong><span className="muted">{issues.length+(store.error?1:0)} 项</span><span className="spacer"/><span className="muted">来自实际校验结果</span></div><div className="problem-list"><ApplicationLogProblem/>{store.error&&<div className="panel-note error">{store.error}</div>}{issues.map(({draft,issue},index)=><button className="problem-row" key={`${draft.id}:${index}`} onClick={()=>{open({kind:"model",id:draft.id});requestAnimationFrame(()=>store.focusModelIssue.get(draft.id)?.(issue));}}><span className="error">●</span><strong>{draft.name}</strong><span>{issue.message}</span></button>)}{!issues.length&&!store.error&&<div className="observation-empty"><WorkspaceIllustration kind="inspector"/><span>当前没有校验问题</span></div>}</div></div>;
 }
 function Observations({params,api}:IDockviewPanelProps<{view?:string}>){
  const {store,selected,open}=useWorkbench();

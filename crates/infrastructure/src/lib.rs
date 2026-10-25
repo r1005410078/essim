@@ -41,3 +41,6 @@ pub mod unit_overrides;
 
 /// 工程文件清单、静态资源与持久提交。
 pub mod project;
+
+/// 进程级、可丢且独立于协议可靠录制的应用诊断。
+pub mod diagnostics;

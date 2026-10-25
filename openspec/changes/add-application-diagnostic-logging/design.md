@@ -87,3 +87,7 @@ Tauri 官方 log 插件支持系统目录和大小轮转，可作选型比较，
 - [tracing-appender WorkerGuard](https://docs.rs/tracing-appender/latest/tracing_appender/non_blocking/struct.WorkerGuard.html)：异步队列及异常退出尾部丢失边界。
 - [rolling-file 官方 API](https://docs.rs/rolling-file/latest/rolling_file/)：按大小轮转、有限归档及与 non_blocking 组合。
 - [tracing-log 官方 API](https://docs.rs/tracing-log/latest/tracing_log/struct.LogTracer.html)：log 到 tracing 的单向桥接。
+
+## 实施选型补充（2026-10-25）
+
+锁定 tracing 0.1.44（MIT）、tracing-subscriber 0.3.23（MIT）、tracing-log 0.2.0（MIT）、rolling-file 0.2.0（MIT/Apache-2.0）。源码核对发现 rolling-file 自动轮转失败会 stderr 后继续写，因此关闭其自动条件，在每条写入前显式调用 rollover 并处理 Result；不复制其归档算法。tracing-appender 的 chunk 队列不能直接表达整条载荷上限，采用 std 有界完整记录队列及独立 writer，控制消息单独限时通道；文件锁使用 Rust 标准库 File::try_lock。

@@ -37,11 +37,23 @@ pub async fn execute_workspace(
     _access: super::project_access::ProjectAccess,
     command: Command,
     engine: State<'_, Engine>,
+    log: tauri::State<'_, crate::diagnostics::ApplicationLog>,
 ) -> Result<Receipt, ErrorDto> {
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || engine.execute(command))
+    let operation = command.command_id.clone();
+    let event = match &command.action {
+        essim_core::application::commands::Action::SaveModel { .. } => "model_saved",
+        essim_core::application::commands::Action::SaveEndpoint { .. } => "endpoint_saved",
+        essim_core::application::commands::Action::Apply { .. } => "configuration_applied",
+        _ => "configuration_result",
+    };
+
+    let result = tauri::async_runtime::spawn_blocking(move || engine.execute(command))
         .await
-        .map_err(|_| ErrorDto::new("COMMAND_TASK_FAILED", "配置任务执行失败"))?
+        .map_err(|_| ErrorDto::new("COMMAND_TASK_FAILED", "配置任务执行失败"))
+        .and_then(|result| result);
+    crate::diagnostics::result(&log.log, event, &operation, None, &result);
+    result
 }
 /// 预览显式应用范围和单元迁移，不触发停机或目录写入。
 /// # Errors

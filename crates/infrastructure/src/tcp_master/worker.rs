@@ -67,7 +67,15 @@ struct Engine {
 impl Engine {
     fn state(&self, state: &str) {
         if let Ok(mut p) = self.shared.lock() {
+            let changed = p.view.state != state;
             p.view.state = state.into();
+            if changed && state == "reconnecting" {
+                tracing::warn!(
+                    event = "endpoint_reconnecting",
+                    endpointId = p.view.endpoint.0.as_str(),
+                    message = "主站进入自动重连"
+                );
+            }
         }
         publish(
             &self.shared,

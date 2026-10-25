@@ -1,5 +1,6 @@
 //! 桌面组装：会话配置及真实TCP从站；核心模型不依赖Tauri。
 mod commands;
+mod diagnostics;
 mod initial_window;
 mod native_menu;
 mod window_context;
@@ -14,51 +15,81 @@ pub(crate) struct ExitPermission {
 }
 /// 启动工作台，订阅管理器销毁时取消并回收推送线程。
 pub fn run() {
+    essim_infrastructure::diagnostics::install_early_panic_hook();
     tauri::Builder::default()
         .menu(native_menu::build)
         .on_menu_event(native_menu::dispatch)
         .setup(|app| {
-            let registry = window_context::Windows::new(app.path().app_data_dir()?);
-            let context = window_context::ProjectContext::new(
-                registry.root.join("runs"),
-                registry.recent.clone(),
-            )?;
-            let restored = match registry.recent.load() {
-                Ok(Some(path)) => match context.engine.open_project(&path) {
-                    Ok(info) => {
-                        registry
-                            .index
-                            .lock()
-                            .unwrap()
-                            .publish(info.entry.clone(), "main");
-                        registry
-                            .recent
-                            .save_named(Some(&info.entry), Some(&info.name))
-                            .err()
-                            .map(|e| e.to_string())
-                    }
+            let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                let logging = diagnostics::ApplicationLog::new(app.path().app_log_dir());
+                if let Err(error) = logging.log.install() {
+                    eprintln!("应用日志 subscriber：{error}");
+                }
+                logging.log.install_panic_hook();
+                logging.log.event(
+                    essim_infrastructure::diagnostics::Level::Info,
+                    "essim_workbench",
+                    "application_start",
+                    "工作台启动",
+                    None,
+                );
+                app.manage(logging);
+                let registry = window_context::Windows::new(app.path().app_data_dir()?);
+                let context = window_context::ProjectContext::new(
+                    registry.root.join("runs"),
+                    registry.recent.clone(),
+                )?;
+                let restored = match registry.recent.load() {
+                    Ok(Some(path)) => match context.engine.open_project(&path) {
+                        Ok(info) => {
+                            registry
+                                .index
+                                .lock()
+                                .unwrap()
+                                .publish(info.entry.clone(), "main");
+                            registry
+                                .recent
+                                .save_named(Some(&info.entry), Some(&info.name))
+                                .err()
+                                .map(|e| e.to_string())
+                        }
+                        Err(e) => Some(e.to_string()),
+                    },
+                    Ok(None) => None,
                     Err(e) => Some(e.to_string()),
-                },
-                Ok(None) => None,
-                Err(e) => Some(e.to_string()),
-            };
-            *context.session.startup_error.lock().unwrap() = restored;
-            let launcher = context.engine.project_info()?.is_none();
-            registry
-                .contexts
-                .lock()
-                .unwrap()
-                .insert("main".into(), context.clone());
-            *registry.active.lock().unwrap() = Some("main".into());
-            app.manage(registry);
-            if let Some(window) = app.get_webview_window("main") {
-                #[cfg(not(target_os = "macos"))]
-                window.set_decorations(false)?;
-                initial_window::configure(&window)?;
-                context.layout.apply(&window, launcher)?;
-                window.show()?;
+                };
+                if let Some(error) = &restored {
+                    diagnostics::event(
+                        app.handle(),
+                        essim_infrastructure::diagnostics::Level::Warn,
+                        "project_restore_failed",
+                        error,
+                    );
+                }
+                *context.session.startup_error.lock().unwrap() = restored;
+                let launcher = context.engine.project_info()?.is_none();
+                registry
+                    .contexts
+                    .lock()
+                    .unwrap()
+                    .insert("main".into(), context.clone());
+                *registry.active.lock().unwrap() = Some("main".into());
+                app.manage(registry);
+                if let Some(window) = app.get_webview_window("main") {
+                    #[cfg(not(target_os = "macos"))]
+                    window.set_decorations(false)?;
+                    initial_window::configure(&window)?;
+                    context.layout.apply(&window, launcher)?;
+                    window.show()?;
+                }
+                Ok(())
+            })();
+            if let Err(error) = &result {
+                essim_infrastructure::diagnostics::early_error(&format!(
+                    "工作台初始化失败：{error}"
+                ));
             }
-            Ok(())
+            result
         })
         .on_window_event(|window, event| {
             let app = window.app_handle();
@@ -105,6 +136,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            diagnostics::query_application_log,
+            diagnostics::submit_application_log,
+            diagnostics::open_application_log_directory,
             initial_window::sync_project_window,
             commands::project::query_project,
             commands::project::load_project_document,
@@ -156,6 +190,18 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("无法启动ESSim工作台")
         .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(log) = app.try_state::<diagnostics::ApplicationLog>() {
+                    log.log.event(
+                        essim_infrastructure::diagnostics::Level::Info,
+                        "essim_workbench",
+                        "application_exit",
+                        "业务退出已完成",
+                        None,
+                    );
+                    log.guard.shutdown(std::time::Duration::from_secs(2));
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen {
                 has_visible_windows: false,

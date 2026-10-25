@@ -13,11 +13,24 @@ pub async fn execute_slave(
     _access: super::project_access::ProjectAccess,
     command: SlaveCommand,
     engine: State<'_, Engine>,
+    log: tauri::State<'_, crate::diagnostics::ApplicationLog>,
 ) -> Result<SlaveView, ErrorDto> {
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || engine.execute_slave(command))
+    let operation = command.command_id.clone();
+    let endpoint = command.endpoint.0.clone();
+
+    let result = tauri::async_runtime::spawn_blocking(move || engine.execute_slave(command))
         .await
-        .map_err(|_| ErrorDto::new("RUNTIME_TASK_FAILED", "运行任务执行失败"))?
+        .map_err(|_| ErrorDto::new("RUNTIME_TASK_FAILED", "运行任务执行失败"))
+        .and_then(|result| result);
+    crate::diagnostics::result(
+        &log.log,
+        "slave_operation",
+        &operation,
+        Some(&endpoint),
+        &result,
+    );
+    result
 }
 /// 按需查询运行摘要及有限点值，不返回全量配置目录。
 /// # Errors
