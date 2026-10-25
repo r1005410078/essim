@@ -8,6 +8,7 @@ use std::{
 struct State {
     next: u64,
     held: BTreeMap<EndpointId, (u64, usize)>,
+    lifecycle: BTreeMap<EndpointId, (u64, usize)>,
 }
 #[derive(Default)]
 struct Shared {
@@ -24,6 +25,11 @@ pub struct OperationPermit {
     shared: Arc<Shared>,
     endpoint: EndpointId,
     token: u64,
+    lifecycle: bool,
+}
+/// 由工程通信管理器派生的生命周期凭证；不夺取仍在执行的业务许可。
+pub struct LifecycleLease {
+    permit: OperationPermit,
 }
 fn poisoned() -> Error {
     Error::new("STATE_POISONED", "端点操作门不可用")
@@ -34,6 +40,9 @@ impl OperationGates {
     /// 端点已有操作、令牌溢出或锁状态不可用。
     pub fn acquire(&self, id: &EndpointId) -> Result<OperationPermit, Error> {
         let mut state = self.shared.state.lock().map_err(|_| poisoned())?;
+        if state.lifecycle.contains_key(id) {
+            return Err(Error::new("STOPPING", "端点正处于生命周期操作，拒绝新业务"));
+        }
         if state.held.contains_key(id) {
             return Err(Error::new(
                 "ENDPOINT_BUSY",
@@ -50,7 +59,24 @@ impl OperationGates {
             shared: self.shared.clone(),
             endpoint: id.clone(),
             token,
+            lifecycle: false,
         })
+    }
+    pub(crate) fn lifecycle(&self, id: &EndpointId) -> Result<LifecycleLease, Error> {
+        let mut state = self.shared.state.lock().map_err(|_| poisoned())?;
+        if state.lifecycle.contains_key(id) {
+            return Err(Error::new("LIFECYCLE_BUSY", "端点已有生命周期操作"));
+        }
+        let token = state.next.checked_add(1)
+            .ok_or_else(|| Error::new("OPERATION_OVERFLOW", "操作令牌耗尽"))?;
+        state.next = token;
+        state.lifecycle.insert(id.clone(), (token, 1));
+        Ok(LifecycleLease { permit: OperationPermit {
+            shared: self.shared.clone(), endpoint: id.clone(), token, lifecycle: true,
+        } })
+    }
+    pub(crate) fn data_inflight(&self, id: &EndpointId) -> Result<bool, Error> {
+        Ok(self.shared.state.lock().map_err(|_| poisoned())?.held.contains_key(id))
     }
     /// 只检查是否允许其他操作；不占门或复制配置。
     /// # Errors
@@ -85,6 +111,7 @@ impl OperationGates {
     }
 }
 impl OperationPermit {
+    pub(crate) fn is_lifecycle(&self) -> bool { self.lifecycle }
     #[cfg(feature="tcp-runtime")]
     pub(crate) fn retain_callback(&self) -> Result<Self, Error> {
         self.retain(
@@ -102,8 +129,8 @@ impl OperationPermit {
             ));
         }
         let mut state = self.shared.state.lock().map_err(|_| poisoned())?;
-        let entry = state
-            .held
+        let entries = if self.lifecycle { &mut state.lifecycle } else { &mut state.held };
+        let entry = entries
             .get_mut(id)
             .filter(|e| e.0 == self.token)
             .ok_or_else(|| Error::new("OPERATION_PERMIT_EXPIRED", "操作凭证已失效"))?;
@@ -115,6 +142,7 @@ impl OperationPermit {
             shared: self.shared.clone(),
             endpoint: id.clone(),
             token: self.token,
+            lifecycle: self.lifecycle,
         })
     }
     /// 等待本次已提交回调归还其子凭证；不持有配置锁，不创建等待线程。
@@ -122,8 +150,7 @@ impl OperationPermit {
     /// 操作门状态不可用。
     pub fn wait_for_callbacks(&self) -> Result<(), Error> {
         let mut state = self.shared.state.lock().map_err(|_| poisoned())?;
-        while state
-            .held
+        while (if self.lifecycle { &state.lifecycle } else { &state.held })
             .get(&self.endpoint)
             .is_some_and(|v| v.0 == self.token && v.1 > 1)
         {
@@ -135,16 +162,23 @@ impl OperationPermit {
 impl Drop for OperationPermit {
     fn drop(&mut self) {
         if let Ok(mut state) = self.shared.state.lock() {
-            if let Some(entry) = state.held.get_mut(&self.endpoint) {
+            let entries = if self.lifecycle { &mut state.lifecycle } else { &mut state.held };
+            if let Some(entry) = entries.get_mut(&self.endpoint) {
                 if entry.0 == self.token {
                     entry.1 -= 1;
                     if entry.1 == 0 {
-                        state.held.remove(&self.endpoint);
+                        entries.remove(&self.endpoint);
                     }
                 }
             }
             self.shared.changed.notify_all();
         }
+    }
+}
+impl LifecycleLease {
+    pub(crate) fn permit(&self) -> &OperationPermit { &self.permit }
+    pub(crate) fn validate(&self, gates: &OperationGates, id: &EndpointId) -> Result<(), Error> {
+        self.permit.retain(gates, id).map(drop)
     }
 }
 #[cfg(test)]

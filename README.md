@@ -4,6 +4,10 @@
 
 [项目目标](docs/project-goals.md) · [Modbus实现计划](docs/plans/modbus-simulator.md) · [架构](docs/architecture/workspace.md) · [流程图与代码对应](docs/design/modbus-event-storming.md) · [开发约束](AGENTS.md)
 
+新增协议先参考[协议接入规范与 Modbus 接口审查](docs/design/protocol-integration.md)，以及[面向104／61850的深度审查](docs/reviews/2026-10-25-protocol-integration.md)：包含当前接口、设备状态／协议模型边界和集成风险；建议公共接口仍是草案，尚未改造生产运行路径。
+
+已形成[协议接入与通信管理重构提案](openspec/changes/refactor-protocol-integration-and-communications/proposal.md)：[G0验证](docs/test-records/2026-10-25-protocol-g0.md)已补齐前四项及第二轮两项复核遗漏，并以30项用例重新确认受限接口／故障及104真实TCP队列策略（含Gap后旧快照拒绝与记录队列拒绝后恢复）。后续通信管理兼容、共享状态／原子应用、工程格式／展示尚未迁移；不表示104／61850工作台已支持。
+
 顶部已接入[资源／命令检索](docs/design/command-center.md)、文档历史前进后退与面板开关；Tabs仍在中央内容区，拼音索引按需加载。浏览器交互已检查，macOS已检查原生检索、焦点恢复及缩放；最小化恢复、拖动位置与退出保护待补验，Windows/Linux尚未验收。[提案](openspec/changes/implement-workbench-command-center/proposal.md) · [实施记录](docs/test-records/2026-10-23-command-center-ui.md)。
 
 ## 当前能力
@@ -149,7 +153,7 @@ python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave 
 python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave --endpoints 10 --units 1 --points 100 --clients 1 --periods 10 5 1 --duration 600 --faults --output /tmp/essim-sustained.json
 ```
 
-M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
+M07历史查看与离线回放已按用户要求移至实施顺序最后，尚未交付；M08本地存储已完成约定范围及 macOS 验收，不再列为下一项待办。现有实时事件／报文查看和可靠录制保留。
 
 右侧属性范围已迁移到 Dockview 右边缘的点／Unit／端点三个图标标签，默认 Unit；顶部开关完全隐藏／恢复，其他布局保留。[提案与实现边界](docs/test-records/2026-10-23-right-edge-inspector-tabs.md)。
 
@@ -182,3 +186,10 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 应用诊断日志
 
 已接入独立系统目录的分级 JSONL 日志、进程会话锁、大小轮转、有界非阻塞队列、前后端异常和两秒退出刷新。顶部命令 `>打开应用日志目录` 打开固定目录，“问题”面板显示日志降级；同进程全部工程窗口共享，工程通信记录保持独立。macOS 已验，Windows／Linux 原生待验。见[使用说明](docs/operations/application-logging.md)与[验收记录](docs/test-records/2026-10-25-application-logging.md)。
+
+
+## IEC 101／104 协议库基础
+
+已建立独立的 [lib60870 三包](crates/lib60870/README.md)：`lib60870-src` 保存完整官方 v2.4.1 源码并离线构建，`lib60870-sys` 管理原始 FFI／链接，`lib60870-rs` 提供首批线程绑定的 ASDU、单点／浮点遥测及 104 无线程服务端安全 API。101 源码完整保留，101 安全通信 API、104 客户端、TLS 与其他类型尚未封装。
+
+本阶段不接入工作台、不修改 Modbus／Tokio 执行模型。封装验证范围与命令见[说明](crates/lib60870/README.md)和[实施记录](docs/test-records/2026-10-25-lib60870-packages.md)，不将库测试描述成真实 EMS、完整协议或规模验收。

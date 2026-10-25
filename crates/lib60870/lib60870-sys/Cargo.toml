@@ -1,0 +1,12 @@
+[package]
+name = "lib60870-sys"
+version.workspace = true
+edition.workspace = true
+publish = false
+links = "60870"
+[features]
+default = []
+vendored = []
+[build-dependencies]
+lib60870-src.workspace = true
+cc = "1"

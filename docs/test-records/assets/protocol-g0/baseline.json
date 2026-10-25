@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-25",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "head": "074bc4748069e28a466c91c05dab1db77406905c",
+  "workspace": "dirty before G0; no commit created",
+  "baseline_sha256": {
+    "Cargo.toml": "3ddf7f531abc2a8751462fbc6977abf7caf3dd5ecede5489bda190b575dbf953",
+    "Cargo.lock": "d77ee44c32ec5ea1f30a1c52e810f7ffb933585195adad73a4a178bc41ec422b",
+    "crates/infrastructure/Cargo.toml": "4b43113a19e438a7e6852f046cf6773ef9c56db36add80d6eae5433196b31c04",
+    "workbench/src-tauri/Cargo.toml": "c29c8f7d7dbf46e37b20b8399914139f90018f5947a8aa0b6f2b7434c7f43a56",
+    "workbench/src/shared/api/contracts.ts": "c9ccd1512322d5c2fb760ab0c6815afac8a4eeb5188d0bda83d5685c4fee5eeb",
+    "workbench/src/shared/api/workspace.ts": "59a297b51209d4f7c0b2faba669fc246f89a4bd1a91d3a963345fe9b632505cc",
+    "crates/core/src/domain/master.rs": "51ff477b4b189ba03efd895590a387d5bd31d6bf6358ece9e675df81711ba9f5",
+    "crates/core/src/domain/slave.rs": "bd95e689df10389efbaf7caf453b2078c55d0ed3cc9556ef564b0ece5393254d",
+    "crates/infrastructure/src/operation_gates.rs": "87a7cc55be77fd8fb38d286982ebd2906d8a582be911343265b0eb3b2b70f840",
+    "crates/infrastructure/src/recording.rs": "4c5e8c00e2e32ba0ca4fb78b87146dd2ce9bb970fbfc8247f63bf3860cd1071c",
+    "crates/infrastructure/src/workspace.rs": "0b5b7b692a6e453f4c763494c61fb8b59186990b4ad14930e260bdcb95c9c320",
+    "crates/infrastructure/src/tcp_slave/mod.rs": "38cb67504d76c2ac0a1cde85032c8a45206bc02c0b212a15ed9f33ad2508dc05",
+    "crates/infrastructure/src/tcp_master/mod.rs": "f9db6cb3139f9d541de0c5a6dc198c9e03bd690ad9bc5d20d4d1341b6a1cc949",
+    "crates/infrastructure/tests/project_storage.rs": "7478940d939776ac6d40c266f732aa530865bd0fc074e8a0d2fe4bff6c2de6a0",
+    "crates/core/tests/point_apply.rs": "a6c75a509b3c4361d687f8923bf7b4c6169e6785734bcd890093badf621cf098",
+    "crates/core/tests/runtime_contracts.rs": "0d7fa5c854503424548915f877f9b3b2a94e3ab55886fdaad353b481c4d7f12e"
+  }
+}

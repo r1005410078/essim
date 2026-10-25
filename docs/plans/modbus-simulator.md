@@ -145,7 +145,7 @@ python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave 
 python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave --endpoints 10 --units 1 --points 100 --clients 1 --periods 10 5 1 --duration 600 --faults --output /tmp/essim-sustained.json
 ```
 
-M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
+M07历史查看与离线回放已按用户要求移至实施顺序最后，尚未交付；M08本地存储已完成约定范围及 macOS 验收，不再列为下一项待办。现有实时事件／报文查看和可靠录制保留。
 
 工作台属性栏局部调整：右侧使用三个 Dockview 图标标签切换点／Unit／端点，不涉及协议阶段完成度。[提案](../../openspec/changes/use-right-edge-inspector-tabs/proposal.md) · [记录](../test-records/2026-10-23-right-edge-inspector-tabs.md)。
 
@@ -167,7 +167,7 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 - [x] 验收：核心测试、前端检查及macOS Tauri创建／菜单键盘／多选移动／分屏／弹框鼠标矩阵完成，见实施记录。Windows/Linux未验，不替代协议阶段验收。
 
 
-### M08：工程配置存储与执行数据（2026-10-24）
+### M08：~~工程配置存储与执行数据（本地存储）~~（已完成，2026-10-24）
 
 - [x] 讨论并确认工程目录、通用入口 `project.workspace`、资源文件、虚拟树映射清单和启动恢复最近工程。
 - [x] [提案与验收任务](../../openspec/changes/persist-project-files-and-runtime-data/proposal.md)：静态配置文件与运行 SQLite 分离，保存／应用边界不变。
@@ -196,3 +196,9 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 - [x] 用户确认同进程、每窗口一个工程，默认新窗口打开，同工程只激活已有窗口。
 - [x] 形成[提案与任务](../../openspec/changes/open-projects-in-independent-windows/proposal.md)，覆盖上下文／IPC 隔离、路径去重、菜单归属、关闭和全应用退出、共享最近列表及单工程恢复。
 - [x] 完成本轮 macOS 验收；独立 worktree 已实现，22/22 项完成，最小化恢复原窗口且无重复已由用户手工确认，Windows／Linux 未验。不改变工程格式，不自动启动通信，不将多进程或跨工程拖放纳入本轮。见[实施记录](../test-records/2026-10-25-multi-project-windows.md)。
+
+### 横切规划：协议接入与通信管理重构（G0已验证，生产迁移未开始）
+
+已形成[提案](../../openspec/changes/refactor-protocol-integration-and-communications/proposal.md)、[设计](../../openspec/changes/refactor-protocol-integration-and-communications/design.md)与[任务](../../openspec/changes/refactor-protocol-integration-and-communications/tasks.md)，统一通信管理及协议接入契约。六项审查修订后顺序为：G0先以104真实队列／61850模型服务等反例验证，再冻结接口；G_A单独验收Modbus通信管理兼容重构（旧写路径／Journal／格式1不变）；G_B验收共享状态／原子应用与真实104监控Example；最后G_C升级持久化和展示。现已按用户授权修复前四项及第二轮两项复核遗漏（Gap后旧快照拒绝、记录队列拒绝后恢复）并以30项用例重新完成[G0验证](../test-records/2026-10-25-protocol-g0.md)，只增加受限测试设施和默认关闭的104窄监控接口；生产运行、工程格式及线程模型尚未迁移，不交付104／61850正式模拟器。
+
+既有M01–M08进度、硬件／原生／规模验收边界保持原证据范围；本提案完成不能勾选任何未实现阶段。实施后须复核TCP／RTU主从、批量、工程存储和退出路径，详见[验收矩阵](../../openspec/changes/refactor-protocol-integration-and-communications/validation.md)。

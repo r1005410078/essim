@@ -1,0 +1,201 @@
+Run 1/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+   Compiling lib60870-rs v0.1.0 (/Users/rongts/essim/crates/lib60870/lib60870-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.64s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 2/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 3/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 4/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 5/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 6/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 7/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 8/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 9/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 10/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 11/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 12/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 13/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 14/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 15/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 16/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 17/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 18/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 19/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+
+Run 20/20
+
+running 1 test
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)
+

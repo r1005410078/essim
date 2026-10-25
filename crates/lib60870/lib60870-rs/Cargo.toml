@@ -1,0 +1,20 @@
+[package]
+name = "lib60870-rs"
+version.workspace = true
+edition.workspace = true
+publish = false
+[features]
+default = ["vendored"]
+vendored = ["lib60870-sys/vendored"]
+# 仅供协议重构 G0 验证；默认构建和工作台不启用。
+g0-monitor = []
+[dependencies]
+lib60870-sys.workspace = true
+
+[[example]]
+name = "iec104-server"
+path = "examples/server.rs"
+
+[[example]]
+name = "iec104-smoke"
+path = "examples/smoke.rs"

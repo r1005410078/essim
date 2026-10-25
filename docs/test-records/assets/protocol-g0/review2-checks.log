@@ -1,0 +1,36 @@
+$ rustfmt --edition 2024 --check crates/lib60870/lib60870-rs/tests/g0_queue.rs crates/infrastructure/tests/protocol_g0/state.rs
+
+exit=0
+$ openspec validate refactor-protocol-integration-and-communications --strict
+Change 'refactor-protocol-integration-and-communications' is valid
+
+exit=0
+$ git diff --check
+
+exit=0
+16 baseline SHA256 unchanged: True; core source unchanged this turn: True
+Changed this turn:
+README.md
+crates/infrastructure/tests/protocol_g0/state.rs
+crates/lib60870/lib60870-rs/tests/g0_queue.rs
+docs/design/protocol-integration.md
+docs/plans/modbus-simulator.md
+docs/project-goals.md
+docs/test-records/2026-10-25-protocol-g0.md
+openspec/changes/refactor-protocol-integration-and-communications/design.md
+openspec/changes/refactor-protocol-integration-and-communications/proposal.md
+openspec/changes/refactor-protocol-integration-and-communications/specs/protocol-adapter-conformance/spec.md
+openspec/changes/refactor-protocol-integration-and-communications/specs/protocol-state-and-controls/spec.md
+openspec/changes/refactor-protocol-integration-and-communications/tasks.md
+openspec/changes/refactor-protocol-integration-and-communications/validation.md
+Added this turn:
+docs/test-records/assets/protocol-g0/review2-before-native.log
+docs/test-records/assets/protocol-g0/review2-before-recording.log
+docs/test-records/assets/protocol-g0/review2-clippy-contracts.log
+docs/test-records/assets/protocol-g0/review2-clippy-native.log
+docs/test-records/assets/protocol-g0/review2-contracts.log
+docs/test-records/assets/protocol-g0/review2-native.log
+Removed this turn: []
+Changed Markdown/Rust files: no trailing whitespace
+
+Final check: modified Rust limited to two G0 test facilities; seven new evidence links valid; tasks 12 complete / 40 pending; OpenSpec strict valid; git diff --check passed.

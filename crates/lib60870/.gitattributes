@@ -1,0 +1,2 @@
+# 保留官方归档字节，不让 checkout 的换行转换破坏固定源码树摘要。
+lib60870-src/vendor/** -text

@@ -1,0 +1,20 @@
+
+running 1 test
+record-admission recovery: result=Err("JournalRejected"), sequence=4, reliable=1
+test state::record_queue_rejection_preserves_sequence_and_recovers_after_budget_release ... FAILED
+
+failures:
+
+failures:
+    state::record_queue_rejection_preserves_sequence_and_recovers_after_budget_release
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.01s
+
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running tests/protocol_g0.rs (target/debug/deps/protocol_g0-87f31af0196693a1)
+
+thread 'state::record_queue_rejection_preserves_sequence_and_recovers_after_budget_release' (7103468) panicked at crates/infrastructure/tests/protocol_g0/state.rs:445:22:
+未受理的记录不能消耗序号，额度释放后必须可重新提交: "JournalRejected"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p essim-infrastructure --test protocol_g0`

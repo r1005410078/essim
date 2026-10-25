@@ -1,0 +1,214 @@
+   Compiling lib60870-rs v0.1.0 (/Users/rongts/essim/crates/lib60870/lib60870-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.93s
+     Running unittests src/lib.rs (target/debug/deps/lib60870_rs-6a5e62bb47ae9e41)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/asdu.rs (target/debug/deps/asdu-f8b557357a6bac00)
+
+running 2 tests
+test independent_units_roundtrip_and_mixed_types_are_rejected_without_append ... ok
+test address_quality_sequence_and_capacity_are_validated ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-6819c0ced86db174)
+
+running 15 tests
+test fifo_rejects_postcut_regression_and_stale_snapshot ... ok
+test changes_batches_are_contiguous_atomic_and_keep_multiple_frames_per_commit ... ok
+test application_fifo_rejects_overflow_epoch_gap_and_partial_snapshot_admission ... ok
+late source batch/snapshot: gaps=2, wire=[1.0, 3.0, 3.0]; stale=2 never sent
+mixed-priority counterexample: ACT_CON, GI(new=2), ACT_TERM, spontaneous(old=1)
+test owned_interrogation_rejects_out_of_scope_requests_and_builds_negative_reply ... ok
+test testfr_branch_does_not_invalidate_a_live_session ... ok
+test late_postcut_changes_and_old_snapshot_cannot_roll_back_real_tcp_values ... ok
+test idle_empty_fifo_reset_still_captures_and_sends_a_new_snapshot ... ok
+resync disconnect: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+test repeated_startdt_invalidates_token_when_upstream_resets_pending_high_queue ... ok
+test single_redundancy_group_takeover_invalidates_previous_active_token ... ok
+test mixed_priority_reproduces_old_spontaneous_after_new_gi ... ok
+test all_upstream_startdt_reset_forms_invalidate_the_old_session ... ok
+test session_tokens_reject_foreign_stopped_deactivated_and_reconnected_owners ... ok
+resync stopdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+resync repeat-startdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+wire ASDU[0]=0d 1c 03 00 2f 00 64 00 00 00 00 80 3f 00 65 00 00 00 00 80 3f 00 66 00 00 00 00 80 3f 00 67 00 00 00 00 80 3f 00 68 00 00 00 00 80 3f 00 69 00 00 00 00 80 3f 00 6a 00 00 00 00 80 3f 00 6b 00 00 00 00 80 3f 00 6c 00 00 00 00 80 3f 00 6d 00 00 00 00 80 3f 00 6e 00 00 00 00 80 3f 00 6f 00 00 00 00 80 3f 00 70 00 00 00 00 80 3f 00 71 00 00 00 00 80 3f 00 72 00 00 00 00 80 3f 00 73 00 00 00 00 80 3f 00 74 00 00 00 00 80 3f 00 75 00 00 00 00 80 3f 00 76 00 00 00 00 80 3f 00 77 00 00 00 00 80 3f 00 78 00 00 00 00 80 3f 00 79 00 00 00 00 80 3f 00 7a 00 00 00 00 80 3f 00 7b 00 00 00 00 80 3f 00 7c 00 00 00 00 80 3f 00 7d 00 00 00 00 80 3f 00 7e 00 00 00 00 80 3f 00 7f 00 00 00 00 80 3f 00
+wire ASDU[8]=64 01 87 11 2f 00 00 00 00 14
+wire ASDU[9]=0d 1c 94 11 2f 00 64 00 00 00 00 00 40 00 65 00 00 00 00 00 40 00 66 00 00 00 00 00 40 00 67 00 00 00 00 00 40 00 68 00 00 00 00 00 40 00 69 00 00 00 00 00 40 00 6a 00 00 00 00 00 40 00 6b 00 00 00 00 00 40 00 6c 00 00 00 00 00 40 00 6d 00 00 00 00 00 40 00 6e 00 00 00 00 00 40 00 6f 00 00 00 00 00 40 00 70 00 00 00 00 00 40 00 71 00 00 00 00 00 40 00 72 00 00 00 00 00 40 00 73 00 00 00 00 00 40 00 74 00 00 00 00 00 40 00 75 00 00 00 00 00 40 00 76 00 00 00 00 00 40 00 77 00 00 00 00 00 40 00 78 00 00 00 00 00 40 00 79 00 00 00 00 00 40 00 7a 00 00 00 00 00 40 00 7b 00 00 00 00 00 40 00 7c 00 00 00 00 00 40 00 7d 00 00 00 00 00 40 00 7e 00 00 00 00 00 40 00 7f 00 00 00 00 00 40 00
+wire ASDU[109]=64 01 8a 11 2f 00 00 00 00 14
+wire ASDU[110]=0d 1c 03 00 2f 00 64 00 00 00 00 40 40 00 65 00 00 00 00 40 40 00 66 00 00 00 00 40 40 00 67 00 00 00 00 40 40 00 68 00 00 00 00 40 40 00 69 00 00 00 00 40 40 00 6a 00 00 00 00 40 40 00 6b 00 00 00 00 40 40 00 6c 00 00 00 00 40 40 00 6d 00 00 00 00 40 40 00 6e 00 00 00 00 40 40 00 6f 00 00 00 00 40 40 00 70 00 00 00 00 40 40 00 71 00 00 00 00 40 40 00 72 00 00 00 00 40 40 00 73 00 00 00 00 40 40 00 74 00 00 00 00 40 40 00 75 00 00 00 00 40 40 00 76 00 00 00 00 40 40 00 77 00 00 00 00 40 40 00 78 00 00 00 00 40 40 00 79 00 00 00 00 40 40 00 7a 00 00 00 00 40 40 00 7b 00 00 00 00 40 40 00 7c 00 00 00 00 40 40 00 7d 00 00 00 00 40 40 00 7e 00 00 00 00 40 40 00 7f 00 00 00 00 40 40 00
+single-FIFO: old=8, GI=100+2, new=2, accepted=104, WouldBlock=40, pre-ack ticks=33; no duplicate, rollback or low-queue entry
+resync noncanonical-startdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test single_fifo_survives_window_backlog_cross_tick_gi_and_queue_rejection ... ok
+resync takeover: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test pending_projection_restarts_from_fresh_snapshot_on_all_session_transitions ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/server.rs (target/debug/deps/server-05d954c3f4bb25b6)
+
+running 4 tests
+test occupied_port_and_zero_port_are_reported_without_resource_leak ... ok
+
+thread 'callback_panic_becomes_error_without_unwinding_into_c' (7071785) panicked at crates/lib60870/lib60870-rs/tests/server.rs:81:48:
+injected callback panic
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test outgoing_queue_refuses_overflow_instead_of_replacing_oldest_event ... ok
+test callback_panic_becomes_error_without_unwinding_into_c ... ok
+test wire_interrogation_scoped_replies_and_drop_release_listener ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/lib60870_src-14233bfdaceaf563)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/build_rules.rs (target/debug/deps/build_rules-7f658e71370b6eb9)
+
+running 3 tests
+test source_selection_never_falls_back_to_system ... ok
+test unsupported_target_and_profile_fail_before_native_build ... ok
+test real_artifacts_reject_tampering_and_build_keeps_vendor_pristine ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
+
+     Running unittests src/lib.rs (target/debug/deps/lib60870_sys-6ec3a89040710afb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/abi.rs (target/debug/deps/abi-13314bdd2fc19546)
+
+running 1 test
+test linked_library_matches_header_version_in_pinned_upstream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests lib60870_rs
+
+running 3 tests
+error[E0277]: `Rc<()>` cannot be sent between threads safely
+   --> crates/lib60870/lib60870-rs/src/server.rs:283:24
+    |
+283 |     std::thread::spawn(move || drop(token));
+    |     ------------------ -------^^^^^^^^^^^^
+    |     |                  |
+    |     |                  `Rc<()>` cannot be sent between threads safely
+    |     |                  within this `{closure@crates/lib60870/lib60870-rs/src/server.rs:6:24: 6:31}`
+    |     required by a bound introduced by this call
+    |
+    = help: within `{closure@crates/lib60870/lib60870-rs/src/server.rs:6:24: 6:31}`, the trait `Send` is not implemented for `Rc<()>`
+note: required because it appears within the type `SessionToken`
+   --> crates/lib60870/lib60870-rs/src/server.rs:287:12
+    |
+287 | pub struct SessionToken {
+    |            ^^^^^^^^^^^^
+note: required because it's used within this closure
+   --> crates/lib60870/lib60870-rs/src/server.rs:283:24
+    |
+283 |     std::thread::spawn(move || drop(token));
+    |                        ^^^^^^^
+note: required by a bound in `spawn`
+   --> /Users/rongts/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+...
+128 |     F: Send + 'static,
+    |        ^^^^ required by this bound in `spawn`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.
+test crates/lib60870/lib60870-rs/src/server.rs - server::SessionToken (line 280) - compile fail ... ok
+error[E0277]: `NonNull<lib60870_sys::Opaque>` cannot be sent between threads safely
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:128:20
+    |
+128 | std::thread::spawn(move || drop(asdu));
+    | ------------------ -------^^^^^^^^^^^
+    | |                  |
+    | |                  `NonNull<lib60870_sys::Opaque>` cannot be sent between threads safely
+    | |                  within this `{closure@crates/lib60870/lib60870-rs/src/asdu.rs:6:20: 6:27}`
+    | required by a bound introduced by this call
+    |
+    = help: within `{closure@crates/lib60870/lib60870-rs/src/asdu.rs:6:20: 6:27}`, the trait `Send` is not implemented for `NonNull<lib60870_sys::Opaque>`
+note: required because it appears within the type `Asdu`
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:129:12
+    |
+129 | pub struct Asdu {
+    |            ^^^^
+note: required because it's used within this closure
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:128:20
+    |
+128 | std::thread::spawn(move || drop(asdu));
+    |                    ^^^^^^^
+note: required by a bound in `spawn`
+   --> /Users/rongts/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+...
+128 |     F: Send + 'static,
+    |        ^^^^ required by this bound in `spawn`
+
+error[E0277]: `Rc<()>` cannot be sent between threads safely
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:128:20
+    |
+128 | std::thread::spawn(move || drop(asdu));
+    | ------------------ -------^^^^^^^^^^^
+    | |                  |
+    | |                  `Rc<()>` cannot be sent between threads safely
+    | |                  within this `{closure@crates/lib60870/lib60870-rs/src/asdu.rs:6:20: 6:27}`
+    | required by a bound introduced by this call
+    |
+    = help: within `{closure@crates/lib60870/lib60870-rs/src/asdu.rs:6:20: 6:27}`, the trait `Send` is not implemented for `Rc<()>`
+note: required because it appears within the type `PhantomData<Rc<()>>`
+   --> /Users/rongts/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/marker.rs:811:12
+    |
+811 | pub struct PhantomData<T: PointeeSized>;
+    |            ^^^^^^^^^^^
+note: required because it appears within the type `Asdu`
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:129:12
+    |
+129 | pub struct Asdu {
+    |            ^^^^
+note: required because it's used within this closure
+   --> crates/lib60870/lib60870-rs/src/asdu.rs:128:20
+    |
+128 | std::thread::spawn(move || drop(asdu));
+    |                    ^^^^^^^
+note: required by a bound in `spawn`
+   --> /Users/rongts/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+...
+128 |     F: Send + 'static,
+    |        ^^^^ required by this bound in `spawn`
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
+test crates/lib60870/lib60870-rs/src/asdu.rs - asdu::Asdu (line 125) - compile fail ... ok
+test crates/lib60870/lib60870-rs/src/lib.rs - (line 7) ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
+   Doc-tests lib60870_src
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests lib60870_sys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

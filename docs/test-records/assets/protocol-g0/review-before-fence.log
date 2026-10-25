@@ -1,0 +1,21 @@
+
+running 1 test
+REVIEW: obsolete fence abort=Ok(()), new write admitted=true
+test review_probe_previous_scope_fence_cannot_abort_next_quiesce ... FAILED
+
+failures:
+
+failures:
+    review_probe_previous_scope_fence_cannot_abort_next_quiesce
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s
+
+    Blocking waiting for file lock on build directory
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.41s
+     Running tests/__g0_review_state.rs (target/debug/deps/__g0_review_state-97c5d490bc93c25d)
+
+thread 'review_probe_previous_scope_fence_cannot_abort_next_quiesce' (6988216) panicked at crates/infrastructure/tests/__g0_review_state.rs:598:5:
+上一轮ScopeFence解除了新一轮写入栅栏
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p essim-infrastructure --test __g0_review_state`

@@ -1,0 +1,24 @@
+
+running 14 tests
+test models::saved_asset_changes_do_not_invalidate_self_contained_applied_or_runtime_snapshot ... ok
+test models::native_identity_preserves_fc_structure_arrays_dataset_order_and_unbound_nodes ... ok
+test control::lifecycle_rejects_other_project_endpoint_and_stale_generation ... ok
+test models::service_dependencies_and_runtime_plane_do_not_collapse_into_one_connection_or_saved_definition ... ok
+test control::timed_out_held_permit_and_full_queue_do_not_block_trusted_stop ... ok
+record-admission recovery: result=Ok(3), sequence=2, reliable=1
+test state::old_fence_cannot_abort_inspect_or_publish_a_new_quiesce ... ok
+test state::scope_fence_covers_all_sources_drains_actions_and_uses_final_snapshot ... ok
+test state::crash_cut_after_decision_retains_evidence_without_replaying_network ... ok
+test state::scope_without_protocol_run_can_commit_and_definite_apply_abort_keeps_values ... ok
+test state::durable_decision_precedes_atomic_publication_and_each_projection_receipt ... ok
+test state::lost_success_ack_keeps_unknown_without_duplicate_decision_or_projection ... ok
+test state::admitted_commit_drains_after_fence_and_unknown_cannot_be_force_aborted ... ok
+record-admission recovered: reliable=5, cursor=2, value=7, projections=2
+test state::record_queue_rejection_preserves_sequence_and_recovers_after_budget_release ... ok
+test state::intent_failure_never_decides_and_unknown_decision_blocks_writes_and_migration ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Compiling essim-infrastructure v0.1.0 (/Users/rongts/essim/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.26s
+     Running tests/protocol_g0.rs (target/debug/deps/protocol_g0-87f31af0196693a1)

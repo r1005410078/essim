@@ -89,3 +89,13 @@ python scripts/verify_rtu_example.py
 ```
 
 这些是PTY软件证据，不代表已验证真实RS-485转换器、接线和时序。
+
+## IEC 104 Rust 封装示例
+
+不依赖工作台，在仓库根目录运行：
+
+```sh
+cargo run -p lib60870-rs --example iec104-smoke --offline
+```
+
+自动启动回环服务端和字节级测试客户端，验证总召、单点／遥测、自发上送、负确认、连接控制与资源释放。源码位于 [smoke.rs](../crates/lib60870/lib60870-rs/examples/smoke.rs)，静态／动态构建说明见 [lib60870 三包说明](../crates/lib60870/README.md)。这是封装子集的本机测试，尚未接入 ESSim 工作台，不代表真实 EMS 或完整协议兼容性验收。

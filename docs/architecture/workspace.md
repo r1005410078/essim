@@ -4,6 +4,10 @@
 
 当前调用顺序见[图与代码对应：命令、服务、查询及前端通知](../design/modbus-event-storming.md#0-当前代码新建模拟器的命令查询与通知)。该图明确区分服务同步调用投影监听器、前端快照订阅与尚未接入的业务事件监听。
 
+跨协议扩展见[协议接入规范与 Modbus 接口审查](../design/protocol-integration.md)及[面向104／61850的深度审查](../reviews/2026-10-25-protocol-integration.md)（2026-10-25）：按当前代码列出Modbus绑定点、设备状态／协议原生模型／运行服务的建议边界与验证缺口。下文保留各阶段的历史范围；不能将早期契约或建议接口视为当前已装配的通用协议执行器。
+
+完整规划见[协议接入与通信管理重构设计](../../openspec/changes/refactor-protocol-integration-and-communications/design.md)：拟在Workspace应用服务与具体运行适配器之间装配每工程通信管理器，统一生命周期和操作跟踪；项目StateRegistry独立拥有共享状态，以唯一可靠决策提交、ScopeFence排空后迁移，协议分别投影。G0原生队列／跨协议反例先于接口冻结，G_A通信兼容、G_B共享状态、G_C格式／展示依次独立验收。[G0受限验证](../test-records/2026-10-25-protocol-g0.md)已在四项复核修复后以28项用例重新确认，候选语义／104原生队列可行性通过；公共生产管理器及后续阶段未实现，既有主从运行路径保持原样。
+
 ## 文件分层（2026-10-18）
 
 ```text
@@ -270,3 +274,10 @@ workbench/src/features/workspace/
 前端 `UnitPointDraft` 复用 NovaSheet 和既有点表校验，按 Unit 保存历史与恢复标记；异步保存只确认提交时内容，新输入保持脏状态。基础变化需要显式重继承；回写前保护源和目标草稿。配置／运行分离，后者只读取已应用定义。有效表导出复用原模型编解码，不改变交换格式；M08 未来项目文件须保存引用和差异，旧读者不得静默忽略覆盖。
 
 操作说明与验证边界见[使用说明](../unit-model-overrides.md)、[实施记录](../test-records/2026-10-22-unit-model-overrides.md)。
+
+
+### lib60870 独立协议封装（2026-10-25）
+
+新增 `crates/lib60870/{lib60870-src,lib60870-sys,lib60870-rs}` 三包，共用根 workspace／Cargo.lock。src 固定官方完整源码及构建，sys 为唯一原生链接所有者，rs 提供线程绑定 ASDU／信息对象与首批无线程 104 服务端。库层不依赖 ESSim core、infrastructure、Tauri 或 Tokio，当前也未由正式客户端链接。
+
+回调连接／ASDU 仅在同步回调作用域内借用，panic 不跨 C ABI；所有者线程驱动 tick，Drop 在回调状态销毁前释放监听／连接。周期／自发事件入队在安全层拒绝覆盖旧条目。点表／设备／控制业务、可靠录制和工作台适配仍由后续应用实现承担；不把 C 库发送队列当作可靠落盘屏障。[支持子集与构建边界](../../crates/lib60870/README.md)。

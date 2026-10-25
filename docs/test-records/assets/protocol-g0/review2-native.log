@@ -1,0 +1,39 @@
+
+running 16 tests
+test fifo_rejects_postcut_regression_and_stale_snapshot ... ok
+test application_fifo_rejects_overflow_epoch_gap_and_partial_snapshot_admission ... ok
+test changes_batches_are_contiguous_atomic_and_keep_multiple_frames_per_commit ... ok
+late source batch/snapshot: gaps=2, wire=[1.0, 3.0, 3.0]; stale=2 never sent
+gap-resync reset-session=false: rejected cuts=10/12 and foreign epoch, retained=(1,13), wire=[1.0, 3.0, 4.0, 5.0]
+mixed-priority counterexample: ACT_CON, GI(new=2), ACT_TERM, spontaneous(old=1)
+test owned_interrogation_rejects_out_of_scope_requests_and_builds_negative_reply ... ok
+test late_postcut_changes_and_old_snapshot_cannot_roll_back_real_tcp_values ... ok
+test idle_empty_fifo_reset_still_captures_and_sends_a_new_snapshot ... ok
+resync disconnect: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test session_query_detects_idle_reset_without_sending_an_asdu ... ok
+gap-resync reset-session=true: rejected cuts=10/12 and foreign epoch, retained=(1,13), wire=[1.0, 3.0, 4.0, 5.0]
+test single_redundancy_group_takeover_invalidates_previous_active_token ... ok
+test repeated_startdt_invalidates_token_when_upstream_resets_pending_high_queue ... ok
+test mixed_priority_reproduces_old_spontaneous_after_new_gi ... ok
+test all_upstream_startdt_reset_forms_invalidate_the_old_session ... ok
+test session_tokens_reject_foreign_stopped_deactivated_and_reconnected_owners ... ok
+test testfr_branch_does_not_invalidate_a_live_session ... ok
+test gap_resync_rejects_late_snapshots_and_preserves_progress_across_session_reset ... ok
+resync stopdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+resync repeat-startdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+wire ASDU[0]=0d 1c 03 00 2f 00 64 00 00 00 00 80 3f 00 65 00 00 00 00 80 3f 00 66 00 00 00 00 80 3f 00 67 00 00 00 00 80 3f 00 68 00 00 00 00 80 3f 00 69 00 00 00 00 80 3f 00 6a 00 00 00 00 80 3f 00 6b 00 00 00 00 80 3f 00 6c 00 00 00 00 80 3f 00 6d 00 00 00 00 80 3f 00 6e 00 00 00 00 80 3f 00 6f 00 00 00 00 80 3f 00 70 00 00 00 00 80 3f 00 71 00 00 00 00 80 3f 00 72 00 00 00 00 80 3f 00 73 00 00 00 00 80 3f 00 74 00 00 00 00 80 3f 00 75 00 00 00 00 80 3f 00 76 00 00 00 00 80 3f 00 77 00 00 00 00 80 3f 00 78 00 00 00 00 80 3f 00 79 00 00 00 00 80 3f 00 7a 00 00 00 00 80 3f 00 7b 00 00 00 00 80 3f 00 7c 00 00 00 00 80 3f 00 7d 00 00 00 00 80 3f 00 7e 00 00 00 00 80 3f 00 7f 00 00 00 00 80 3f 00
+wire ASDU[8]=64 01 87 11 2f 00 00 00 00 14
+wire ASDU[9]=0d 1c 94 11 2f 00 64 00 00 00 00 00 40 00 65 00 00 00 00 00 40 00 66 00 00 00 00 00 40 00 67 00 00 00 00 00 40 00 68 00 00 00 00 00 40 00 69 00 00 00 00 00 40 00 6a 00 00 00 00 00 40 00 6b 00 00 00 00 00 40 00 6c 00 00 00 00 00 40 00 6d 00 00 00 00 00 40 00 6e 00 00 00 00 00 40 00 6f 00 00 00 00 00 40 00 70 00 00 00 00 00 40 00 71 00 00 00 00 00 40 00 72 00 00 00 00 00 40 00 73 00 00 00 00 00 40 00 74 00 00 00 00 00 40 00 75 00 00 00 00 00 40 00 76 00 00 00 00 00 40 00 77 00 00 00 00 00 40 00 78 00 00 00 00 00 40 00 79 00 00 00 00 00 40 00 7a 00 00 00 00 00 40 00 7b 00 00 00 00 00 40 00 7c 00 00 00 00 00 40 00 7d 00 00 00 00 00 40 00 7e 00 00 00 00 00 40 00 7f 00 00 00 00 00 40 00
+wire ASDU[109]=64 01 8a 11 2f 00 00 00 00 14
+wire ASDU[110]=0d 1c 03 00 2f 00 64 00 00 00 00 40 40 00 65 00 00 00 00 40 40 00 66 00 00 00 00 40 40 00 67 00 00 00 00 40 40 00 68 00 00 00 00 40 40 00 69 00 00 00 00 40 40 00 6a 00 00 00 00 40 40 00 6b 00 00 00 00 40 40 00 6c 00 00 00 00 40 40 00 6d 00 00 00 00 40 40 00 6e 00 00 00 00 40 40 00 6f 00 00 00 00 40 40 00 70 00 00 00 00 40 40 00 71 00 00 00 00 40 40 00 72 00 00 00 00 40 40 00 73 00 00 00 00 40 40 00 74 00 00 00 00 40 40 00 75 00 00 00 00 40 40 00 76 00 00 00 00 40 40 00 77 00 00 00 00 40 40 00 78 00 00 00 00 40 40 00 79 00 00 00 00 40 40 00 7a 00 00 00 00 40 40 00 7b 00 00 00 00 40 40 00 7c 00 00 00 00 40 40 00 7d 00 00 00 00 40 40 00 7e 00 00 00 00 40 40 00 7f 00 00 00 00 40 40 00
+single-FIFO: old=8, GI=100+2, new=2, accepted=104, WouldBlock=40, pre-ack ticks=33; no duplicate, rollback or low-queue entry
+resync noncanonical-startdt: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test single_fifo_survives_window_backlog_cross_tick_gi_and_queue_rejection ... ok
+resync takeover: old-app-frames-superseded=19, snapshots=2, gap=1, wire=[7.0, 8.0]
+test pending_projection_restarts_from_fresh_snapshot_on_all_session_transitions ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+   Compiling lib60870-rs v0.1.0 (/Users/rongts/essim/crates/lib60870/lib60870-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.54s
+     Running tests/g0_queue.rs (target/debug/deps/g0_queue-689973b2a13193f7)

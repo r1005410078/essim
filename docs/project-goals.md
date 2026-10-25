@@ -145,7 +145,7 @@ python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave 
 python scripts/measure_modbus_scale.py --binary target/debug/examples/tcp_slave --endpoints 10 --units 1 --points 100 --clients 1 --periods 10 5 1 --duration 600 --faults --output /tmp/essim-sustained.json
 ```
 
-M07历史查看与离线回放已按用户要求撤回本轮实现与提案，移至实施顺序最后；下一项为M08配置存储与交换。现有实时事件／报文查看和可靠录制保留。
+M07历史查看与离线回放已按用户要求移至实施顺序最后，尚未交付；M08本地存储已完成约定范围及 macOS 验收，不再列为下一项待办。现有实时事件／报文查看和可靠录制保留。
 
 ## 已验收的工作台组织能力（2026-10-24）
 
@@ -174,3 +174,16 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 应用诊断（2026-10-25）
 
 应用日志独立于工程协议记录，已接入系统目录、日志分级、有限轮转及异常记录；日志降级不改变工程保存与协议可靠门禁。macOS 已验，Windows／Linux 原生待验。详见[实施记录](test-records/2026-10-25-application-logging.md)。不包含日志浏览器、上传或审计承诺。
+
+
+## IEC 104 库接入阶段（2026-10-25）
+
+按用户要求先建设独立 Rust 三包，复用官方 lib60870-C，完整保留 101／104 源码。当前交付范围是源码构建、FFI 和首批 104 安全 API；不扩展当前工作台支持协议，不改变设备／配置模型，也不推进已暂缓的 mio／Tokio 重构。
+
+后续 104 模拟器的点表映射、总召范围、上送、控制语义、可靠录制及真实 EMS 互操作须另行明确并验收。101 的安全通信封装另定，不因上游包含代码而计为已实现。[三包说明](../crates/lib60870/README.md) · [实施记录](test-records/2026-10-25-lib60870-packages.md)。
+
+## 协议接入与通信管理重构（提案阶段，2026-10-25）
+
+已按用户要求形成[完整重构提案](../openspec/changes/refactor-protocol-integration-and-communications/proposal.md)：计划统一每工程通信管理、协议实例／服务／通道、设备状态与控制、原生模型绑定、操作结果及观察录制契约。按六项二次审查修订为G0先验证104真实队列与跨协议反例、再冻结接口；G_A单独验收Modbus通信管理兼容重构，保持旧值写路径／Journal／格式1；G_B验收独立共享状态、唯一提交、ScopeFence原子迁移及Modbus＋104受限Example；最后G_C处理显式新格式与元数据展示。
+
+已按用户授权完成[G0受限验证](test-records/2026-10-25-protocol-g0.md)：前四项及第二轮两项复核遗漏修复后，30项候选接口／故障设施与104真实TCP队列用例通过，包含Gap后旧快照拒绝和记录队列拒绝后恢复，窄监控接口由默认关闭feature隔离。G_A／G_B／G_C尚未推进，不改变当前支持协议，不切换mio／Tokio。后续104／61850正式产品仍须分别明确范围、原生库共存、独立互操作和平台验收，MMS、GOOSE、SV不合并承诺。参见[设计](../openspec/changes/refactor-protocol-integration-and-communications/design.md)、[实施任务](../openspec/changes/refactor-protocol-integration-and-communications/tasks.md)和[验收矩阵](../openspec/changes/refactor-protocol-integration-and-communications/validation.md)。

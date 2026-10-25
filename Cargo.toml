@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/libmodbus/libmodbus-src", "crates/libmodbus/libmodbus-sys", "crates/libmodbus/libmodbus-rs", "crates/core", "crates/infrastructure", "workbench/src-tauri"]
+members = ["crates/libmodbus/libmodbus-src", "crates/libmodbus/libmodbus-sys", "crates/libmodbus/libmodbus-rs", "crates/lib60870/lib60870-src", "crates/lib60870/lib60870-sys", "crates/lib60870/lib60870-rs", "crates/core", "crates/infrastructure", "workbench/src-tauri"]
 exclude = ["prototype/src-tauri"]
 resolver = "2"
 [workspace.package]
@@ -12,3 +12,6 @@ essim-infrastructure = { path = "crates/infrastructure", default-features = fals
 libmodbus-src = { path = "crates/libmodbus/libmodbus-src" }
 libmodbus-sys = { path = "crates/libmodbus/libmodbus-sys", default-features = false }
 libmodbus-rs = { path = "crates/libmodbus/libmodbus-rs", default-features = false }
+lib60870-src = { path = "crates/lib60870/lib60870-src" }
+lib60870-sys = { path = "crates/lib60870/lib60870-sys", default-features = false }
+lib60870-rs = { path = "crates/lib60870/lib60870-rs", default-features = false }
