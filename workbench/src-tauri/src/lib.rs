@@ -17,6 +17,7 @@ pub fn run() {
         .menu(native_menu::build)
         .on_menu_event(native_menu::dispatch)
         .manage(ExitPermission::default())
+        .manage(initial_window::ProjectWindow::default())
         .setup(|app| {
             let record_root = app.path().app_data_dir()?.join("runs");
             let engine = Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
@@ -43,6 +44,7 @@ pub fn run() {
                 operation: std::sync::atomic::AtomicBool::new(false),
                 prepared: std::sync::Mutex::new(None),
             });
+            let launcher = engine.project_info()?.is_none();
             app.manage(engine);
             if let Some(window) = app.get_webview_window("main") {
                 // macOS保留原生红绿灯；其他桌面由工作台提供窗口操作按钮。
@@ -52,6 +54,7 @@ pub fn run() {
                     // 系统不提供工作区信息时仍以配置尺寸显示，不让工作台停留在隐藏状态。
                     eprintln!("无法调整首次窗口尺寸：{error}");
                 }
+                app.state::<initial_window::ProjectWindow>().apply(&window, launcher)?;
                 window.show()?;
             }
             Ok(())
@@ -59,6 +62,7 @@ pub fn run() {
         .manage(commands::subscriptions::Subscriptions::default())
         .manage(commands::point_table::PointFileJobs::default())
         .invoke_handler(tauri::generate_handler![
+            initial_window::sync_project_window,
             commands::project::query_project,
             commands::project::load_project_document,
             commands::project::prepare_project,

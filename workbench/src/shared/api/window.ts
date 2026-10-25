@@ -78,3 +78,8 @@ export async function operateWindow(action: 'drag' | 'minimize' | 'maximize' | '
   else if (action === 'maximize') await window.toggleMaximize();
   else await window.close(); // 继续触发onCloseRequested，不能绕过会话退出保护。
 }
+
+/** 工程状态变化时同步原生窗口模式，浏览器保留响应式预览。 */
+export async function syncProjectWindow() {
+  if (isTauri()) await invoke('sync_project_window');
+}

@@ -90,3 +90,12 @@ it("浏览器不调用窗口API，桌面关闭仍走close-requested入口", asyn
  await operateWindow("drag");await operateWindow("minimize");await operateWindow("maximize");
  expect(mocks.drag).toHaveBeenCalledOnce();expect(mocks.minimize).toHaveBeenCalledOnce();expect(mocks.maximize).toHaveBeenCalledOnce();
 });
+
+it('窗口模式交给后端工程状态决定，浏览器不发出原生命令', async () => {
+  const { syncProjectWindow } = await import('./window');
+  await syncProjectWindow();
+  expect(mocks.invoke).toHaveBeenCalledWith('sync_project_window');
+  mocks.invoke.mockClear(); mocks.desktop = false;
+  await syncProjectWindow();
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});

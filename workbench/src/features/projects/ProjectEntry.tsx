@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { FolderOpen, FolderPlus, Folder, X, RefreshCw, Minus, Square } from 'lucide-react';
+import { FolderOpen, FolderPlus, Folder, X, RefreshCw, Minus } from 'lucide-react';
 import { bindProjectSession, createProjectClient, listenProjectCommands, type ProjectInfo, type ProjectStatus } from '../../shared/api/project';
-import { operateWindow, windowPlatform, armCloseGuard } from '../../shared/api/window';
+import { operateWindow, windowPlatform, armCloseGuard, syncProjectWindow } from '../../shared/api/window';
 import artwork from '../../assets/project-entry.png';
 /** 工程状态先于工作台装配，空态不创建任何业务 Store 或 Dockview。 */
 export function ProjectEntry({ children }: { children: (project: ProjectInfo) => ReactNode }) {
@@ -22,10 +22,11 @@ export function ProjectEntry({ children }: { children: (project: ProjectInfo) =>
     window.addEventListener('keydown', key);
     return () => { alive = false; cancel?.(); close?.(); window.removeEventListener('keydown', key); };
   }, [status?.project, !!status, busy]);
+  useEffect(() => { if (status) void syncProjectWindow().catch(e => setError(message(e))); }, [!!status, !!status?.project]);
   if (status?.project) return <>{children(status.project)}</>;
   const windowAction = (action: 'drag' | 'minimize' | 'maximize' | 'close') => { void operateWindow(action).catch(e => setError(message(e))); };
   return <main className={`project-entry platform-${platform}`} aria-busy={busy}>
-    <header className="entry-titlebar" onPointerDown={e => { if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return; e.preventDefault(); windowAction(e.detail === 2 ? 'maximize' : 'drag'); }}><span>ESSim</span>{(platform === 'windows' || platform === 'linux') && <div><button aria-label="最小化窗口" onClick={() => windowAction('minimize')}><Minus size={15}/></button><button aria-label="最大化或还原窗口" onClick={() => windowAction('maximize')}><Square size={14}/></button><button aria-label="关闭窗口" onClick={() => windowAction('close')}><X size={16}/></button></div>}</header>
+    <header className="entry-titlebar" onPointerDown={e => { if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return; e.preventDefault(); if (e.detail !== 2) windowAction('drag'); }}><span>ESSim</span>{(platform === 'windows' || platform === 'linux') && <div><button aria-label="最小化窗口" onClick={() => windowAction('minimize')}><Minus size={15}/></button><button aria-label="关闭窗口" onClick={() => windowAction('close')}><X size={16}/></button></div>}</header>
     {!status ? <div className="project-checking" role="status">正在检查最近工程…</div> : <div className="entry-layout">
       <aside className="entry-brand"><h1>储能协议工作台</h1><p>从工程开始</p><img src={artwork} alt="工程文件夹、点表与电池模组"/><small>配置与资源，随工程保存。</small></aside>
       <section className="entry-main"><h2>开始</h2><div className="entry-actions"><button className="entry-open" disabled={busy} onClick={() => void open('open')}><FolderOpen/><span><strong>打开工程</strong><small>选择已有工程文件</small></span><kbd>{platform === 'macos' ? '⌘' : 'Ctrl'} O</kbd></button><button disabled={busy} onClick={() => void open('create')}><FolderPlus/><span><strong>新建工程</strong><small>选择空文件夹创建工程</small></span></button></div>
