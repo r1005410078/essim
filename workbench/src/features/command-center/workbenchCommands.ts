@@ -1,3 +1,4 @@
+import {openApplicationLogDirectory} from '../../shared/api/diagnostics';
 import {CommandRegistry} from './commands';
 export interface WorkbenchCommandContext {
  canCreate:boolean;
@@ -22,5 +23,6 @@ export function createWorkbenchCommands(){
  registry.register({id:'workbench.save',title:'保存当前配置',category:'文件',enabled:c=>!!c.canSave&&!!c.requestSave,run:c=>c.requestSave?.()});
  for(const [edge,title] of [['left','切换左侧导航'],['right','切换右侧属性'],['bottom','切换底部面板']] as const)
   registry.register({id:`workbench.layout.${edge}`,title,category:'视图',enabled:c=>!!c.toggleLayout,run:c=>c.toggleLayout?.(edge)});
+ registry.register({id:'workbench.open.applicationLogs',title:'打开应用日志目录',category:'帮助',run:()=>openApplicationLogDirectory()});
  return registry;
 }

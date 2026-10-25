@@ -73,6 +73,25 @@ pub async fn prepare_project(
     engine: State<'_, Engine>,
     session: State<'_, ProjectSession>,
 ) -> Result<Option<Preparation>, ErrorDto> {
+    let operation = crate::diagnostics::next_operation("prepare_project");
+    let diagnostic_app = window.app_handle().clone();
+    let result =
+        prepare_project_inner(window, action, entry, current_window, engine, session).await;
+    if result.is_err() {
+        if let Some(log) = diagnostic_app.try_state::<crate::diagnostics::ApplicationLog>() {
+            crate::diagnostics::result(&log.log, "prepare_project", &operation, None, &result);
+        }
+    }
+    result
+}
+async fn prepare_project_inner(
+    window: tauri::WebviewWindow,
+    action: String,
+    entry: Option<std::path::PathBuf>,
+    current_window: Option<bool>,
+    engine: State<'_, Engine>,
+    session: State<'_, ProjectSession>,
+) -> Result<Option<Preparation>, ErrorDto> {
     let _guard = acquire(&session.operation)?;
     let app = window.app_handle().clone();
     app.state::<Windows>().ensure_open()?;
@@ -360,6 +379,23 @@ pub async fn commit_project(
     session: State<'_, ProjectSession>,
     batches: State<'_, super::batch::Batches>,
 ) -> Result<ProjectInfo, ErrorDto> {
+    let operation = crate::diagnostics::next_operation("commit_project");
+    let diagnostic_app = app.clone();
+    let result = commit_project_inner(app, token, engine, session, batches).await;
+    if result.is_err() {
+        if let Some(log) = diagnostic_app.try_state::<crate::diagnostics::ApplicationLog>() {
+            crate::diagnostics::result(&log.log, "commit_project", &operation, None, &result);
+        }
+    }
+    result
+}
+async fn commit_project_inner(
+    app: tauri::AppHandle,
+    token: String,
+    engine: State<'_, Engine>,
+    session: State<'_, ProjectSession>,
+    batches: State<'_, super::batch::Batches>,
+) -> Result<ProjectInfo, ErrorDto> {
     app.state::<Windows>().ensure_open()?;
     let _guard = acquire(&session.operation)?;
     let prepared = {
@@ -422,6 +458,22 @@ pub fn remove_recent_project(
 }
 #[tauri::command]
 pub async fn close_project(
+    window: tauri::WebviewWindow,
+    engine: State<'_, Engine>,
+    session: State<'_, ProjectSession>,
+    batches: State<'_, super::batch::Batches>,
+) -> Result<(), ErrorDto> {
+    let operation = crate::diagnostics::next_operation("close_project");
+    let diagnostic_app = window.app_handle().clone();
+    let result = close_project_inner(window, engine, session, batches).await;
+    if result.is_err() {
+        if let Some(log) = diagnostic_app.try_state::<crate::diagnostics::ApplicationLog>() {
+            crate::diagnostics::result(&log.log, "close_project", &operation, None, &result);
+        }
+    }
+    result
+}
+async fn close_project_inner(
     window: tauri::WebviewWindow,
     engine: State<'_, Engine>,
     session: State<'_, ProjectSession>,

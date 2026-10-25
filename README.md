@@ -178,3 +178,7 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 ## 多工程独立窗口（已实现，macOS 验收完成，2026-10-25）
 
 用户已确认同进程、每窗口一个工程：默认打开／新建使用新窗口，已打开工程直接恢复并激活其窗口；工程状态、通信、草稿和后台任务按窗口隔离。关闭窗口只影响自身，退出应用统一保护全部工程；启动仍只恢复最近活动的一个工程。独立 worktree 已接入，真实双工程通信和 macOS 主流程已验证；最小化恢复原窗口且无重复已由用户手工确认，22/22 项完成，Windows／Linux 原生行为仍待验。见[提案](openspec/changes/open-projects-in-independent-windows/proposal.md)与[实施记录](docs/test-records/2026-10-25-multi-project-windows.md)。工程格式、保存／显式应用和已有文件锁不变。
+
+## 应用诊断日志
+
+已接入独立系统目录的分级 JSONL 日志、进程会话锁、大小轮转、有界非阻塞队列、前后端异常和两秒退出刷新。顶部命令 `>打开应用日志目录` 打开固定目录，“问题”面板显示日志降级；同进程全部工程窗口共享，工程通信记录保持独立。macOS 已验，Windows／Linux 原生待验。见[使用说明](docs/operations/application-logging.md)与[验收记录](docs/test-records/2026-10-25-application-logging.md)。

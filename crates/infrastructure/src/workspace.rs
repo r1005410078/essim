@@ -719,7 +719,11 @@ impl WorkspaceEngine {
         if let Some(runtime) = &self.runtime {
             runtime.shutdown();
             if let Err(error) = runtime.flush_project_recording() {
-                eprintln!("运行数据库刷新未确认：{error}");
+                tracing::error!(
+                    event = "runtime_database_flush_failed",
+                    errorCode = error.code.as_str(),
+                    message = "运行数据库刷新未确认"
+                );
             }
         }
     }

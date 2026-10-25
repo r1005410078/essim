@@ -1,10 +1,7 @@
-import { Component, type ReactNode } from 'react';
+import {installExceptionHandlers, reportException} from './shared/api/diagnostics';
+import {WorkspaceBoundary} from './shared/ui/WorkspaceBoundary';
 import { createRoot } from 'react-dom/client';
 import './styles/globals.css';
-class WorkspaceBoundary extends Component<{ children: ReactNode }, { error?: string }> {
-  state: { error?: string } = {};
-  static getDerivedStateFromError(error: Error) { return { error: error.message }; }
-  render() { return this.state.error ? <div role="alert" className="p-4 text-sm text-destructive">工作台加载失败：{this.state.error}</div> : this.props.children; }
-}
+installExceptionHandlers();
 const root = createRoot(document.getElementById('root')!);
-import('./app/App').then(({ App }) => root.render(<WorkspaceBoundary><App /></WorkspaceBoundary>)).catch(error => root.render(<div role="alert">工作台加载失败：{String(error)}</div>));
+import('./app/App').then(({ App }) => root.render(<WorkspaceBoundary><App /></WorkspaceBoundary>)).catch(error => {reportException('entry_import',error);root.render(<div role="alert">工作台加载失败：{String(error)}</div>);});

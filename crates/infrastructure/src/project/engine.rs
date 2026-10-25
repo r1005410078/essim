@@ -279,6 +279,11 @@ impl WorkspaceEngine {
         w.replace_repository(Box::new(repository))?;
         self.partition_plans.0.lock().map_err(poison)?.clear();
         *self.project_root.lock().map_err(poison)? = Some(info.clone());
+        tracing::info!(
+            event = "project_opened",
+            projectId = info.id.as_str(),
+            message = "工程打开完成"
+        );
         Ok(info)
     }
     /// 关闭工程，确认通信资源和记录刷新后回到工程引导。
@@ -305,7 +310,13 @@ impl WorkspaceEngine {
             self.resources.clone(),
         )))?;
         self.partition_plans.0.lock().map_err(poison)?.clear();
-        *self.project_root.lock().map_err(poison)? = None;
+        if let Some(info) = self.project_root.lock().map_err(poison)?.take() {
+            tracing::info!(
+                event = "project_closed",
+                projectId = info.id.as_str(),
+                message = "工程关闭完成"
+            );
+        }
         Ok(())
     }
     /// 全应用退出时停止通信并确认记录刷新，但保留工程与文件锁，供其他窗口退出失败后继续使用。
