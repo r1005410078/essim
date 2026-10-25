@@ -595,3 +595,96 @@ fn project_runtime_protection_same_entry_and_reopen_never_autostarts() {
     drop(released);
     assert_eq!(engine.query().unwrap().catalog.endpoints.len(), 1);
 }
+
+#[cfg(feature = "tcp-runtime")]
+#[test]
+fn independent_projects_run_and_port_conflicts_do_not_stop_the_other() {
+    use essim_core::application::commands::{
+        slave::{SlaveAction, SlaveCommand},
+        Command,
+    };
+    use essim_core::domain::identity::EndpointId;
+    use essim_infrastructure::workspace::WorkspaceEngine;
+    use std::io::{Read, Write};
+    fn port() -> u16 {
+        let socket = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        socket.local_addr().unwrap().port()
+    }
+    fn command(engine: &WorkspaceEngine, value: serde_json::Value) {
+        engine
+            .execute(Command {
+                command_id: "configure".into(),
+                action: serde_json::from_value(value).unwrap(),
+            })
+            .unwrap();
+    }
+    fn endpoint(engine: &WorkspaceEngine, port: u16) {
+        command(
+            engine,
+            serde_json::json!({"kind":"createEndpoint","endpoint":{"id":"e","name":"E","role":"slave","transport":{"kind":"tcp","address":"127.0.0.1","port":port},"units":[{"id":"u","name":"U","station":1,"enabled":true,"model":{"id":"m"}}]}}),
+        );
+        command(
+            engine,
+            serde_json::json!({"kind":"apply","id":"e","resetIncompatible":false}),
+        );
+    }
+    fn start(engine: &WorkspaceEngine) -> Result<(), essim_core::domain::error::Error> {
+        engine
+            .execute_slave(SlaveCommand {
+                command_id: "start".into(),
+                endpoint: EndpointId("e".into()),
+                action: SlaveAction::Start { max_clients: 10 },
+            })
+            .map(|_| ())
+    }
+    fn read(port: u16) -> u16 {
+        let mut socket = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        socket
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .unwrap();
+        socket
+            .write_all(&[0, 1, 0, 0, 0, 6, 1, 3, 0, 0, 0, 1])
+            .unwrap();
+        let mut reply = [0; 11];
+        socket.read_exact(&mut reply).unwrap();
+        assert_eq!(&reply[..9], &[0, 1, 0, 0, 0, 5, 1, 3, 2]);
+        u16::from_be_bytes([reply[9], reply[10]])
+    }
+    let a = Temp::new();
+    let b = Temp::new();
+    let ea = WorkspaceEngine::with_tcp_runtime(a.0.join("fallback")).unwrap();
+    let eb = WorkspaceEngine::with_tcp_runtime(b.0.join("fallback")).unwrap();
+    ea.create_project(&a.0, "A").unwrap();
+    eb.create_project(&b.0, "B").unwrap();
+    for (engine, initial) in [(&ea, "3"), (&eb, "7")] {
+        command(
+            engine,
+            serde_json::json!({"kind":"saveModel","model":{"id":"m","name":"M","points":[{"id":"p","name":"P","category":"measurement","area":"holding","address":0,"valueType":"u16","scale":"1","unit":"","initial":{"kind":"unsigned","value":initial},"initialEngineering":initial,"byteOrder":"big","wordOrder":"big","note":"","slaveWritable":true,"masterPeriodMs":1000}]}}),
+        );
+    }
+    let pa = port();
+    endpoint(&ea, pa);
+    start(&ea).unwrap();
+    endpoint(&eb, pa);
+    assert!(start(&eb).is_err());
+    assert_eq!(read(pa), 3);
+    // 冲突后显式换到另一个空闲端口，不能自动改端口或停止 A。
+    let pb = port();
+    command(
+        &eb,
+        serde_json::json!({"kind":"saveEndpoint","endpoint":{"id":"e","name":"E","role":"slave","transport":{"kind":"tcp","address":"127.0.0.1","port":pb},"units":[{"id":"u","name":"U","station":1,"enabled":true,"model":{"id":"m"}}]}}),
+    );
+    command(
+        &eb,
+        serde_json::json!({"kind":"apply","id":"e","resetIncompatible":false}),
+    );
+    start(&eb).unwrap();
+    assert_eq!(read(pa), 3);
+    assert_eq!(read(pb), 7);
+    ea.prepare_project_exit().unwrap();
+    assert!(ea.project_info().unwrap().is_some());
+    assert_eq!(read(pb), 7);
+    ea.close_project().unwrap();
+    assert_eq!(read(pb), 7);
+    eb.close_project().unwrap();
+}

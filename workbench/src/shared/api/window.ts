@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 export async function armCloseGuard(
   hasSessionData: () => boolean,
   request: () => void,
+  cancelled?: () => void,
 ): Promise<() => void> {
   if (!isTauri()) return () => {};
   const cancelWindow = await getCurrentWindow().onCloseRequested((event) => {
@@ -13,14 +14,18 @@ export async function armCloseGuard(
       request();
     }
   });
-  const cancelExit = await listen("workbench-exit-requested", () => {
+  const cancelExit = await listenWindowEvent("workbench-exit-requested", () => {
     if (hasSessionData()) request();
     else void closeWorkbenchWindow();
   });
+  const cancelReset = await listen('workbench-exit-cancelled', () => cancelled?.());
+  const cancelError = await listenWindowEvent<string>('workbench-window-error', event => { cancelled?.(); window.dispatchEvent(new CustomEvent('workbench-window-error', {detail:event.payload})); });
   await invoke("set_exit_guard_ready", { ready: true });
   return () => {
     cancelWindow();
     cancelExit();
+    cancelReset();
+    cancelError();
     void invoke("set_exit_guard_ready", { ready: false });
   };
 }
@@ -33,7 +38,7 @@ export async function armEditCommands(
   handleDocument?: (action: "undo" | "redo" | "selectAll") => boolean,
 ): Promise<() => void> {
   if (!isTauri()) return () => {};
-  return listen<"undo" | "redo" | "selectAll">("workbench-edit", (event) => {
+  return listenWindowEvent<"undo" | "redo" | "selectAll">("workbench-edit", (event) => {
     const target = document.activeElement;
     if (!(target instanceof HTMLElement)) return;
     if (
@@ -60,7 +65,7 @@ export async function armEditCommands(
 /** 原生文件菜单保存与DOM保存快捷键共用当前文档操作。 */
 export async function armSaveCommand(save: () => void): Promise<() => void> {
   if (!isTauri()) return () => {};
-  return listen("workbench-save", save);
+  return listenWindowEvent("workbench-save", save);
 }
 
 export type WindowPlatform = 'browser' | 'macos' | 'windows' | 'linux';
@@ -77,4 +82,20 @@ export async function operateWindow(action: 'drag' | 'minimize' | 'maximize' | '
   else if (action === 'minimize') await window.minimize();
   else if (action === 'maximize') await window.toggleMaximize();
   else await window.close(); // 继续触发onCloseRequested，不能绕过会话退出保护。
+}
+
+/** 工程状态变化时同步原生窗口模式，浏览器保留响应式预览。 */
+export async function syncProjectWindow() {
+  if (isTauri()) await invoke('sync_project_window');
+}
+
+/** 取消全应用退出事务，普通关窗取消也可安全调用。 */
+export async function cancelApplicationExit() {
+  if (isTauri()) await invoke('cancel_application_exit');
+}
+
+/** 业务窗口事件显式限定接收方；默认 Any 监听不能用于多工程命令。 */
+export async function listenWindowEvent<T>(event: string, handler: (event: { payload: T }) => void): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  return listen<T>(event, handler, { target: { kind: 'Window', label: getCurrentWindow().label } });
 }

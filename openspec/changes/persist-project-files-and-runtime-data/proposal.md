@@ -29,3 +29,8 @@
 
 
 后续约定：[工程入口提案](../require-project-startup-and-switcher/proposal.md)取消正式桌面临时会话，无工程只显示引导，新建空工程；此处存储格式、保存／应用与可靠录制边界不变。原阶段验收记录保持历史范围。
+
+
+## 后续多窗口变更
+
+默认同窗口打开及单一当前工程的范围由 [open-projects-in-independent-windows](../open-projects-in-independent-windows/proposal.md) 取代；新方案默认新窗口、按规范路径激活已打开工程，仍保留显式当前窗口保护。上述历史设计和验收不作为多窗口已验收的证据。

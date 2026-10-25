@@ -130,6 +130,7 @@ import { ImportPoints } from "../features/workspace/ImportPoints";
 import { ModelDraft } from "../features/workspace/pointDraft";
 import {
   armCloseGuard,
+  cancelApplicationExit,
   armEditCommands,
   armSaveCommand,
   closeWorkbenchWindow,
@@ -890,7 +891,7 @@ function CloseDraftDialog({
 function ExitDialog({ cancel,flush }: { cancel: () => void;flush:()=>Promise<void> }) {
   const {store}=useWorkbench();
   const [busy,setBusy]=useState(false);
-  const exit=async()=>{setBusy(true);try{await flush();await closeWorkbenchWindow();}catch(e){store.error=errorMessage(e);store.changed();setBusy(false);}};
+  const exit=async()=>{setBusy(true);try{await flush();await closeWorkbenchWindow();}catch(e){await cancelApplicationExit();store.error=errorMessage(e);store.changed();setBusy(false);}};
   const ref = useRef<HTMLDialogElement>(null);
   return (
     <WorkbenchDialog ref={ref} busy={busy} onCancel={cancel} title="退出工程？">
@@ -1529,6 +1530,7 @@ function WorkspaceApp({project}:{project:ProjectInfo}) {
     close: () => void;
   } | null>(null);
   const [exitRequest, setExitRequest] = useState(false);
+  useEffect(() => { const error=(event:Event)=>{store.error=String((event as CustomEvent).detail);store.changed();};window.addEventListener('workbench-window-error',error);return()=>window.removeEventListener('workbench-window-error',error); }, [store]);
   const closeDocument = (id: string, close: () => void) => {
     const draft = id.startsWith("model:")
       ? store.modelDrafts.get(id.slice(6))
@@ -1553,6 +1555,7 @@ function WorkspaceApp({project}:{project:ProjectInfo}) {
           store.view?.catalog.navigation?.folders.length
         ),
       () => {if(!store.projectBusy)setExitRequest(true);},
+      () => setExitRequest(false),
     ).then((fn) => {
       if (active) dispose = fn;
       else fn();
@@ -1788,7 +1791,7 @@ function WorkspaceApp({project}:{project:ProjectInfo}) {
           />
         )}
         {persistence.dialogs}
-        {exitRequest && <ExitDialog cancel={() => setExitRequest(false)} flush={persistence.flush} />}
+        {exitRequest && <ExitDialog cancel={() => {setExitRequest(false);void cancelApplicationExit();}} flush={persistence.flush} />}
         {dialog && <CreateDialog kind={dialog} parent={creationParent} close={() => setDialog(null)} />}
       </Context.Provider>
     </TooltipProvider>

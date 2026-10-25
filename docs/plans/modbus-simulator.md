@@ -189,3 +189,10 @@ M07历史查看与离线回放已按用户要求撤回本轮实现与提案，�
 - [x] 用户确认左右分区启动引导、工程主题插画及标题栏三组布局，取消临时会话。
 - [x] 形成[提案与任务](../../openspec/changes/require-project-startup-and-switcher/proposal.md)，明确同窗口切换、最近列表、空工程新建、关闭回引导及后端门禁。
 - [x] 实现并完成 macOS 验收；取代 M08 原允许临时会话的交互目标，不修改既有配置格式或保存／应用边界。标题栏拖动由用户手工确认，Windows／Linux 待验；见[验收记录](../test-records/2026-10-24-project-entry.md)。
+
+
+### 工作台补充：多工程独立窗口（已实现并完成 macOS 验收，2026-10-25）
+
+- [x] 用户确认同进程、每窗口一个工程，默认新窗口打开，同工程只激活已有窗口。
+- [x] 形成[提案与任务](../../openspec/changes/open-projects-in-independent-windows/proposal.md)，覆盖上下文／IPC 隔离、路径去重、菜单归属、关闭和全应用退出、共享最近列表及单工程恢复。
+- [x] 完成本轮 macOS 验收；独立 worktree 已实现，22/22 项完成，最小化恢复原窗口且无重复已由用户手工确认，Windows／Linux 未验。不改变工程格式，不自动启动通信，不将多进程或跨工程拖放纳入本轮。见[实施记录](../test-records/2026-10-25-multi-project-windows.md)。

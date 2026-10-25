@@ -1,8 +1,8 @@
 //! 会话级批量命令／查询适配；窗口关闭不取消任务。
 use super::dto::ErrorDto;
+use crate::window_context::WindowState as State;
 use essim_infrastructure::batch_lifecycle::{BatchCoordinator, DraftDisposition, LifecyclePreview};
 use std::sync::Arc;
-use tauri::State;
 pub type Batches = Arc<BatchCoordinator>;
 /// 固定范围并生成有界预览。
 #[tauri::command]

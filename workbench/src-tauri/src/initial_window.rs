@@ -1,4 +1,4 @@
-//! 首次显示前约束窗口尺寸；不接管用户后续的移动、缩放或最大化。
+//! 约束首次窗口及工程引导尺寸；进入工作台后恢复用户的窗口边界。
 use tauri::{LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize};
 
 #[derive(Debug, PartialEq)]
@@ -101,4 +101,109 @@ mod tests {
             PhysicalPosition::new(-1600, 146)
         );
     }
+}
+
+/// 同一窗口进出引导页时保留工作台边界，避免固定启动尺寸覆盖工作台布局。
+#[derive(Default)]
+pub(crate) struct ProjectWindow(std::sync::Mutex<Option<WorkspaceBounds>>);
+struct WorkspaceBounds {
+    size: PhysicalSize<u32>,
+    position: PhysicalPosition<i32>,
+    maximized: bool,
+}
+
+impl ProjectWindow {
+    pub(crate) fn apply(&self, window: &tauri::WebviewWindow, launcher: bool) -> tauri::Result<()> {
+        let mut saved = self
+            .0
+            .lock()
+            .map_err(|_| tauri::Error::Io(std::io::Error::other("窗口布局锁不可用")))?;
+        if launcher {
+            if saved.is_some() {
+                return Ok(());
+            }
+            let bounds = WorkspaceBounds {
+                size: window.inner_size()?,
+                position: window.outer_position()?,
+                maximized: window.is_maximized()?,
+            };
+            if window.is_fullscreen()? {
+                window.set_fullscreen(false)?;
+            }
+            window.unmaximize()?;
+            window.set_resizable(true)?;
+            window.set_min_size(None::<LogicalSize<f64>>)?;
+            let preferred = LogicalSize::new(960.0, 720.0);
+            let size =
+                if let Some(monitor) = window.current_monitor()?.or(window.primary_monitor()?) {
+                    fit_size(preferred, monitor.work_area().size, monitor.scale_factor()).size
+                } else {
+                    preferred
+                };
+            window.set_size(size)?;
+            window.center()?;
+            window.set_maximizable(false)?;
+            window.set_resizable(false)?;
+            *saved = Some(bounds);
+        } else if let Some(bounds) = saved.as_ref() {
+            window.set_resizable(true)?;
+            window.set_maximizable(true)?;
+            window.set_size(bounds.size)?;
+            window.set_position(bounds.position)?;
+            let logical = bounds.size.to_logical::<f64>(window.scale_factor()?);
+            window.set_min_size(Some(LogicalSize::new(
+                900.0_f64.min(logical.width),
+                600.0_f64.min(logical.height),
+            )))?;
+            if bounds.maximized {
+                window.maximize()?;
+            }
+            *saved = None;
+        }
+        Ok(())
+    }
+}
+
+/// 由后端工程状态决定启动页固定尺寸或工作台可缩放模式。
+#[tauri::command]
+pub(crate) fn sync_project_window(
+    window: tauri::WebviewWindow,
+    engine: crate::window_context::WindowState<
+        '_,
+        std::sync::Arc<essim_infrastructure::workspace::WorkspaceEngine>,
+    >,
+    layout: crate::window_context::WindowState<'_, ProjectWindow>,
+) -> Result<(), String> {
+    let project = engine.project_info().map_err(|e| e.to_string())?;
+    let launcher = project.is_none();
+    window
+        .set_title(
+            &project
+                .as_ref()
+                .map(|p| format!("ESSim · {}", p.name))
+                .unwrap_or_else(|| "ESSim".into()),
+        )
+        .map_err(|e| e.to_string())?;
+    layout
+        .apply(&window, launcher)
+        .and_then(|_| window.show())
+        .map_err(|e| e.to_string())?;
+    use tauri::Manager;
+    let windows = window.state::<crate::window_context::Windows>();
+    let context = windows.context(window.label()).map_err(|e| e.to_string())?;
+    if context
+        .pending_window
+        .swap(false, std::sync::atomic::Ordering::AcqRel)
+    {
+        if let Some(info) = engine.project_info().map_err(|e| e.to_string())? {
+            windows
+                .index
+                .lock()
+                .unwrap()
+                .publish(info.entry, window.label());
+        }
+        window.set_focus().map_err(|e| e.to_string())?;
+        crate::window_lifecycle::focused(window.app_handle(), window.label());
+    }
+    Ok(())
 }

@@ -3,6 +3,7 @@ use super::{
     dto::{ErrorDto, WorkspaceView},
     Engine,
 };
+use crate::window_context::WindowState as Managed;
 use essim_core::domain::error::Error;
 use std::{
     collections::HashMap,
@@ -13,7 +14,7 @@ use std::{
     thread::{self, JoinHandle},
     time::Duration,
 };
-use tauri::{ipc::Channel, State as Managed};
+use tauri::ipc::Channel;
 
 /// 一个订阅的停止信号与线程句柄，由 Subscriptions 持有直至取消或回收。
 struct Subscription {
@@ -30,13 +31,20 @@ pub struct Subscriptions {
     /// 订阅 ID 到停止信号、线程句柄的对应关系。
     items: Mutex<HashMap<String, Subscription>>,
 }
+impl Subscriptions {
+    pub(crate) fn shutdown(&self) {
+        let subscriptions: Vec<_> = self.items.lock().unwrap().drain().map(|(_, s)| s).collect();
+        for subscription in &subscriptions {
+            subscription.cancel.store(true, Ordering::Release);
+        }
+        for subscription in subscriptions {
+            let _ = subscription.join.join();
+        }
+    }
+}
 impl Drop for Subscriptions {
     fn drop(&mut self) {
-        // 集合销毁时已独占访问；对所有剩余订阅发出停止信号并等待线程结束。
-        for (_, s) in self.items.get_mut().unwrap().drain() {
-            s.cancel.store(true, Ordering::Release);
-            let _ = s.join.join();
-        }
+        self.shutdown();
     }
 }
 /// 订阅会话配置目录，通过 IPC Channel 推送完整快照，并返回用于取消的订阅 ID。
@@ -142,10 +150,6 @@ mod tests {
             let flag = Arc::new(AtomicBool::new(false));
             let worker_flag = flag.clone();
             let completed = completed.clone();
-            let session = engine
-                .project_info()?
-                .map(|p| p.session)
-                .unwrap_or_default();
             let join = thread::spawn(move || {
                 while !worker_flag.load(Ordering::Acquire) {
                     thread::sleep(Duration::from_millis(1));

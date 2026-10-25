@@ -2,8 +2,9 @@
 mod commands;
 mod initial_window;
 mod native_menu;
-use essim_infrastructure::workspace::WorkspaceEngine;
-use std::sync::Arc;
+mod window_context;
+mod window_index;
+mod window_lifecycle;
 use tauri::{Emitter, Manager};
 /// 工作台完成工程退出保护后才允许退出；无工程引导页可直接关闭。
 #[derive(Default)]
@@ -16,49 +17,95 @@ pub fn run() {
     tauri::Builder::default()
         .menu(native_menu::build)
         .on_menu_event(native_menu::dispatch)
-        .manage(ExitPermission::default())
         .setup(|app| {
-            let record_root = app.path().app_data_dir()?.join("runs");
-            let engine = Arc::new(WorkspaceEngine::with_tcp_runtime(record_root.clone())?);
-            app.manage(Arc::new(
-                essim_infrastructure::batch_lifecycle::BatchCoordinator::new(engine.clone())?,
-            ));
-            engine.require_project();
-            let recent =
-                essim_infrastructure::project::RecentProject::new(&app.path().app_data_dir()?);
-            let startup_error = match recent.load() {
-                Ok(Some(path)) => match engine.open_project(&path) {
-                    Ok(info) => recent
-                        .save_named(Some(&info.entry), Some(&info.name))
-                        .err()
-                        .map(|e| format!("工程已恢复，但最近工程设置未保存：{e}")),
-                    Err(error) => Some(error.to_string()),
+            let registry = window_context::Windows::new(app.path().app_data_dir()?);
+            let context = window_context::ProjectContext::new(
+                registry.root.join("runs"),
+                registry.recent.clone(),
+            )?;
+            let restored = match registry.recent.load() {
+                Ok(Some(path)) => match context.engine.open_project(&path) {
+                    Ok(info) => {
+                        registry
+                            .index
+                            .lock()
+                            .unwrap()
+                            .publish(info.entry.clone(), "main");
+                        registry
+                            .recent
+                            .save_named(Some(&info.entry), Some(&info.name))
+                            .err()
+                            .map(|e| e.to_string())
+                    }
+                    Err(e) => Some(e.to_string()),
                 },
                 Ok(None) => None,
                 Err(e) => Some(e.to_string()),
             };
-            app.manage(commands::project::ProjectSession {
-                recent,
-                startup_error: std::sync::Mutex::new(startup_error),
-                operation: std::sync::atomic::AtomicBool::new(false),
-                prepared: std::sync::Mutex::new(None),
-            });
-            app.manage(engine);
+            *context.session.startup_error.lock().unwrap() = restored;
+            let launcher = context.engine.project_info()?.is_none();
+            registry
+                .contexts
+                .lock()
+                .unwrap()
+                .insert("main".into(), context.clone());
+            *registry.active.lock().unwrap() = Some("main".into());
+            app.manage(registry);
             if let Some(window) = app.get_webview_window("main") {
-                // macOS保留原生红绿灯；其他桌面由工作台提供窗口操作按钮。
                 #[cfg(not(target_os = "macos"))]
                 window.set_decorations(false)?;
-                if let Err(error) = initial_window::configure(&window) {
-                    // 系统不提供工作区信息时仍以配置尺寸显示，不让工作台停留在隐藏状态。
-                    eprintln!("无法调整首次窗口尺寸：{error}");
-                }
+                initial_window::configure(&window)?;
+                context.layout.apply(&window, launcher)?;
                 window.show()?;
             }
             Ok(())
         })
-        .manage(commands::subscriptions::Subscriptions::default())
-        .manage(commands::point_table::PointFileJobs::default())
+        .on_window_event(|window, event| {
+            let app = window.app_handle();
+            match event {
+                tauri::WindowEvent::Focused(true) => window_lifecycle::focused(app, window.label()),
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    if let Ok(c) = app
+                        .state::<window_context::Windows>()
+                        .context(window.label())
+                    {
+                        if !c
+                            .permission
+                            .confirmed
+                            .load(std::sync::atomic::Ordering::Acquire)
+                        {
+                            api.prevent_close();
+                            if !app
+                                .state::<window_context::Windows>()
+                                .quitting
+                                .load(std::sync::atomic::Ordering::Acquire)
+                            {
+                                let _ = app.emit_to(window.label(), "workbench-exit-requested", ());
+                            }
+                        }
+                    }
+                }
+                tauri::WindowEvent::Destroyed => {
+                    let windows = app.state::<window_context::Windows>();
+                    let removed = windows.contexts.lock().unwrap().remove(window.label());
+                    windows.index.lock().unwrap().release(window.label());
+                    if let Some(c) = removed {
+                        // 异常销毁也仅回收自身；不在窗口事件线程等待后台协议。
+                        tauri::async_runtime::spawn_blocking(move || {
+                            c.jobs.cancel_all();
+                            c.subscriptions.shutdown();
+                            let _ = c.batches.request_shutdown();
+                            c.batches.wait_idle();
+                            c.engine.shutdown_slave();
+                            let _ = c.engine.close_project();
+                        });
+                    }
+                }
+                _ => {}
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            initial_window::sync_project_window,
             commands::project::query_project,
             commands::project::load_project_document,
             commands::project::prepare_project,
@@ -87,6 +134,8 @@ pub fn run() {
             commands::slave::execute_slave,
             commands::slave::query_slave,
             commands::simulator::exit_workbench,
+            window_lifecycle::approve_window_exit,
+            window_lifecycle::cancel_application_exit,
             commands::simulator::set_exit_guard_ready,
             commands::simulator::preview_apply,
             commands::simulator::resolve_unit,
@@ -107,23 +156,29 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("无法启动ESSim工作台")
         .run(|app, event| {
-            if matches!(&event, tauri::RunEvent::Exit) {
-                let batches = app.state::<commands::batch::Batches>();
-                let _ = batches.request_shutdown();
-                batches.wait_idle();
-                app.state::<Arc<WorkspaceEngine>>().shutdown_slave();
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = &event
+            {
+                if let Some(label) = app.state::<window_context::Windows>().active_label() {
+                    let _ = window_lifecycle::activate(app, &label);
+                }
             }
-            // macOS Cmd+Q不经过Window::CloseRequested，必须单独送至前端确认。
             if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                let permission = app.state::<ExitPermission>();
-                if permission.armed.load(std::sync::atomic::Ordering::Acquire)
-                    && !permission
-                        .confirmed
-                        .load(std::sync::atomic::Ordering::Acquire)
-                    && app.get_webview_window("main").is_some()
-                {
+                let windows = app.state::<window_context::Windows>();
+                let contexts = windows.contexts.lock().unwrap();
+                let allowed = contexts.is_empty()
+                    || contexts.values().all(|c| {
+                        c.permission
+                            .confirmed
+                            .load(std::sync::atomic::Ordering::Acquire)
+                    });
+                drop(contexts);
+                if !allowed {
                     api.prevent_exit();
-                    let _ = app.emit_to("main", "workbench-exit-requested", ());
+                    window_lifecycle::request_quit(app);
                 }
             }
         });
