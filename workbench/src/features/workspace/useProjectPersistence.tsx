@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { WorkbenchDialog, DialogBody, DialogFooter } from '@essim/ui/components/workbench-dialog';
-import { createProjectClient, listenProjectCommands, type ProjectPreparation } from '../../shared/api/project';
+import { createProjectClient, listenProjectCommands, listenRecentProjects, type ProjectPreparation } from '../../shared/api/project';
 import { draftRecovery, hasRecovery, restoreDraftRecovery, combineRecovery, recoverySets, type DraftRecovery } from './projectRecovery';
 import { errorMessage, type WorkspaceStore, type Target } from './model';
 
@@ -68,6 +68,7 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     return () => { cancel(); clearTimeout(timer); };
   }, [store]);
   useEffect(() => { let alive = true, dispose: (() => void) | undefined; void listenProjectCommands(action => { if (!busy) void request(action); }).then(cancel => { if (alive) dispose = cancel; else cancel(); }); return () => { alive = false; dispose?.(); }; }, [busy]);
+  useEffect(() => { let active=true; let dispose:(()=>void)|undefined; void listenRecentProjects(()=>{void client.status().then(s=>{if(active)setRecent(s.recent??[]);}).catch(fail);}).then(fn=>{if(active)dispose=fn;else fn();});return()=>{active=false;dispose?.();}; }, [client]);
   useEffect(() => {
     let active = true, pending = false, last = '';
     const timer = setInterval(() => { if (pending || !store.project) return; pending = true; void client.status().then(status => { const message = status.runtimeData?.error; if (active && message && message !== last) { last = message; fail(`运行数据库记录不完整：${message}`); } }).catch(() => { }).finally(() => { pending = false; }); }, 2000);
@@ -80,17 +81,17 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     window.location.reload();
   };
   const cancel = () => { if (busy) return; if (prepared.current) void client.cancel(prepared.current.token).catch(fail); prepared.current = null; setAction(null); };
-  const request = async (next: 'create' | 'open' | 'close', entry?: string) => {
+  const request = async (next: 'create' | 'open' | 'open-current' | 'close', entry?: string) => {
     if (busy || store.busy) return; setBusy(true);
     try {
-      const target = next === 'close' ? null : await client.prepare(next, entry);
-      if (next !== 'close' && !target) return;
+      const target = next === 'close' ? null : await client.prepare(next === 'open-current' ? 'open' : next, entry, next === 'open-current');
+      if (next !== 'close' && (!target || target.handled)) return;
       if (target?.same) { await client.cancel(target.token); return; }
       prepared.current = target;
       const current = await client.status();
       const needsProtection = hasRecovery(draftRecovery(store)) || current.requiresStop;
-      if (needsProtection) setAction(next);
-      else await complete(next, target);
+      if (needsProtection) setAction(next === 'open-current' ? 'open' : next);
+      else await complete(next === 'open-current' ? 'open' : next, target);
     } catch (e) { fail(e); if (prepared.current) void client.cancel(prepared.current.token).catch(fail); prepared.current=null; } finally { setBusy(false); }
   };
   const perform = async () => {
@@ -108,5 +109,5 @@ export function useProjectPersistence(store: WorkspaceStore, api: RefObject<Dock
     {action && <WorkbenchDialog title={action === 'create' ? '新建工程' : action === 'open' ? '打开工程' : '关闭工程'} initialWidth={400} busy={busy} onCancel={cancel}><DialogBody><p>{action === 'create' ? '将在所选目录创建空工程，不复制当前资源。' : '切换前会停止当前工程通信。'}</p><p>未保存草稿会保留在当前工程恢复区；运行通信会停止。</p></DialogBody><DialogFooter><button type="button" disabled={busy} onClick={cancel}>取消</button><button type="button" disabled={busy || store.busy} onClick={() => void perform()}>{action === 'close' ? '关闭工程' : '切换工程'}</button></DialogFooter></WorkbenchDialog>}
     {recovery && <WorkbenchDialog title="发现未保存草稿" initialWidth={400} busy={busy} onCancel={() => { if (!busy) setRecovery(null); }}><DialogBody><p>可恢复上次未保存修改。正式资源已变化的草稿会保留副本，不覆盖文件。</p></DialogBody><DialogFooter><button type="button" disabled={busy} onClick={() => void decideRecovery(false)}>丢弃草稿</button><button type="button" disabled={busy} onClick={() => void decideRecovery(true)}>恢复草稿</button></DialogFooter></WorkbenchDialog>}
   </>;
-  return { request: (action: 'create' | 'open' | 'close', entry?: string) => { void request(action, entry); }, recent, dialogs, flush };
+  return { request: (action: 'create' | 'open' | 'open-current' | 'close', entry?: string) => { void request(action, entry); }, recent, dialogs, flush };
 }

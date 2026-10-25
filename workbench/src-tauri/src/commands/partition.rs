@@ -1,6 +1,6 @@
 //! 点位分组预览及一次创建IPC；不自动应用或运行。
 use super::{dto::ErrorDto, Engine};
-use tauri::State;
+use crate::window_context::WindowState as State;
 /// 使用实际接口枚举和当前已保存模型生成预览。
 #[tauri::command]
 pub async fn preview_partition(

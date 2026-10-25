@@ -1,10 +1,10 @@
 //! TCP主站IPC适配，业务规则属于core及运行所有者。
 use super::{dto::ErrorDto, Engine};
+use crate::window_context::WindowState as State;
 use essim_core::application::{
     commands::master::MasterCommand,
     queries::master::{MasterQuery, MasterView},
 };
-use tauri::State;
 /// 提交主站操作，不阻塞窗口线程。
 /// # Errors
 /// 参数、配置或运行服务不可用。

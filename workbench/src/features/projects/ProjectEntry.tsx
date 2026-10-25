@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FolderOpen, FolderPlus, Folder, X, RefreshCw, Minus } from 'lucide-react';
-import { bindProjectSession, createProjectClient, listenProjectCommands, type ProjectInfo, type ProjectStatus } from '../../shared/api/project';
+import { bindProjectSession, createProjectClient, listenProjectCommands, listenRecentProjects, type ProjectInfo, type ProjectStatus } from '../../shared/api/project';
 import { operateWindow, windowPlatform, armCloseGuard, syncProjectWindow } from '../../shared/api/window';
 import artwork from '../../assets/project-entry.png';
 /** 工程状态先于工作台装配，空态不创建任何业务 Store 或 Dockview。 */
@@ -11,18 +11,19 @@ export function ProjectEntry({ children }: { children: (project: ProjectInfo) =>
   useEffect(() => { let active = true; void client.status().then(next => { if (active) { bindProjectSession(next.project?.session ?? ''); setStatus(next); setError(next.startupError ?? ''); } }).catch(e => { if (active) { setStatus({ project: null, startupError: null }); setError(message(e)); } }); return () => { active = false; }; }, [client]);
   const open = async (action: 'open' | 'create', entry?: string) => {
     if (busy) return; setBusy(true); setError('');
-    try { const target = await client.prepare(action, entry); if (!target) return; const project = await client.commit(target.token); bindProjectSession(project.session); setStatus({ project, startupError: null }); } catch (e) { setError(message(e)); } finally { setBusy(false); }
+    try { const target = await client.prepare(action, entry); if (!target || target.handled) return; const project = await client.commit(target.token); bindProjectSession(project.session); setStatus({ project, startupError: null }); } catch (e) { setError(message(e)); } finally { setBusy(false); }
   };
   useEffect(() => {
     if (!status || status.project) return;
     let alive = true, cancel: (() => void) | undefined, close: (() => void) | undefined;
-    void listenProjectCommands(action => { if (action !== 'close') void open(action); }).then(fn => { if (alive) cancel = fn; else fn(); });
+    void listenProjectCommands(action => { if (action !== 'close') void open(action === 'open-current' ? 'open' : action); }).then(fn => { if (alive) cancel = fn; else fn(); });
     void armCloseGuard(() => busy, () => {}).then(fn => { if (alive) close = fn; else fn(); });
     const key = (e: KeyboardEvent) => { if (platform !== 'browser') return; if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o' && !e.repeat) { e.preventDefault(); void open('open'); } };
     window.addEventListener('keydown', key);
     return () => { alive = false; cancel?.(); close?.(); window.removeEventListener('keydown', key); };
   }, [status?.project, !!status, busy]);
   useEffect(() => { if (status) void syncProjectWindow().catch(e => setError(message(e))); }, [!!status, !!status?.project]);
+  useEffect(() => { let active=true, dispose:(()=>void)|undefined; void listenRecentProjects(()=>{if(!status?.project)void refresh();}).then(fn=>{if(active)dispose=fn;else fn();}); return()=>{active=false;dispose?.();}; }, [!!status?.project]);
   if (status?.project) return <>{children(status.project)}</>;
   const windowAction = (action: 'drag' | 'minimize' | 'maximize' | 'close') => { void operateWindow(action).catch(e => setError(message(e))); };
   return <main className={`project-entry platform-${platform}`} aria-busy={busy}>

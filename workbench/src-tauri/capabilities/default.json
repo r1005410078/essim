@@ -3,7 +3,7 @@
   "identifier": "default",
   "description": "工作台窗口基础权限",
   "windows": [
-    "main"
+    "main", "project-*"
   ],
   "permissions": [
     "core:default",

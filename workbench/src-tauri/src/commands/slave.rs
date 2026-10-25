@@ -1,10 +1,10 @@
 //! 真实TCP从站IPC，运行操作不冒充配置提交。
 use super::{dto::ErrorDto, Engine};
+use crate::window_context::WindowState as State;
 use essim_core::application::{
     commands::slave::SlaveCommand,
     queries::slave::{SlaveQuery, SlaveView},
 };
-use tauri::State;
 /// 将真实运行命令交给固定线程所有者，不阻塞窗口线程。
 /// # Errors
 /// 参数、配置、监听、记录或执行器故障。
@@ -39,6 +39,7 @@ pub async fn query_slave(
 /// 超过8MiB、不是JSON或文件写入失败。
 #[tauri::command]
 pub async fn export_observations(
+    window: tauri::WebviewWindow,
     _access: super::project_access::ProjectAccess,
     content: String,
 ) -> Result<bool, ErrorDto> {
@@ -51,6 +52,7 @@ pub async fn export_observations(
         ));
     }
     let Some(target) = rfd::AsyncFileDialog::new()
+        .set_parent(&window)
         .add_filter("观测视图", &["json"])
         .set_file_name("通信观测.json")
         .save_file()

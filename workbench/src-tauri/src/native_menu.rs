@@ -78,33 +78,25 @@ pub(crate) fn build(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     )
 }
 pub(crate) fn dispatch(app: &AppHandle, event: tauri::menu::MenuEvent) {
+    let target = app.state::<crate::window_context::Windows>().active_label();
+    let target = target.as_deref().unwrap_or("");
     match event.id.as_ref() {
-        "workbench-quit" => {
-            if app
-                .state::<crate::ExitPermission>()
-                .armed
-                .load(std::sync::atomic::Ordering::Acquire)
-            {
-                let _ = app.emit_to("main", "workbench-exit-requested", ());
-            } else {
-                app.exit(0);
-            }
-        }
+        "workbench-quit" => crate::window_lifecycle::request_quit(app),
         "project-create" | "project-open" | "project-close" => {
             let action = event.id.as_ref().strip_prefix("project-").unwrap_or("open");
-            let _ = app.emit_to("main", "workbench-project", action);
+            let _ = app.emit_to(target, "workbench-project", action);
         }
         "workbench-save" => {
-            let _ = app.emit_to("main", "workbench-save", ());
+            let _ = app.emit_to(target, "workbench-save", ());
         }
         "workbench-undo" => {
-            let _ = app.emit_to("main", "workbench-edit", "undo");
+            let _ = app.emit_to(target, "workbench-edit", "undo");
         }
         "workbench-redo" => {
-            let _ = app.emit_to("main", "workbench-edit", "redo");
+            let _ = app.emit_to(target, "workbench-edit", "redo");
         }
         "workbench-selectAll" => {
-            let _ = app.emit_to("main", "workbench-edit", "selectAll");
+            let _ = app.emit_to(target, "workbench-edit", "selectAll");
         }
         _ => {}
     }

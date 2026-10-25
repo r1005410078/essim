@@ -308,6 +308,23 @@ impl WorkspaceEngine {
         *self.project_root.lock().map_err(poison)? = None;
         Ok(())
     }
+    /// 全应用退出时停止通信并确认记录刷新，但保留工程与文件锁，供其他窗口退出失败后继续使用。
+    ///
+    /// # Errors
+    /// 活动请求、停机或记录刷新失败时返回错误；已停止端点不自动重启。
+    pub fn prepare_project_exit(&self) -> Result<(), Error> {
+        let _project = self.project_gate.write().map_err(poison)?;
+        self.ensure_no_clients()?;
+        let (endpoints, permits) = {
+            let w = self.workspace.lock().map_err(poison)?;
+            (
+                w.catalog_ref().endpoints.clone(),
+                self.stop_permits(w.catalog_ref())?,
+            )
+        };
+        self.stop_project(&endpoints, &permits)?;
+        self.flush_project_records()
+    }
     fn stop_project(
         &self,
         endpoints: &[essim_core::domain::endpoint::EndpointConfig],

@@ -3,30 +3,14 @@ use super::{
     dto::{Command, ErrorDto, Receipt, WorkspaceView},
     Engine,
 };
-use tauri::State;
+use crate::window_context::WindowState as State;
 /// 用户确认工程草稿保护后退出；窗口销毁不替代配置保存。
 #[tauri::command]
 pub(crate) async fn exit_workbench(
+    window: tauri::WebviewWindow,
     app: tauri::AppHandle,
-    permission: State<'_, crate::ExitPermission>,
-    engine: State<'_, Engine>,
-    batches: State<'_, super::batch::Batches>,
 ) -> Result<(), ErrorDto> {
-    let batches = batches.inner().clone();
-    let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let _ = batches.request_shutdown();
-        batches.wait_idle();
-        engine.shutdown_slave();
-        engine.flush_project_records()
-    })
-    .await
-    .map_err(|_| ErrorDto::new("SHUTDOWN_FAILED", "运行资源回收任务失败"))??;
-    permission
-        .confirmed
-        .store(true, std::sync::atomic::Ordering::Release);
-    app.exit(0);
-    Ok(())
+    crate::window_lifecycle::approve_window_exit(window, app).await
 }
 /// 窗口保护处理器安装完成后启用；加载失败时仍可正常关闭窗口。
 #[tauri::command]

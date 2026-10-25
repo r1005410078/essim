@@ -1,5 +1,6 @@
 //! 点表预览及本机文件适配；选择对话框与后台格式转换不进入业务组件。
 use super::{dto::ErrorDto, Engine};
+use crate::window_context::WindowState as State;
 use essim_core::domain::error::Error;
 use essim_infrastructure::point_exchange::{self, DraftInput, DraftPreview, InputFile, MAX_BYTES};
 use std::{
@@ -10,11 +11,18 @@ use std::{
         Arc, Mutex,
     },
 };
-use tauri::State;
 
 /// 当前会话文件任务的取消令牌，不携带模型或协议状态。
 #[derive(Default)]
 pub struct PointFileJobs(Mutex<HashMap<String, Arc<AtomicBool>>>);
+impl PointFileJobs {
+    pub(crate) fn cancel_all(&self) {
+        for flag in self.0.lock().unwrap().values() {
+            flag.store(true, Ordering::Release);
+        }
+    }
+}
+
 /// 中止指定文件任务；后台在安全的行／表边界退出。
 /// # Errors
 /// 任务注册锁中毒时失败。
@@ -46,6 +54,7 @@ pub async fn preview_point_table(
 /// 文件过大、读取或格式错误时失败。
 #[tauri::command]
 pub async fn open_point_file(
+    window: tauri::WebviewWindow,
     _access: super::project_access::ProjectAccess,
     job_id: String,
     jobs: State<'_, PointFileJobs>,
@@ -63,6 +72,7 @@ pub async fn open_point_file(
     }
     let result = async {
         let Some(file) = rfd::AsyncFileDialog::new()
+            .set_parent(&window)
             .add_filter("点表", &["json", "csv", "xlsx"])
             .pick_file()
             .await
@@ -107,6 +117,7 @@ pub async fn open_point_file(
 /// 模型不存在、格式写出或文件系统操作失败。
 #[tauri::command]
 pub async fn export_point_file(
+    window: tauri::WebviewWindow,
     _access: super::project_access::ProjectAccess,
     id: String,
     format: String,
@@ -119,18 +130,20 @@ pub async fn export_point_file(
         .into_iter()
         .find(|m| m.id.0 == id)
         .ok_or_else(|| Error::new("MODEL_NOT_FOUND", "保存模型不存在"))?;
-    save_exchange(model, format).await
+    save_exchange(&window, model, format).await
 }
 /// 显式输出空点表模板，不读取或修改模型目录。
 /// # Errors
 /// 格式非法或文件写出失败时返回错误；系统取消返回false。
 #[tauri::command]
 pub async fn export_point_template(
+    window: tauri::WebviewWindow,
     _access: super::project_access::ProjectAccess,
     format: String,
 ) -> Result<bool, ErrorDto> {
     use essim_core::domain::{identity::ModelId, model::CollectionModel};
     save_exchange(
+        &window,
         CollectionModel {
             id: ModelId("template".into()),
             name: "点表模板".into(),
@@ -141,6 +154,7 @@ pub async fn export_point_template(
     .await
 }
 async fn save_exchange(
+    window: &tauri::WebviewWindow,
     model: essim_core::domain::model::CollectionModel,
     format: String,
 ) -> Result<bool, ErrorDto> {
@@ -148,6 +162,7 @@ async fn save_exchange(
         return Err(Error::new("FILE_FORMAT", "未知导出格式"));
     }
     let Some(target) = rfd::AsyncFileDialog::new()
+        .set_parent(&window)
         .add_filter("点表", &[&format])
         .set_file_name(format!("点表.{format}"))
         .save_file()
@@ -170,6 +185,7 @@ async fn save_exchange(
 /// 引用缺失、覆盖非法、格式不支持、编码或文件写入失败。
 #[tauri::command]
 pub async fn export_unit_points(
+    window: tauri::WebviewWindow,
     _access: super::project_access::ProjectAccess,
     endpoint: String,
     unit: String,
@@ -185,5 +201,5 @@ pub async fn export_unit_points(
     })
     .await
     .map_err(|_| ErrorDto::new("EXPORT_FAILED", "有效点表读取失败"))??;
-    save_exchange(model, format).await
+    save_exchange(&window, model, format).await
 }

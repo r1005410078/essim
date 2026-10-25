@@ -168,9 +168,42 @@ impl ProjectWindow {
 #[tauri::command]
 pub(crate) fn sync_project_window(
     window: tauri::WebviewWindow,
-    engine: tauri::State<'_, std::sync::Arc<essim_infrastructure::workspace::WorkspaceEngine>>,
-    layout: tauri::State<'_, ProjectWindow>,
+    engine: crate::window_context::WindowState<
+        '_,
+        std::sync::Arc<essim_infrastructure::workspace::WorkspaceEngine>,
+    >,
+    layout: crate::window_context::WindowState<'_, ProjectWindow>,
 ) -> Result<(), String> {
-    let launcher = engine.project_info().map_err(|e| e.to_string())?.is_none();
-    layout.apply(&window, launcher).map_err(|e| e.to_string())
+    let project = engine.project_info().map_err(|e| e.to_string())?;
+    let launcher = project.is_none();
+    window
+        .set_title(
+            &project
+                .as_ref()
+                .map(|p| format!("ESSim · {}", p.name))
+                .unwrap_or_else(|| "ESSim".into()),
+        )
+        .map_err(|e| e.to_string())?;
+    layout
+        .apply(&window, launcher)
+        .and_then(|_| window.show())
+        .map_err(|e| e.to_string())?;
+    use tauri::Manager;
+    let windows = window.state::<crate::window_context::Windows>();
+    let context = windows.context(window.label()).map_err(|e| e.to_string())?;
+    if context
+        .pending_window
+        .swap(false, std::sync::atomic::Ordering::AcqRel)
+    {
+        if let Some(info) = engine.project_info().map_err(|e| e.to_string())? {
+            windows
+                .index
+                .lock()
+                .unwrap()
+                .publish(info.entry, window.label());
+        }
+        window.set_focus().map_err(|e| e.to_string())?;
+        crate::window_lifecycle::focused(window.app_handle(), window.label());
+    }
+    Ok(())
 }
